@@ -57,4 +57,21 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
   name: 'generateWooCommerceProductContentPrompt',
   input: {schema: GenerateWooCommerceProductContentInputSchema},
   output: {schema: GenerateWooCommerceProductContentOutputSchema},
-  prompt: `You are a specialized e-commerce content optimizer, focused on high conversion and excellent SEO performance in the **Addis Ababa, Ethiopia** market. Analyze the product image and data to generate a complete, SEO-optimized JSON object for a WooCommerce product update. The name must be refined for specificity, and Amharic input must be leveraged for local search optimization (Amharic keywords are high-value). The output MUST be a single, valid JSON object with NO external text.\n\nInput Data: { \
+  prompt: `You are a specialized e-commerce content optimizer, focused on high conversion and excellent SEO performance in the **Addis Ababa, Ethiopia** market. Analyze the product image and data to generate a complete, SEO-optimized JSON object for a WooCommerce product update. The name must be refined for specificity, and Amharic input must be leveraged for local search optimization (Amharic keywords are high-value). The output MUST be a single, valid JSON object with NO external text.
+
+Input Data:
+{{{json input}}}
+`,
+});
+
+const generateWooCommerceProductContentFlow = ai.defineFlow(
+  {
+    name: 'generateWooCommerceProductContentFlow',
+    inputSchema: GenerateWooCommerceProductContentInputSchema,
+    outputSchema: GenerateWooCommerceProductContentOutputSchema,
+  },
+  async (input) => {
+    const {output} = await generateWooCommerceProductContentPrompt(input);
+    return output!;
+  }
+);
