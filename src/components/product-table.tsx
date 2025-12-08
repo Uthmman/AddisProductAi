@@ -34,6 +34,7 @@ export default function ProductTable() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(12);
   const [totalPages, setTotalPages] = useState(1);
   const [isPending, startTransition] = useTransition();
 
@@ -57,7 +58,7 @@ export default function ProductTable() {
       setIsLoading(true);
       try {
         const categoryQuery = selectedCategory !== 'all' ? `&category=${selectedCategory}` : '';
-        const response = await fetch(`/api/products?page=${page}&per_page=12${categoryQuery}`);
+        const response = await fetch(`/api/products?page=${page}&per_page=${perPage}${categoryQuery}`);
         const data = await response.json();
         setProducts(data.products);
         setTotalPages(data.totalPages);
@@ -71,11 +72,16 @@ export default function ProductTable() {
     startTransition(() => {
       fetchProducts();
     });
-  }, [page, selectedCategory]);
+  }, [page, selectedCategory, perPage]);
 
   const handleCategoryChange = (categoryId: string) => {
     setPage(1);
     setSelectedCategory(categoryId);
+  }
+  
+  const handlePerPageChange = (value: string) => {
+    setPage(1);
+    setPerPage(parseInt(value, 10));
   }
 
   const handleNextPage = () => {
@@ -93,7 +99,7 @@ export default function ProductTable() {
 
   return (
     <div className="w-full">
-       <div className="mb-4 flex justify-end">
+       <div className="mb-4 flex justify-end gap-2">
           <Select value={selectedCategory} onValueChange={handleCategoryChange}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by category" />
@@ -105,6 +111,17 @@ export default function ProductTable() {
                   {category.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Items per page" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="12">12 per page</SelectItem>
+              <SelectItem value="24">24 per page</SelectItem>
+              <SelectItem value="36">36 per page</SelectItem>
+              <SelectItem value="48">48 per page</SelectItem>
             </SelectContent>
           </Select>
       </div>
