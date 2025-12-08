@@ -8,8 +8,8 @@ import { ProductCard } from "./product-card";
 
 function ProductGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {[...Array(6)].map((_, i) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {[...Array(12)].map((_, i) => (
         <div key={i} className="rounded-lg border bg-card flex flex-col">
             <div className="aspect-square w-full">
                 <Skeleton className="h-full w-full rounded-t-lg rounded-b-none" />
@@ -38,7 +38,7 @@ export default function ProductTable() {
     const fetchProducts = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/products?page=${page}&per_page=6`);
+        const response = await fetch(`/api/products?page=${page}&per_page=12`);
         const data = await response.json();
         setProducts(data.products);
         setTotalPages(data.totalPages);
@@ -72,7 +72,7 @@ export default function ProductTable() {
         {(isLoading || isPending) ? (
             <ProductGridSkeleton />
         ) : products.length > 0 ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {products.map((product) => (
                     <ProductCard key={product.id} product={product} />
                 ))}

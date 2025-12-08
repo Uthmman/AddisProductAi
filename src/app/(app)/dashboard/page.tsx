@@ -30,8 +30,8 @@ export default function DashboardPage() {
 
 function TableSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-       {[...Array(6)].map((_, i) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+       {[...Array(12)].map((_, i) => (
         <div key={i} className="rounded-lg border bg-card flex flex-col">
             <div className="aspect-square w-full">
                 <Skeleton className="h-full w-full rounded-t-lg rounded-b-none" />
