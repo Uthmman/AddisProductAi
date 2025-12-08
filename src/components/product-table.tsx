@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { WooProduct } from "@/lib/types";
+import { WooProduct, WooCategory } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { ProductCard } from "./product-card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function ProductGridSkeleton() {
   return (
@@ -29,16 +30,34 @@ function ProductGridSkeleton() {
 
 export default function ProductTable() {
   const [products, setProducts] = useState<WooProduct[]>([]);
+  const [categories, setCategories] = useState<WooCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/products/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
     const fetchProducts = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/products?page=${page}&per_page=12`);
+        const categoryQuery = selectedCategory !== 'all' ? `&category=${selectedCategory}` : '';
+        const response = await fetch(`/api/products?page=${page}&per_page=12${categoryQuery}`);
         const data = await response.json();
         setProducts(data.products);
         setTotalPages(data.totalPages);
@@ -52,7 +71,12 @@ export default function ProductTable() {
     startTransition(() => {
       fetchProducts();
     });
-  }, [page]);
+  }, [page, selectedCategory]);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setPage(1);
+    setSelectedCategory(categoryId);
+  }
 
   const handleNextPage = () => {
     if (page < totalPages) {
@@ -69,6 +93,22 @@ export default function ProductTable() {
 
   return (
     <div className="w-full">
+       <div className="mb-4 flex justify-end">
+          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id.toString()}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+      </div>
+
         {(isLoading || isPending) ? (
             <ProductGridSkeleton />
         ) : products.length > 0 ? (
@@ -78,7 +118,7 @@ export default function ProductTable() {
                 ))}
             </div>
         ) : (
-            <div className="h-24 flex items-center justify-center text-center text-muted-foreground">
+            <div className="h-24 flex items-center justify-center text-center text-muted-foreground col-span-full">
                 No products found.
             </div>
         )}

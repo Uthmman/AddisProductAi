@@ -5,9 +5,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
   const perPage = parseInt(searchParams.get('per_page') || '10', 10);
+  const category = searchParams.get('category') || undefined;
 
   try {
-    const { products, totalPages } = await wooCommerceApi.getProducts(page, perPage);
+    const { products, totalPages } = await wooCommerceApi.getProducts(page, perPage, category);
     return NextResponse.json({ products, totalPages });
   } catch (error) {
     console.error(error);

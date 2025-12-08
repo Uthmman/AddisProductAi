@@ -1,4 +1,4 @@
-import { WooProduct } from './types';
+import { WooProduct, WooCategory } from './types';
 
 // In a real app, you would fetch from your WooCommerce API.
 const WOOCOMMERCE_API_URL = process.env.WOOCOMMERCE_API_URL;
@@ -14,9 +14,10 @@ const getAuthHeaders = () => {
     return { 'Authorization': `Basic ${base64Auth}`, 'Content-Type': 'application/json' };
 }
 
-export async function getProducts(page = 1, perPage = 10): Promise<{products: WooProduct[], totalPages: number}> {
+export async function getProducts(page = 1, perPage = 10, category?: string): Promise<{products: WooProduct[], totalPages: number}> {
   const headers = getAuthHeaders();
-  const response = await fetch(`${WOOCOMMERCE_API_URL}/products?per_page=${perPage}&page=${page}&_embed`, { headers, cache: 'no-store' });
+  const categoryParam = category ? `&category=${category}` : '';
+  const response = await fetch(`${WOOCOMMERCE_API_URL}/products?per_page=${perPage}&page=${page}${categoryParam}&_embed`, { headers, cache: 'no-store' });
 
   if (!response.ok) {
     const errorBody = await response.text();
@@ -32,6 +33,21 @@ export async function getProducts(page = 1, perPage = 10): Promise<{products: Wo
     totalPages,
   };
 }
+
+export async function getProductCategories(): Promise<WooCategory[]> {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?hide_empty=true&orderby=count&order=desc`, { headers, cache: 'no-store' });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("Failed to fetch product categories:", response.status, errorBody);
+        throw new Error('Failed to fetch product categories');
+    }
+
+    const categories: WooCategory[] = await response.json();
+    return categories.filter(c => c.name !== 'Uncategorized');
+}
+
 
 export async function getProduct(id: number): Promise<WooProduct | null> {
     const headers = getAuthHeaders();

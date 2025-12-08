@@ -22,6 +22,7 @@ export interface WooProduct {
   attributes: { id: number; name: string; options: string[] }[];
   meta_data: { id: number; key: string; value: string | any }[];
   tags: { id: number; name: string; slug: string }[];
+  categories: { id: number; name: string; slug: string }[];
 }
 
 export type AIProductContent = {
@@ -35,3 +36,10 @@ export type AIProductContent = {
   images: { alt: string }[];
   regular_price: number;
 };
+
+export interface WooCategory {
+  id: number;
+  name: string;
+  slug: string;
+  count: number;
+}
