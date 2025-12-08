@@ -43,6 +43,22 @@ export default function ProductForm({ product }: ProductFormProps) {
 
   const [aiContent, setAiContent] = useState<Partial<AIProductContent & { images: { id?: number; src?: string; alt?: string }[] }>>({});
   
+  useEffect(() => {
+    if (product) {
+      setAiContent({
+        name: product.name,
+        description: product.description,
+        short_description: product.short_description,
+        slug: product.slug,
+        tags: product.tags.map(t => t.name),
+        meta_data: product.meta_data,
+        attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
+        images: product.images.map(img => ({ id: img.id, src: img.src, alt: img.alt })),
+        regular_price: parseFloat(product.regular_price)
+      });
+    }
+  }, [product]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -139,11 +155,12 @@ export default function ProductForm({ product }: ProductFormProps) {
     // Combine original data, user edits, and AI content
     const finalData = {
         name: aiContent.name || product?.name || form.getValues('raw_name'),
+        slug: aiContent.slug,
         regular_price: (aiContent.regular_price || form.getValues('price_etb')).toString(),
         description: aiContent.description || product?.description,
         short_description: aiContent.short_description || product?.short_description,
         tags: aiContent.tags?.map(tag => ({ name: tag })) || product?.tags,
-        images: aiContent.images?.length ? aiContent.images : product?.images,
+        images: aiContent.images?.length ? aiContent.images.map(img => ({id: img.id, src: img.src, alt: img.alt})) : product?.images,
         attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })) || product?.attributes,
         meta_data: aiContent.meta_data || product?.meta_data
     };
@@ -181,6 +198,19 @@ export default function ProductForm({ product }: ProductFormProps) {
         setIsSaving(false);
     }
   };
+
+  const getMetaValue = (key: string) => {
+    const meta = aiContent.meta_data?.find(m => m.key === key);
+    return meta ? meta.value : '';
+  }
+
+  const setMetaValue = (key: string, value: string) => {
+    setAiContent(p => {
+      const existingMeta = p.meta_data?.filter(m => m.key !== key) || [];
+      return { ...p, meta_data: [...existingMeta, { key, value }] };
+    });
+  }
+
 
   return (
     <Form {...form}>
@@ -244,6 +274,10 @@ export default function ProductForm({ product }: ProductFormProps) {
                        <Label>Product Name</Label>
                        <Input value={aiContent.name || ''} onChange={(e) => setAiContent(p => ({...p, name: e.target.value}))} placeholder="AI generated name will appear here..."/>
                    </div>
+                    <div className="space-y-2">
+                        <Label>Slug</Label>
+                        <Input value={aiContent.slug || ''} onChange={(e) => setAiContent(p => ({ ...p, slug: e.target.value }))} placeholder="AI generated slug..." />
+                    </div>
                    <div className="space-y-2">
                        <Label>Description</Label>
                        <Textarea value={aiContent.description || ''} onChange={(e) => setAiContent(p => ({...p, description: e.target.value}))} rows={6} placeholder="AI generated description..."/>
@@ -258,8 +292,20 @@ export default function ProductForm({ product }: ProductFormProps) {
                    </div>
                    <div className="space-y-2">
                        <Label>Image Alt Text</Label>
-                       <Input value={aiContent.images?.[0]?.alt || ''} onChange={(e) => setAiContent(p => ({...p, images: [{alt: e.target.value}]}))} placeholder="AI generated image alt text..."/>
+                       <Input value={aiContent.images?.[0]?.alt || ''} onChange={(e) => setAiContent(p => ({...p, images: [{...p.images?.[0], alt: e.target.value}]}))} placeholder="AI generated image alt text..."/>
                    </div>
+                   <div className="space-y-2">
+                        <Label>Meta Description</Label>
+                        <Textarea value={getMetaValue('_yoast_wpseo_metadesc') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_metadesc', e.target.value)} rows={3} placeholder="AI generated meta description for SEO..." />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Product Gallery</Label>
+                        <div className="grid grid-cols-4 gap-2">
+                            {aiContent.images?.map((image, index) => (
+                                image.src && <Image key={index} src={image.src} alt={image.alt || `Product gallery image ${index + 1}`} width={100} height={100} className="rounded-md object-cover" />
+                            ))}
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
           </div>
