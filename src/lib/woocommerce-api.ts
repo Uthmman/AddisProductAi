@@ -14,7 +14,7 @@ const getAuthHeaders = () => {
     return { 'Authorization': `Basic ${base64Auth}`, 'Content-Type': 'application/json' };
 }
 
-export async function getProducts(page = 1, perPage = 10, category?: string): Promise<{products: WooProduct[], totalPages: number}> {
+export async function getProducts(page = 1, perPage = 10, category?: string): Promise<{products: WooProduct[], totalPages: number, totalProducts: number}> {
   const headers = getAuthHeaders();
   const categoryParam = category ? `&category=${category}` : '';
   const response = await fetch(`${WOOCOMMERCE_API_URL}/products?per_page=${perPage}&page=${page}${categoryParam}&_embed`, { headers, cache: 'no-store' });
@@ -26,11 +26,13 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
   }
 
   const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '1', 10);
+  const totalProducts = parseInt(response.headers.get('X-WP-Total') || '0', 10);
   const products: WooProduct[] = await response.json();
 
   return {
     products,
     totalPages,
+    totalProducts,
   };
 }
 

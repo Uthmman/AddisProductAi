@@ -36,6 +36,7 @@ export default function ProductTable() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(12);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -62,6 +63,7 @@ export default function ProductTable() {
         const data = await response.json();
         setProducts(data.products);
         setTotalPages(data.totalPages);
+        setTotalProducts(data.totalProducts);
       } catch (error) {
         console.error("Failed to fetch products:", error);
       } finally {
@@ -99,31 +101,42 @@ export default function ProductTable() {
 
   return (
     <div className="w-full">
-       <div className="mb-4 flex justify-end gap-2">
-          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id.toString()}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Items per page" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="12">12 per page</SelectItem>
-              <SelectItem value="24">24 per page</SelectItem>
-              <SelectItem value="36">36 per page</SelectItem>
-              <SelectItem value="48">48 per page</SelectItem>
-            </SelectContent>
-          </Select>
+       <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+           <div className="text-sm text-muted-foreground">
+             {totalProducts > 0 ? (
+                <span>
+                    Showing <strong>{products.length}</strong> of <strong>{totalProducts}</strong> products
+                </span>
+             ) : (
+                <span>&nbsp;</span>
+             )}
+           </div>
+          <div className="flex gap-2">
+            <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                    {category.name}
+                    </SelectItem>
+                ))}
+                </SelectContent>
+            </Select>
+            <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Items per page" />
+                </SelectTrigger>
+                <SelectContent>
+                <SelectItem value="12">12 per page</SelectItem>
+                <SelectItem value="24">24 per page</SelectItem>
+                <SelectItem value="36">36 per page</SelectItem>
+                <SelectItem value="48">48 per page</SelectItem>
+                </SelectContent>
+            </Select>
+          </div>
       </div>
 
         {(isLoading || isPending) ? (
@@ -141,6 +154,9 @@ export default function ProductTable() {
         )}
       
       <div className="flex items-center justify-end space-x-2 py-4 mt-4">
+        <div className="flex-1 text-sm text-muted-foreground">
+          Page {page} of {totalPages}
+        </div>
         <Button
           variant="outline"
           size="sm"

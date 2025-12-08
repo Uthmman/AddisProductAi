@@ -8,8 +8,8 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get('category') || undefined;
 
   try {
-    const { products, totalPages } = await wooCommerceApi.getProducts(page, perPage, category);
-    return NextResponse.json({ products, totalPages });
+    const { products, totalPages, totalProducts } = await wooCommerceApi.getProducts(page, perPage, category);
+    return NextResponse.json({ products, totalPages, totalProducts });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: 'Failed to fetch products' }, { status: 500 });
