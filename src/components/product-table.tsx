@@ -8,18 +8,18 @@ import { ProductCard } from "./product-card";
 
 function ProductGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {[...Array(12)].map((_, i) => (
         <div key={i} className="rounded-lg border bg-card flex flex-col">
             <div className="aspect-square w-full">
                 <Skeleton className="h-full w-full rounded-t-lg rounded-b-none" />
             </div>
-            <div className="p-4 flex-grow">
-                <Skeleton className="h-6 w-3/4" />
+            <div className="p-3 flex-grow">
+                <Skeleton className="h-5 w-3/4" />
             </div>
-            <div className="p-4 flex justify-between items-center">
-                <Skeleton className="h-8 w-24" />
-                <Skeleton className="h-8 w-8 rounded-full" />
+            <div className="p-3 flex justify-between items-center">
+                <Skeleton className="h-7 w-20" />
+                <Skeleton className="h-7 w-7 rounded-full" />
             </div>
         </div>
       ))}
@@ -72,7 +72,7 @@ export default function ProductTable() {
         {(isLoading || isPending) ? (
             <ProductGridSkeleton />
         ) : products.length > 0 ? (
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {products.map((product) => (
                     <ProductCard key={product.id} product={product} />
                 ))}

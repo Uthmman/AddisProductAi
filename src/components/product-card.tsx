@@ -26,11 +26,11 @@ export function ProductCard({ product }: ProductCardProps) {
           />
         </div>
       </CardHeader>
-      <CardContent className="p-4 flex-grow">
-        <CardTitle className="text-lg font-bold line-clamp-2">{product.name}</CardTitle>
+      <CardContent className="p-3 flex-grow">
+        <CardTitle className="text-base font-bold line-clamp-2">{product.name}</CardTitle>
       </CardContent>
-      <CardFooter className="p-4 flex justify-between items-center">
-        <p className="text-lg font-semibold text-foreground">
+      <CardFooter className="p-3 flex justify-between items-center">
+        <p className="text-base font-semibold text-foreground">
           {formatCurrency(product.price)}
         </p>
         <Button variant="ghost" size="icon" asChild>
