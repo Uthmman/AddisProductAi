@@ -30,33 +30,21 @@ export default function DashboardPage() {
 
 function TableSkeleton() {
   return (
-    <div className="w-full">
-      <div className="rounded-md border">
-        <div className="w-full">
-          <div className="border-b">
-            <div className="flex h-12 items-center px-4">
-              <Skeleton className="h-6 w-1/4" />
-              <Skeleton className="h-6 w-1/4 ml-auto" />
-              <Skeleton className="h-6 w-1/4 ml-auto" />
-              <Skeleton className="h-6 w-16 ml-auto" />
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+       {[...Array(6)].map((_, i) => (
+        <div key={i} className="rounded-lg border bg-card flex flex-col">
+            <div className="aspect-square w-full">
+                <Skeleton className="h-full w-full rounded-t-lg rounded-b-none" />
             </div>
-          </div>
-          <div>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex h-16 items-center px-4 border-b">
-                 <Skeleton className="h-8 w-1/4" />
-                 <Skeleton className="h-8 w-1/4 ml-auto" />
-                 <Skeleton className="h-8 w-1/4 ml-auto" />
-                 <Skeleton className="h-8 w-16 ml-auto" />
-              </div>
-            ))}
-          </div>
+            <div className="p-4 flex-grow">
+                <Skeleton className="h-6 w-3/4" />
+            </div>
+            <div className="p-4 flex justify-between items-center">
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+            </div>
         </div>
-      </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Skeleton className="h-10 w-32" />
-        <Skeleton className="h-10 w-32" />
-      </div>
+      ))}
     </div>
-  )
+  );
 }

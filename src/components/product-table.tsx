@@ -1,22 +1,31 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Edit } from "lucide-react";
 import { WooProduct } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "./ui/skeleton";
+import { ProductCard } from "./product-card";
+
+function ProductGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="rounded-lg border bg-card flex flex-col">
+            <div className="aspect-square w-full">
+                <Skeleton className="h-full w-full rounded-t-lg rounded-b-none" />
+            </div>
+            <div className="p-4 flex-grow">
+                <Skeleton className="h-6 w-3/4" />
+            </div>
+            <div className="p-4 flex justify-between items-center">
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+            </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function ProductTable() {
   const [products, setProducts] = useState<WooProduct[]>([]);
@@ -29,7 +38,7 @@ export default function ProductTable() {
     const fetchProducts = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/products?page=${page}`);
+        const response = await fetch(`/api/products?page=${page}&per_page=6`);
         const data = await response.json();
         setProducts(data.products);
         setTotalPages(data.totalPages);
@@ -57,85 +66,24 @@ export default function ProductTable() {
     }
   };
 
-  const getStockBadgeVariant = (status: string) => {
-    switch (status) {
-      case "instock":
-        return "default";
-      case "outofstock":
-        return "destructive";
-      case "onbackorder":
-        return "secondary";
-      default:
-        return "outline";
-    }
-  };
 
   return (
     <div className="w-full">
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[80px]">Image</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Stock Status</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="w-[100px] text-center">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(isLoading || isPending) ? (
-              [...Array(5)].map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><Skeleton className="h-12 w-12 rounded-md" /></TableCell>
-                  <TableCell><Skeleton className="h-6 w-3/4" /></TableCell>
-                  <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                  <TableCell className="text-right"><Skeleton className="h-6 w-20 ml-auto" /></TableCell>
-                  <TableCell className="text-center"><Skeleton className="h-8 w-8 mx-auto" /></TableCell>
-                </TableRow>
-              ))
-            ) : products.length > 0 ? (
-              products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell>
-                    <Image
-                      src={product.images?.[0]?.src || "https://picsum.photos/seed/placeholder/150/150"}
-                      alt={product.images?.[0]?.alt || product.name}
-                      width={48}
-                      height={48}
-                      className="rounded-md object-cover"
-                      data-ai-hint="product image"
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStockBadgeVariant(product.stock_status)}>
-                      {product.stock_status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(product.price)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link href={`/products/${product.id}`}>
-                        <Edit className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  No products found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
+        {(isLoading || isPending) ? (
+            <ProductGridSkeleton />
+        ) : products.length > 0 ? (
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                ))}
+            </div>
+        ) : (
+            <div className="h-24 flex items-center justify-center text-center text-muted-foreground">
+                No products found.
+            </div>
+        )}
+      
+      <div className="flex items-center justify-end space-x-2 py-4 mt-4">
         <Button
           variant="outline"
           size="sm"
