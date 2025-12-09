@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { PlusCircle, Edit, Image as ImageIcon } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Image as ImageIcon } from "lucide-react";
 import { WooCategory } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CategoryTable() {
@@ -27,6 +37,7 @@ export default function CategoryTable() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<WooCategory | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<WooCategory | null>(null);
   const { toast } = useToast();
 
   const fetchCategories = async () => {
@@ -53,7 +64,7 @@ export default function CategoryTable() {
 
   useEffect(() => {
     fetchCategories();
-  }, [toast]);
+  }, []);
 
   const handleFormSuccess = () => {
     setIsFormOpen(false);
@@ -70,6 +81,39 @@ export default function CategoryTable() {
     setEditingCategory(null);
     setIsFormOpen(true);
   }
+
+  const openDeleteDialog = (category: WooCategory) => {
+    setDeletingCategory(category);
+  }
+
+  const handleDeleteCategory = async () => {
+    if (!deletingCategory) return;
+
+    try {
+      const response = await fetch(`/api/products/categories/${deletingCategory.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete category.');
+      }
+
+      toast({
+        title: 'Success!',
+        description: `Category "${deletingCategory.name}" has been deleted.`,
+      });
+      fetchCategories();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Could not delete category.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingCategory(null);
+    }
+  };
   
   const getParentCategoryName = (parentId: number) => {
     const parent = categories.find(c => c.id === parentId);
@@ -78,70 +122,73 @@ export default function CategoryTable() {
 
   return (
     <div>
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold font-headline">Categories</h1>
-                <Button onClick={openNewDialog}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    New Category
-                </Button>
-            </div>
-      
-            {isLoading ? (
-                <p>Loading categories...</p>
-            ) : (
-                <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[80px]">Image</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Slug</TableHead>
-                        <TableHead>Parent</TableHead>
-                        <TableHead className="text-right">Product Count</TableHead>
-                        <TableHead className="w-[80px]"></TableHead>
+        <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold font-headline">Categories</h1>
+            <Button onClick={openNewDialog}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                New Category
+            </Button>
+        </div>
+  
+        {isLoading ? (
+            <p>Loading categories...</p>
+        ) : (
+            <div className="rounded-md border">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead className="w-[80px]">Image</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Slug</TableHead>
+                    <TableHead>Parent</TableHead>
+                    <TableHead className="text-right">Product Count</TableHead>
+                    <TableHead className="w-[120px] text-right">Actions</TableHead>
+                </TableRow>
+                </TableHeader>
+                <TableBody>
+                {categories.length > 0 ? categories.map((cat) => (
+                    <TableRow key={cat.id}>
+                        <TableCell>
+                            {cat.image ? (
+                                <Image 
+                                    src={cat.image.src} 
+                                    alt={cat.name} 
+                                    width={48} 
+                                    height={48} 
+                                    className="rounded-md object-cover w-12 h-12"
+                                />
+                            ) : (
+                                <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md">
+                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                            )}
+                        </TableCell>
+                        <TableCell className="font-medium">{cat.name}</TableCell>
+                        <TableCell>{cat.slug}</TableCell>
+                        <TableCell>{cat.parent ? getParentCategoryName(cat.parent) : '—'}</TableCell>
+                        <TableCell className="text-right">{cat.count}</TableCell>
+                        <TableCell className="text-right">
+                           <Button variant="ghost" size="icon" onClick={() => openEditDialog(cat)}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => openDeleteDialog(cat)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </TableCell>
                     </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {categories.length > 0 ? categories.map((cat) => (
-                        <TableRow key={cat.id}>
-                            <TableCell>
-                                {cat.image ? (
-                                    <Image 
-                                        src={cat.image.src} 
-                                        alt={cat.name} 
-                                        width={48} 
-                                        height={48} 
-                                        className="rounded-md object-cover w-12 h-12"
-                                    />
-                                ) : (
-                                    <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md">
-                                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                                    </div>
-                                )}
-                            </TableCell>
-                            <TableCell className="font-medium">{cat.name}</TableCell>
-                            <TableCell>{cat.slug}</TableCell>
-                            <TableCell>{cat.parent ? getParentCategoryName(cat.parent) : '—'}</TableCell>
-                            <TableCell className="text-right">{cat.count}</TableCell>
-                            <TableCell>
-                                <Button variant="ghost" size="icon" onClick={() => openEditDialog(cat)}>
-                                    <Edit className="h-4 w-4" />
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                    )) : (
-                        <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
-                                No categories found.
-                            </TableCell>
-                        </TableRow>
-                    )}
-                    </TableBody>
-                </Table>
-                </div>
-            )}
-            
+                )) : (
+                    <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                            No categories found.
+                        </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+            </div>
+        )}
+        
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>{editingCategory ? 'Edit Category' : 'Create New Category'}</DialogTitle>
@@ -153,6 +200,23 @@ export default function CategoryTable() {
                 />
             </DialogContent>
         </Dialog>
+
+        <AlertDialog open={!!deletingCategory} onOpenChange={() => setDeletingCategory(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure you want to delete this category?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the <strong>{deletingCategory?.name}</strong> category.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteCategory} className={buttonVariants({ variant: "destructive" })}>
+                    Delete
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }
