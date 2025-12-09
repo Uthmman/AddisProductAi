@@ -25,22 +25,20 @@ export async function POST(request: NextRequest) {
 
     const { image_data, image_name, ...aiInput } = validation.data;
     
-    // 1. Upload image to WordPress to get an ID (mocked for now)
-    const uploadedImage = await uploadImage(image_name, image_data);
-
-    // 2. Generate content with AI
+    // We only send the first image to the AI for content generation.
+    // The image ID/SRC is no longer fetched here, it's handled on the client.
     const contentGenerationInput: GenerateWooCommerceProductContentInput = {
       ...aiInput,
       image_data: image_data,
     };
     const aiContent = await generateWooCommerceProductContent(contentGenerationInput);
 
-    // 3. Combine results and return to frontend
+    // The response only contains AI-generated text content.
+    // Image data is handled client-side.
     const responsePayload = {
       ...aiContent,
-      images: [{
-          id: uploadedImage.id, // ID from WordPress
-          src: uploadedImage.src, // URL from WordPress
+       images: [{
+          // The alt text is for the image that was sent to the AI.
           alt: aiContent.images[0]?.alt || "Product image"
       }]
     };
@@ -52,3 +50,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'An unexpected error occurred during AI optimization.' }, { status: 500 });
   }
 }
+
+    

@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent } from "@/lib/types";
 import { fileToBase64 } from "@/lib/utils";
-import { Loader2, Sparkles, UploadCloud } from "lucide-react";
+import { Loader2, Sparkles, UploadCloud, X as XIcon } from "lucide-react";
 
 // Simplified schema for form validation
 const FormSchema = z.object({
@@ -38,9 +38,9 @@ export default function ProductForm({ product }: ProductFormProps) {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(product?.images?.[0]?.src || null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-
+  const [imagePreviews, setImagePreviews] = useState<(string)[]>(product?.images?.map(img => img.src) || []);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  
   const [aiContent, setAiContent] = useState<Partial<AIProductContent & { images: { id?: number; src?: string; alt?: string }[] }>>({});
   
   useEffect(() => {
@@ -56,6 +56,9 @@ export default function ProductForm({ product }: ProductFormProps) {
         images: product.images.map(img => ({ id: img.id, src: img.src, alt: img.alt })),
         regular_price: parseFloat(product.regular_price)
       });
+      if (product.images?.length > 0) {
+        setImagePreviews(product.images.map(img => img.src));
+      }
     }
   }, [product]);
 
@@ -71,50 +74,59 @@ export default function ProductForm({ product }: ProductFormProps) {
   });
 
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const base64 = await fileToBase64(file);
-      setImagePreview(base64);
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files);
+      const allFiles = [...imageFiles, ...newFiles];
+      setImageFiles(allFiles);
+
+      const newPreviews = await Promise.all(newFiles.map(file => fileToBase64(file)));
+      setImagePreviews(prev => [...prev, ...newPreviews]);
     }
   };
 
+  const removeImage = (index: number) => {
+    setImagePreviews(previews => previews.filter((_, i) => i !== index));
+    setImageFiles(files => files.filter((_, i) => i !== index));
+    setAiContent(p => {
+      const newImages = p.images?.filter((_, i) => i !== index);
+      return { ...p, images: newImages };
+    });
+  }
+
+
   const handleGenerate = async (values: FormValues) => {
-    if (!imageFile && !product?.images?.[0]?.src) {
+    if (imagePreviews.length === 0) {
         toast({
             variant: "destructive",
             title: "Image Required",
-            description: "Please upload an image before generating content.",
+            description: "Please upload at least one image before generating content.",
         });
         return;
     }
 
     setIsGenerating(true);
     try {
-        let imageDataUrl = imagePreview;
-        let imageFileName = imageFile?.name;
+        let imageDataUrl = imagePreviews[0];
+        let imageFileName = imageFiles[0]?.name;
 
-        if (imageFile) {
-            imageDataUrl = await fileToBase64(imageFile);
-            imageFileName = imageFile.name;
-        } else if(product?.images?.[0]?.src) {
-            // This is a simplified approach. A real-world scenario would fetch the image and convert it.
-            // For this mock, we will assume we can pass the URL and handle it on the backend, though the AI flow expects base64.
+        // If the first preview is from a file, it's already a data URL.
+        // If it's from an existing product, it's a URL.
+        if (imageFiles[0]) {
+             imageFileName = imageFiles[0].name;
+        } else if (product?.images?.[0]?.src) {
             // As a workaround, we'll tell the user to re-upload if they want to use AI on an existing image without changes.
-            toast({ title: "Re-upload for AI", description: "To optimize an existing image, please re-upload it." });
-            // A more robust solution might fetch the URL server-side and convert to base64.
-            // We'll proceed with a placeholder to avoid breaking the flow.
             if(!imageDataUrl?.startsWith('data:image')) {
                  toast({
-                    variant: "destructive",
-                    title: "Image data not found",
-                    description: "Please re-upload an image to use the AI feature.",
+                    title: "Optimization Recommendation",
+                    description: "To optimize content based on an existing image, please re-upload it first.",
+                    variant: "default",
                 });
                 setIsGenerating(false);
                 return;
             }
         }
-
+        
         const response = await fetch('/api/products/ai-optimize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -131,7 +143,17 @@ export default function ProductForm({ product }: ProductFormProps) {
         }
 
         const data = await response.json();
-        setAiContent(data);
+        
+        // Preserve existing images and merge AI content
+        setAiContent(prev => ({
+          ...prev,
+          ...data,
+          images: [
+            data.images[0], // AI-generated alt for the first image
+            ...(prev.images?.slice(1) || []),
+          ]
+        }));
+
         toast({
             title: "Content Generated",
             description: "AI-optimized content has been populated for your review.",
@@ -151,21 +173,46 @@ export default function ProductForm({ product }: ProductFormProps) {
 
   const onSubmit = async () => {
     setIsSaving(true);
-    
-    // Combine original data, user edits, and AI content
-    const finalData = {
-        name: aiContent.name || product?.name || form.getValues('raw_name'),
-        slug: aiContent.slug,
-        regular_price: (aiContent.regular_price || form.getValues('price_etb')).toString(),
-        description: aiContent.description || product?.description,
-        short_description: aiContent.short_description || product?.short_description,
-        tags: aiContent.tags?.map(tag => ({ name: tag })) || product?.tags,
-        images: aiContent.images?.length ? aiContent.images.map(img => ({id: img.id, src: img.src, alt: img.alt})) : product?.images,
-        attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })) || product?.attributes,
-        meta_data: aiContent.meta_data || product?.meta_data
-    };
 
     try {
+        // Upload new images first
+        const uploadedImages = await Promise.all(
+          imageFiles.map(async (file) => {
+            const base64 = await fileToBase64(file);
+            const response = await fetch('/api/products/upload-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image_data: base64, image_name: file.name }),
+            });
+            if (!response.ok) throw new Error(`Image upload failed for ${file.name}`);
+            return response.json();
+          })
+        );
+        
+        // Combine existing images (that were not removed) and newly uploaded ones
+        const existingImages = product?.images?.filter(img => imagePreviews.includes(img.src)) || [];
+        const finalImages = [...existingImages, ...uploadedImages].map((img, index) => {
+            const aiImage = aiContent.images?.[index];
+            return {
+                id: img.id,
+                src: img.src,
+                alt: aiImage?.alt || (aiContent.images?.[0]?.alt || product?.name || form.getValues('raw_name'))
+            };
+        });
+
+        // Combine original data, user edits, and AI content
+        const finalData = {
+            name: aiContent.name || product?.name || form.getValues('raw_name'),
+            slug: aiContent.slug,
+            regular_price: (aiContent.regular_price || form.getValues('price_etb')).toString(),
+            description: aiContent.description || product?.description,
+            short_description: aiContent.short_description || product?.short_description,
+            tags: aiContent.tags?.map(tag => ({ name: tag })) || product?.tags,
+            images: finalImages,
+            attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })) || product?.attributes,
+            meta_data: aiContent.meta_data || product?.meta_data
+        };
+
         const url = product ? `/api/products/${product.id}` : '/api/products';
         const method = product ? 'PUT' : 'POST';
 
@@ -176,7 +223,8 @@ export default function ProductForm({ product }: ProductFormProps) {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to save product');
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to save product');
         }
 
         const savedProduct = await response.json();
@@ -187,12 +235,12 @@ export default function ProductForm({ product }: ProductFormProps) {
         router.push('/dashboard');
         router.refresh();
 
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
         toast({
             variant: "destructive",
             title: "Save Failed",
-            description: "There was an error saving the product. Please try again.",
+            description: error.message || "There was an error saving the product. Please try again.",
         });
     } finally {
         setIsSaving(false);
@@ -224,18 +272,24 @@ export default function ProductForm({ product }: ProductFormProps) {
                     <CardDescription>Enter the core information for your product.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="product-image">Product Image</Label>
-                        <div className="w-full aspect-square rounded-md border-2 border-dashed border-muted-foreground/50 flex items-center justify-center relative overflow-hidden">
-                           {imagePreview ? (
-                               <Image src={imagePreview} alt="Product preview" fill style={{objectFit: 'cover'}} data-ai-hint="product image"/>
-                           ) : (
-                               <div className="text-center text-muted-foreground p-4">
-                                   <UploadCloud className="mx-auto h-12 w-12" />
-                                   <p>Click to upload</p>
+                     <div className="space-y-2">
+                        <Label htmlFor="product-image">Product Images</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                           {imagePreviews.map((src, index) => (
+                               <div key={index} className="relative aspect-square rounded-md overflow-hidden group">
+                                   <Image src={src} alt={`Product preview ${index + 1}`} fill style={{objectFit: 'cover'}} data-ai-hint="product image"/>
+                                   <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removeImage(index)}>
+                                        <XIcon className="h-4 w-4" />
+                                   </Button>
                                </div>
-                           )}
-                           <Input id="product-image" type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleImageChange} />
+                           ))}
+                            <div className="w-full aspect-square rounded-md border-2 border-dashed border-muted-foreground/50 flex items-center justify-center relative overflow-hidden">
+                               <div className="text-center text-muted-foreground p-2">
+                                   <UploadCloud className="mx-auto h-8 w-8" />
+                                   <p className="text-xs">Click to upload</p>
+                               </div>
+                               <Input id="product-image" type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleImageChange} multiple />
+                           </div>
                         </div>
                     </div>
                     
@@ -291,7 +345,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                        <Input value={aiContent.tags?.join(', ') || ''} onChange={(e) => setAiContent(p => ({...p, tags: e.target.value.split(',').map(t => t.trim())}))} placeholder="AI generated tags..."/>
                    </div>
                    <div className="space-y-2">
-                       <Label>Image Alt Text</Label>
+                       <Label>Image Alt Text (First Image)</Label>
                        <Input value={aiContent.images?.[0]?.alt || ''} onChange={(e) => setAiContent(p => ({...p, images: [{...p.images?.[0], alt: e.target.value}]}))} placeholder="AI generated image alt text..."/>
                    </div>
                    <div className="space-y-2">
@@ -301,8 +355,8 @@ export default function ProductForm({ product }: ProductFormProps) {
                     <div className="space-y-2">
                         <Label>Product Gallery</Label>
                         <div className="grid grid-cols-4 gap-2">
-                            {aiContent.images?.map((image, index) => (
-                                image.src && <Image key={index} src={image.src} alt={image.alt || `Product gallery image ${index + 1}`} width={100} height={100} className="rounded-md object-cover" />
+                            {imagePreviews.map((src, index) => (
+                                src && <Image key={index} src={src} alt={aiContent.images?.[index]?.alt || `Product gallery image ${index + 1}`} width={100} height={100} className="rounded-md object-cover" />
                             ))}
                         </div>
                     </div>
@@ -321,3 +375,5 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
+
+    
