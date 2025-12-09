@@ -48,7 +48,7 @@ const GenerateWooCommerceProductContentOutputSchema = z.object({
   description: z.string().optional().describe('SEO-rich description formatted with HTML <p> tags.'),
   short_description: z.string().optional().describe('Concise bullet-pointed summary.'),
   tags: z.array(z.string()).optional().describe('English and Amharic keywords.'),
-  categories: z.array(z.object({ id: z.number()})).optional().describe('An array of category objects with their IDs, chosen from the provided list.'),
+  categories: z.array(z.string()).optional().describe('An array of category names, chosen from the provided list or newly created if appropriate.'),
   meta_data: z
     .array(z.object({key: z.string(), value: z.string()}))
     .optional()
@@ -78,14 +78,14 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
 
 When generating image alt text (the 'images' field), create descriptive text that also includes relevant SEO keywords such as 'zenbaba furniture', 'ethiopia', 'addis ababa', the product's Amharic name ({{{amharic_name}}}), and other related terms. This will improve search engine visibility.
 
-Based on the product information, select the most relevant categories from the list provided in the 'availableCategories' field. Your response for the 'categories' field should be an array of objects, each containing the 'id' of the selected category.
+Based on the product information, select the most relevant categories from the list provided in 'availableCategories'. Your response for the 'categories' field should be an array of category NAME strings. If no existing category is a good fit, you have the creative freedom to suggest a new, relevant category name.
 
 Available Categories for selection:
 {{{json availableCategories}}}
 
 {{#if fieldToGenerate}}
 You are being asked to generate a single field: \`{{fieldToGenerate}}\`. 
-Base your response on the provided input data and the existing product content below. The generated value for \`{{fieldTogenerate}}\` should be consistent with the other product details.
+Base your response on the provided input data and the existing product content below. The generated value for \`{{fieldToGenerate}}\` should be consistent with the other product details.
 
 Existing Content Context:
 {{{json existingContent}}}
@@ -98,6 +98,7 @@ Input Data:
 `,
 });
 
+
 const generateWooCommerceProductContentFlow = ai.defineFlow(
   {
     name: 'generateWooCommerceProductContentFlow',
@@ -108,7 +109,7 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     // When generating for a single field (not 'images'), only use the first image for context to save tokens.
     // When generating 'all' or 'images', use all images.
     const contextInput = { ...input };
-    if (contextInput.fieldToGenerate && contextInput.fieldToGenerate !== 'all' && contextInput.fieldToGenerate !== 'images' && contextInput.images_data.length > 1) {
+    if (contextInput.fieldToGenerate && contextInput.fieldTo-generate !== 'all' && contextInput.fieldToGenerate !== 'images' && contextInput.images_data.length > 1) {
         contextInput.images_data = [contextInput.images_data[0]];
     }
 

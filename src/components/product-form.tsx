@@ -44,6 +44,13 @@ type ImageState = {
   file?: File;
 };
 
+// Represents a category in the UI state. Can be an existing one or a new one suggested by AI.
+type DisplayCategory = {
+    id?: number;
+    name: string;
+};
+
+
 type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | null;
 
 async function imageUrlToDataUri(url: string): Promise<string> {
@@ -65,8 +72,8 @@ export default function ProductForm({ product }: ProductFormProps) {
   
   const [images, setImages] = useState<ImageState[]>([]);
   const [aiContent, setAiContent] = useState<Partial<AIProductContent>>({});
-  const [categories, setCategories] = useState<WooCategory[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<WooCategory[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<WooCategory[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<DisplayCategory[]>([]);
   
   useEffect(() => {
     async function fetchCategories() {
@@ -74,7 +81,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             const res = await fetch('/api/products/categories');
             if (res.ok) {
                 const data: WooCategory[] = await res.json();
-                setCategories(data);
+                setAvailableCategories(data);
             }
         } catch (error) {
             console.error("Failed to fetch categories", error);
@@ -95,8 +102,6 @@ export default function ProductForm({ product }: ProductFormProps) {
       const productCategories = product.categories.map(cat => ({
         id: cat.id,
         name: cat.name,
-        slug: cat.slug,
-        count: 0 // Count isn't essential on the form
       }));
       setSelectedCategories(productCategories);
 
@@ -106,7 +111,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         short_description: product.short_description,
         slug: product.slug,
         tags: product.tags.map(t => t.name),
-        categories: product.categories.map(c => ({ id: c.id, name: c.name, slug: c.slug })),
+        categories: product.categories.map(c => c.name),
         meta_data: product.meta_data,
         attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
         images: product.images.map(img => ({ alt: img.alt })),
@@ -201,6 +206,11 @@ export default function ProductForm({ product }: ProductFormProps) {
             setGeneratingField(null);
             return;
         }
+        
+        const currentAiContent = {
+            ...aiContent,
+            categories: selectedCategories.map(c => c.name)
+        };
 
         const response = await fetch('/api/products/ai-optimize', {
             method: 'POST',
@@ -210,8 +220,8 @@ export default function ProductForm({ product }: ProductFormProps) {
                 images_data: validImagesData,
                 price_etb: values.price_etb,
                 fieldToGenerate: field,
-                existingContent: aiContent,
-                availableCategories: categories,
+                existingContent: currentAiContent,
+                availableCategories,
             }),
         });
 
@@ -236,9 +246,10 @@ export default function ProductForm({ product }: ProductFormProps) {
         }
         
         if (data.categories) {
-            const aiSelectedCategories = categories.filter(cat => 
-                data.categories?.some(aiCat => aiCat.id === cat.id)
-            );
+            const aiSelectedCategories: DisplayCategory[] = data.categories.map(catName => {
+                const existing = availableCategories.find(c => c.name.toLowerCase() === catName.toLowerCase());
+                return existing ? { id: existing.id, name: existing.name } : { name: catName };
+            });
             setSelectedCategories(aiSelectedCategories);
         }
 
@@ -290,6 +301,11 @@ export default function ProductForm({ product }: ProductFormProps) {
             src: img.src,
             alt: img.alt || aiContent.name || form.getValues('raw_name')
         }));
+        
+        const finalCategories = selectedCategories.map(c => {
+             // If it has an ID, it's an existing category. If not, it's a new one.
+            return c.id ? { id: c.id } : { name: c.name };
+        });
 
         const finalData = {
             name: aiContent.name || form.getValues('raw_name'),
@@ -297,7 +313,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             regular_price: (aiContent.regular_price || form.getValues('price_etb')).toString(),
             description: aiContent.description,
             short_description: aiContent.short_description,
-            categories: selectedCategories.map(c => ({ id: c.id })),
+            categories: finalCategories,
             tags: aiContent.tags?.map(tag => ({ name: tag })),
             images: finalImages,
             attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
@@ -351,14 +367,14 @@ export default function ProductForm({ product }: ProductFormProps) {
   }
   
   const handleCategorySelect = useCallback((category: WooCategory) => {
-      setSelectedCategories(prev => {
-          const isSelected = prev.some(c => c.id === category.id);
-          if (isSelected) {
-              return prev.filter(c => c.id !== category.id);
-          } else {
-              return [...prev, category];
-          }
-      });
+    setSelectedCategories(prev => {
+        const isSelected = prev.some(c => c.id === category.id);
+        if (isSelected) {
+            return prev.filter(c => c.id !== category.id);
+        } else {
+            return [...prev, { id: category.id, name: category.name }];
+        }
+    });
   }, []);
 
 
@@ -463,7 +479,12 @@ export default function ProductForm({ product }: ProductFormProps) {
                                 <Button variant="outline" className="w-full justify-start font-normal h-auto min-h-10">
                                     <div className="flex gap-1 flex-wrap">
                                       {selectedCategories.length > 0 ? (
-                                        selectedCategories.map(cat => <Badge key={cat.id} variant="secondary">{cat.name}</Badge>)
+                                        selectedCategories.map(cat => (
+                                          <Badge key={cat.id || cat.name} variant={cat.id ? "secondary" : "default"}>
+                                            {cat.name}
+                                            {cat.id === undefined && <span className="ml-1 text-xs">(New)</span>}
+                                          </Badge>
+                                        ))
                                       ) : (
                                         <span>Select categories...</span>
                                       )}
@@ -476,13 +497,13 @@ export default function ProductForm({ product }: ProductFormProps) {
                                     <CommandList>
                                         <CommandEmpty>No categories found.</CommandEmpty>
                                         <CommandGroup>
-                                            {categories.map((category) => {
+                                            {availableCategories.map((category) => {
                                                 const isSelected = selectedCategories.some(c => c.id === category.id);
                                                 return (
                                                     <CommandItem
                                                         key={category.id}
                                                         onSelect={() => {
-                                                            handleCategorySelect(category);
+                                                          handleCategorySelect(category);
                                                         }}
                                                     >
                                                       <div className={cn( "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50" )}>
