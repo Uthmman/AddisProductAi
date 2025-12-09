@@ -480,7 +480,9 @@ export default function ProductForm({ product }: ProductFormProps) {
                                             return (
                                                 <CommandItem
                                                     key={category.id}
-                                                    onSelect={() => handleCategorySelect(category)}
+                                                    onSelect={(currentValue) => {
+                                                        handleCategorySelect(category);
+                                                    }}
                                                 >
                                                   <div className={cn( "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible" )}>
                                                         <Check className={cn("h-4 w-4")} />
@@ -545,5 +547,3 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
-
-    
