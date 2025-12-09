@@ -19,7 +19,7 @@ import { fileToBase64, cn } from "@/lib/utils";
 import { Loader2, Sparkles, UploadCloud, X as XIcon, Check } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "./ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Badge } from "./ui/badge";
 
 // Simplified schema for form validation
@@ -460,7 +460,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                       <div className="flex justify-between items-center"><Label>Categories</Label>{renderGenButton('categories')}</div>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className="w-full justify-start font-normal h-auto">
+                                <Button variant="outline" className="w-full justify-start font-normal h-auto min-h-10">
                                     <div className="flex gap-1 flex-wrap">
                                       {selectedCategories.length > 0 ? (
                                         selectedCategories.map(cat => <Badge key={cat.id} variant="secondary">{cat.name}</Badge>)
@@ -473,25 +473,27 @@ export default function ProductForm({ product }: ProductFormProps) {
                             <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                                 <Command>
                                     <CommandInput placeholder="Search categories..." />
-                                    <CommandEmpty>No categories found.</CommandEmpty>
-                                    <CommandGroup>
-                                        {categories.map((category) => {
-                                            const isSelected = selectedCategories.some(c => c.id === category.id);
-                                            return (
-                                                <CommandItem
-                                                    key={category.id}
-                                                    onSelect={(currentValue) => {
-                                                        handleCategorySelect(category);
-                                                    }}
-                                                >
-                                                  <div className={cn( "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible" )}>
-                                                        <Check className={cn("h-4 w-4")} />
-                                                    </div>
-                                                    <span>{category.name}</span>
-                                                </CommandItem>
-                                            );
-                                        })}
-                                    </CommandGroup>
+                                    <CommandList>
+                                        <CommandEmpty>No categories found.</CommandEmpty>
+                                        <CommandGroup>
+                                            {categories.map((category) => {
+                                                const isSelected = selectedCategories.some(c => c.id === category.id);
+                                                return (
+                                                    <CommandItem
+                                                        key={category.id}
+                                                        onSelect={() => {
+                                                            handleCategorySelect(category);
+                                                        }}
+                                                    >
+                                                      <div className={cn( "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50" )}>
+                                                            <Check className={cn("h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                                                        </div>
+                                                        <span>{category.name}</span>
+                                                    </CommandItem>
+                                                );
+                                            })}
+                                        </CommandGroup>
+                                    </CommandList>
                                 </Command>
                             </PopoverContent>
                         </Popover>
