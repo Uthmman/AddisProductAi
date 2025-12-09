@@ -355,8 +355,8 @@ export default function ProductForm({ product }: ProductFormProps) {
           <div className="lg:col-span-2">
              <Card>
                 <CardHeader>
-                    <CardTitle>AI Generated Content</CardTitle>
-                    <CardDescription>Review and edit the AI-generated content below before saving.</CardDescription>
+                    <CardTitle>{product ? 'Product Content Preview' : 'AI Generated Content'}</CardTitle>
+                    <CardDescription>Review and edit the content below before saving. You can also regenerate it using the AI.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                    <div className="space-y-2">
