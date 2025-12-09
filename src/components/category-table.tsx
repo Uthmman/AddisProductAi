@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PlusCircle, Edit } from "lucide-react";
+import Image from "next/image";
+import { PlusCircle, Edit, Image as ImageIcon } from "lucide-react";
 import { WooCategory } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +10,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import CategoryForm from "./category-form";
 import {
@@ -94,6 +94,7 @@ export default function CategoryTable() {
                 <Table>
                     <TableHeader>
                     <TableRow>
+                        <TableHead className="w-[80px]">Image</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Slug</TableHead>
                         <TableHead>Parent</TableHead>
@@ -104,6 +105,21 @@ export default function CategoryTable() {
                     <TableBody>
                     {categories.length > 0 ? categories.map((cat) => (
                         <TableRow key={cat.id}>
+                            <TableCell>
+                                {cat.image ? (
+                                    <Image 
+                                        src={cat.image.src} 
+                                        alt={cat.name} 
+                                        width={48} 
+                                        height={48} 
+                                        className="rounded-md object-cover w-12 h-12"
+                                    />
+                                ) : (
+                                    <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md">
+                                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                )}
+                            </TableCell>
                             <TableCell className="font-medium">{cat.name}</TableCell>
                             <TableCell>{cat.slug}</TableCell>
                             <TableCell>{cat.parent ? getParentCategoryName(cat.parent) : '—'}</TableCell>
@@ -116,7 +132,7 @@ export default function CategoryTable() {
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">
+                            <TableCell colSpan={6} className="h-24 text-center">
                                 No categories found.
                             </TableCell>
                         </TableRow>

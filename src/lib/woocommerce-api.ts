@@ -116,7 +116,7 @@ export async function updateProduct(id: number, productData: any): Promise<WooPr
     return await response.json();
 }
 
-export async function createCategory(categoryData: { name: string; slug?: string; parent?: number }): Promise<WooCategory> {
+export async function createCategory(categoryData: { name: string; slug?: string; parent?: number, image?: { id?: number, src?: string } }): Promise<WooCategory> {
   const headers = getAuthHeaders();
   const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories`, {
     method: 'POST',
@@ -133,7 +133,7 @@ export async function createCategory(categoryData: { name: string; slug?: string
   return await response.json();
 }
 
-export async function updateCategory(id: number, categoryData: { name?: string; slug?: string; parent?: number }): Promise<WooCategory> {
+export async function updateCategory(id: number, categoryData: { name?: string; slug?: string; parent?: number, image?: { id?: number, src?: string } }): Promise<WooCategory> {
   const headers = getAuthHeaders();
   const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories/${id}`, {
     method: 'PUT',

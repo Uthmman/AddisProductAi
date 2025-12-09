@@ -27,7 +27,8 @@ function CategoryTableSkeleton() {
         <div className="w-full">
           <div className="border-b">
             <div className="flex h-12 items-center px-4">
-              <Skeleton className="h-6 w-1/4" />
+              <Skeleton className="h-6 w-16" />
+              <Skeleton className="h-6 w-1/4 ml-4" />
               <Skeleton className="h-6 w-1/4 ml-auto" />
               <Skeleton className="h-6 w-1/4 ml-auto" />
               <Skeleton className="h-6 w-16 ml-auto" />
@@ -36,7 +37,8 @@ function CategoryTableSkeleton() {
           <div>
             {[...Array(8)].map((_, i) => (
               <div key={i} className="flex h-16 items-center px-4 border-b">
-                <Skeleton className="h-8 flex-1" />
+                <Skeleton className="h-12 w-12 rounded-md" />
+                <Skeleton className="h-8 flex-1 ml-4" />
                 <Skeleton className="h-8 w-1/4 ml-auto" />
                 <Skeleton className="h-8 w-1/4 ml-auto" />
                 <Skeleton className="h-8 w-16 ml-auto" />
