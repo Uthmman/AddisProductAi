@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -15,11 +15,12 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent, WooCategory } from "@/lib/types";
-import { fileToBase64 } from "@/lib/utils";
-import { Loader2, Sparkles, UploadCloud, X as XIcon } from "lucide-react";
+import { fileToBase64, cn } from "@/lib/utils";
+import { Loader2, Sparkles, UploadCloud, X as XIcon, Check } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "./ui/command";
+import { Badge } from "./ui/badge";
 
 // Simplified schema for form validation
 const FormSchema = z.object({
@@ -43,7 +44,7 @@ type ImageState = {
   file?: File;
 };
 
-type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'images' | null;
+type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | null;
 
 async function imageUrlToDataUri(url: string): Promise<string> {
     const response = await fetch(url);
@@ -56,7 +57,6 @@ async function imageUrlToDataUri(url: string): Promise<string> {
     });
 }
 
-
 export default function ProductForm({ product }: ProductFormProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -64,9 +64,9 @@ export default function ProductForm({ product }: ProductFormProps) {
   const [generatingField, setGeneratingField] = useState<GeneratingField>(null);
   
   const [images, setImages] = useState<ImageState[]>([]);
-  const [aiContent, setAiContent] = useState<Partial<AIProductContent & { images: { alt: string }[] }>>({});
+  const [aiContent, setAiContent] = useState<Partial<AIProductContent>>({});
   const [categories, setCategories] = useState<WooCategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategories, setSelectedCategories] = useState<WooCategory[]>([]);
   
   useEffect(() => {
     async function fetchCategories() {
@@ -91,22 +91,27 @@ export default function ProductForm({ product }: ProductFormProps) {
   useEffect(() => {
     if (product) {
       setImages(product.images.map(img => ({ ...img, src: img.src || '', alt: img.alt || '' })));
+      
+      const productCategories = product.categories.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug,
+        count: 0 // Count isn't essential on the form
+      }));
+      setSelectedCategories(productCategories);
+
       setAiContent({
         name: product.name,
         description: product.description,
         short_description: product.short_description,
         slug: product.slug,
         tags: product.tags.map(t => t.name),
+        categories: product.categories.map(c => ({ id: c.id, name: c.name, slug: c.slug })),
         meta_data: product.meta_data,
         attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
         images: product.images.map(img => ({ alt: img.alt })),
         regular_price: parseFloat(product.regular_price)
       });
-
-      if (product.categories && product.categories.length > 0) {
-        setSelectedCategory(product.categories[0].id.toString());
-      }
-
     }
   }, [product]);
 
@@ -173,13 +178,12 @@ export default function ProductForm({ product }: ProductFormProps) {
                 if (image.src.startsWith('data:image')) {
                     return image.src;
                 }
-                // Convert remote URLs to data URIs for the AI
                 if (image.src.startsWith('http')) {
                     try {
                         return await imageUrlToDataUri(image.src);
                     } catch (error) {
                         console.error(`Failed to convert image URL to data URI: ${image.src}`, error);
-                        return null; // Skip images that fail to convert
+                        return null;
                     }
                 }
                 return null;
@@ -206,7 +210,8 @@ export default function ProductForm({ product }: ProductFormProps) {
                 images_data: validImagesData,
                 price_etb: values.price_etb,
                 fieldToGenerate: field,
-                existingContent: aiContent
+                existingContent: aiContent,
+                availableCategories: categories,
             }),
         });
 
@@ -223,13 +228,18 @@ export default function ProductForm({ product }: ProductFormProps) {
         
         if (data.images) {
             setImages(prevImages => {
-                let aiImageIndex = 0;
-                return prevImages.map(img => {
-                    const newAlt = data.images?.[aiImageIndex]?.alt || img.alt;
-                    aiImageIndex++;
-                    return { ...img, alt: newAlt };
-                });
+                return prevImages.map((img, index) => ({
+                    ...img,
+                    alt: data.images?.[index]?.alt || img.alt
+                }));
             });
+        }
+        
+        if (data.categories) {
+            const aiSelectedCategories = categories.filter(cat => 
+                data.categories?.some(aiCat => aiCat.id === cat.id)
+            );
+            setSelectedCategories(aiSelectedCategories);
         }
 
         toast({
@@ -269,7 +279,12 @@ export default function ProductForm({ product }: ProductFormProps) {
           })
         );
         
-        const existingImages = images.filter(img => !img.file);
+        const existingImages = images.filter(img => !img.file).map(img => ({
+          id: img.id,
+          src: img.src,
+          alt: img.alt
+        }));
+
         const finalImages = [...existingImages, ...uploadedImages].map((img) => ({
             id: img.id,
             src: img.src,
@@ -282,7 +297,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             regular_price: (aiContent.regular_price || form.getValues('price_etb')).toString(),
             description: aiContent.description,
             short_description: aiContent.short_description,
-            categories: selectedCategory ? [{ id: parseInt(selectedCategory) }] : [],
+            categories: selectedCategories.map(c => ({ id: c.id })),
             tags: aiContent.tags?.map(tag => ({ name: tag })),
             images: finalImages,
             attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
@@ -334,6 +349,18 @@ export default function ProductForm({ product }: ProductFormProps) {
       return { ...p, meta_data: [...existingMeta, { key, value }] };
     });
   }
+  
+  const handleCategorySelect = useCallback((category: WooCategory) => {
+      setSelectedCategories(prev => {
+          const isSelected = prev.some(c => c.id === category.id);
+          if (isSelected) {
+              return prev.filter(c => c.id !== category.id);
+          } else {
+              return [...prev, category];
+          }
+      });
+  }, []);
+
 
   const renderGenButton = (field: GeneratingField) => (
     <TooltipProvider>
@@ -396,21 +423,6 @@ export default function ProductForm({ product }: ProductFormProps) {
                      <FormField control={form.control} name="material" render={({ field }) => (
                         <FormItem><FormLabel>Material</FormLabel><FormControl><Input placeholder="e.g., Cotton" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <div className="space-y-2">
-                        <Label>Category</Label>
-                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {categories.map(cat => (
-                                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                                        {cat.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
                     <FormField control={form.control} name="price_etb" render={({ field }) => (
                         <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" placeholder="e.g., 1500" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
@@ -443,6 +455,44 @@ export default function ProductForm({ product }: ProductFormProps) {
                     <div className="space-y-2">
                         <div className="flex justify-between items-center"><Label>Slug</Label>{renderGenButton('slug')}</div>
                         <Input value={aiContent.slug || ''} onChange={(e) => setAiContent(p => ({ ...p, slug: e.target.value }))} placeholder="AI generated slug..." />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center"><Label>Categories</Label>{renderGenButton('categories')}</div>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" className="w-full justify-start font-normal h-auto">
+                                    <div className="flex gap-1 flex-wrap">
+                                      {selectedCategories.length > 0 ? (
+                                        selectedCategories.map(cat => <Badge key={cat.id} variant="secondary">{cat.name}</Badge>)
+                                      ) : (
+                                        <span>Select categories...</span>
+                                      )}
+                                    </div>
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                <Command>
+                                    <CommandInput placeholder="Search categories..." />
+                                    <CommandEmpty>No categories found.</CommandEmpty>
+                                    <CommandGroup>
+                                        {categories.map((category) => {
+                                            const isSelected = selectedCategories.some(c => c.id === category.id);
+                                            return (
+                                                <CommandItem
+                                                    key={category.id}
+                                                    onSelect={() => handleCategorySelect(category)}
+                                                >
+                                                  <div className={cn( "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible" )}>
+                                                        <Check className={cn("h-4 w-4")} />
+                                                    </div>
+                                                    <span>{category.name}</span>
+                                                </CommandItem>
+                                            );
+                                        })}
+                                    </CommandGroup>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                    <div className="space-y-2">
                        <div className="flex justify-between items-center"><Label>Description</Label>{renderGenButton('description')}</div>

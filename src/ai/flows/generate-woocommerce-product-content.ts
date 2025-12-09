@@ -24,6 +24,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
   images_data: z.array(z.string()).describe(
     "The product images as an array of data URIs that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
   ),
+  availableCategories: z.array(z.object({id: z.number(), name: z.string(), slug: z.string()})).describe('List of available categories the AI can choose from.'),
   fieldToGenerate: z.enum([
       'all',
       'name',
@@ -34,6 +35,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
       'meta_data',
       'attributes',
       'images',
+      'categories',
   ]).optional().describe('The specific field to generate content for. If not provided, all fields will be generated.'),
   existingContent: z.any().optional().describe('Existing product content to provide context for single-field generation.')
 });
@@ -46,6 +48,7 @@ const GenerateWooCommerceProductContentOutputSchema = z.object({
   description: z.string().optional().describe('SEO-rich description formatted with HTML <p> tags.'),
   short_description: z.string().optional().describe('Concise bullet-pointed summary.'),
   tags: z.array(z.string()).optional().describe('English and Amharic keywords.'),
+  categories: z.array(z.object({ id: z.number()})).optional().describe('An array of category objects with their IDs, chosen from the provided list.'),
   meta_data: z
     .array(z.object({key: z.string(), value: z.string()}))
     .optional()
@@ -74,6 +77,11 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
   prompt: `You are a specialized e-commerce content optimizer, focused on high conversion and excellent SEO performance in the **Addis Ababa, Ethiopia** market. Analyze the product images and data to generate a complete, SEO-optimized JSON object for a WooCommerce product update. The name must be refined for specificity, and Amharic input must be leveraged for local search optimization (Amharic keywords are high-value). The output MUST be a single, valid JSON object with NO external text.
 
 When generating image alt text (the 'images' field), create descriptive text that also includes relevant SEO keywords such as 'zenbaba furniture', 'ethiopia', 'addis ababa', the product's Amharic name ({{{amharic_name}}}), and other related terms. This will improve search engine visibility.
+
+Based on the product information, select the most relevant categories from the list provided in the 'availableCategories' field. Your response for the 'categories' field should be an array of objects, each containing the 'id' of the selected category.
+
+Available Categories for selection:
+{{{json availableCategories}}}
 
 {{#if fieldToGenerate}}
 You are being asked to generate a single field: \`{{fieldToGenerate}}\`. 

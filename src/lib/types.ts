@@ -31,6 +31,7 @@ export type AIProductContent = {
   description?: string;
   short_description?: string;
   tags?: string[];
+  categories?: { id: number, name?: string, slug?: string }[];
   meta_data?: { key: string; value: string }[];
   attributes?: { name: string; option: string }[];
   images?: { alt: string }[];

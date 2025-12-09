@@ -9,6 +9,7 @@ const InputSchema = z.object({
   focus_keywords: z.string(),
   price_etb: z.number(),
   images_data: z.array(z.string()),
+  availableCategories: z.array(z.object({id: z.number(), name: z.string(), slug: z.string()})),
   fieldToGenerate: z.enum([
       'all',
       'name',
@@ -19,6 +20,7 @@ const InputSchema = z.object({
       'meta_data',
       'attributes',
       'images',
+      'categories',
   ]).optional(),
   existingContent: z.any().optional(),
 });
