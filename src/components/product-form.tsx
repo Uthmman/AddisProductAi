@@ -25,7 +25,7 @@ import { Badge } from "./ui/badge";
 // Simplified schema for form validation
 const FormSchema = z.object({
   raw_name: z.string().min(3, "Product name is required"),
-  material: z.string().min(2, "Material is required"),
+  material: z.string().optional(),
   price_etb: z.coerce.number().positive("Price must be a positive number."),
   focus_keywords: z.string().optional(),
   amharic_name: z.string().optional(),
@@ -570,3 +570,5 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
+
+    
