@@ -73,6 +73,8 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
   output: {schema: GenerateWooCommerceProductContentOutputSchema},
   prompt: `You are a specialized e-commerce content optimizer, focused on high conversion and excellent SEO performance in the **Addis Ababa, Ethiopia** market. Analyze the product images and data to generate a complete, SEO-optimized JSON object for a WooCommerce product update. The name must be refined for specificity, and Amharic input must be leveraged for local search optimization (Amharic keywords are high-value). The output MUST be a single, valid JSON object with NO external text.
 
+When generating image alt text (the 'images' field), create descriptive text that also includes relevant SEO keywords such as 'zenbaba furniture', 'ethiopia', 'addis ababa', the product's Amharic name ({{{amharic_name}}}), and other related terms. This will improve search engine visibility.
+
 {{#if fieldToGenerate}}
 You are being asked to generate a single field: \`{{fieldToGenerate}}\`. 
 Base your response on the provided input data and the existing product content below. The generated value for \`{{fieldTogenerate}}\` should be consistent with the other product details.
