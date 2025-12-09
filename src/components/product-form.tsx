@@ -14,10 +14,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { WooProduct, AIProductContent } from "@/lib/types";
+import { WooProduct, AIProductContent, WooCategory } from "@/lib/types";
 import { fileToBase64 } from "@/lib/utils";
 import { Loader2, Sparkles, UploadCloud, X as XIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+
 
 // Simplified schema for form validation
 const FormSchema = z.object({
@@ -63,6 +65,28 @@ export default function ProductForm({ product }: ProductFormProps) {
   
   const [images, setImages] = useState<ImageState[]>([]);
   const [aiContent, setAiContent] = useState<Partial<AIProductContent & { images: { alt: string }[] }>>({});
+  const [categories, setCategories] = useState<WooCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  
+  useEffect(() => {
+    async function fetchCategories() {
+        try {
+            const res = await fetch('/api/products/categories');
+            if (res.ok) {
+                const data: WooCategory[] = await res.json();
+                setCategories(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch categories", error);
+            toast({
+                title: "Error",
+                description: "Could not load product categories.",
+                variant: "destructive"
+            });
+        }
+    }
+    fetchCategories();
+  }, [toast]);
   
   useEffect(() => {
     if (product) {
@@ -78,6 +102,11 @@ export default function ProductForm({ product }: ProductFormProps) {
         images: product.images.map(img => ({ alt: img.alt })),
         regular_price: parseFloat(product.regular_price)
       });
+
+      if (product.categories && product.categories.length > 0) {
+        setSelectedCategory(product.categories[0].id.toString());
+      }
+
     }
   }, [product]);
 
@@ -253,6 +282,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             regular_price: (aiContent.regular_price || form.getValues('price_etb')).toString(),
             description: aiContent.description,
             short_description: aiContent.short_description,
+            categories: selectedCategory ? [{ id: parseInt(selectedCategory) }] : [],
             tags: aiContent.tags?.map(tag => ({ name: tag })),
             images: finalImages,
             attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
@@ -366,6 +396,21 @@ export default function ProductForm({ product }: ProductFormProps) {
                      <FormField control={form.control} name="material" render={({ field }) => (
                         <FormItem><FormLabel>Material</FormLabel><FormControl><Input placeholder="e.g., Cotton" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
+                    <div className="space-y-2">
+                        <Label>Category</Label>
+                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {categories.map(cat => (
+                                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                                        {cat.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <FormField control={form.control} name="price_etb" render={({ field }) => (
                         <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" placeholder="e.g., 1500" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
@@ -450,5 +495,3 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
-
-    
