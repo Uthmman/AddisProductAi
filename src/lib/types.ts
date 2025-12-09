@@ -42,5 +42,14 @@ export interface WooCategory {
   id: number;
   name: string;
   slug: string;
+  parent: number;
+  description: string;
+  display: string;
+  image: {
+    id: number;
+    src: string;
+    alt: string;
+  } | null;
+  menu_order: number;
   count: number;
 }

@@ -36,8 +36,9 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
   };
 }
 
-export async function getProductCategories(): Promise<WooCategory[]> {
+export async function getTopProductCategories(): Promise<WooCategory[]> {
     const headers = getAuthHeaders();
+    // Fetches top categories by product count, excluding 'uncategorized'
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?hide_empty=true&orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
@@ -46,6 +47,20 @@ export async function getProductCategories(): Promise<WooCategory[]> {
         throw new Error('Failed to fetch product categories');
     }
 
+    const categories: WooCategory[] = await response.json();
+    return categories.filter(c => c.slug !== 'uncategorized');
+}
+
+export async function getAllProductCategories(): Promise<WooCategory[]> {
+    const headers = getAuthHeaders();
+    // Fetches all categories, ordered by name
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?orderby=name&order=asc&per_page=100`, { headers, cache: 'no-store' });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("Failed to fetch all product categories:", response.status, errorBody);
+        throw new Error('Failed to fetch all product categories');
+    }
     const categories: WooCategory[] = await response.json();
     return categories.filter(c => c.slug !== 'uncategorized');
 }
@@ -100,6 +115,57 @@ export async function updateProduct(id: number, productData: any): Promise<WooPr
 
     return await response.json();
 }
+
+export async function createCategory(categoryData: { name: string; slug?: string; parent?: number }): Promise<WooCategory> {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(categoryData),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json();
+    console.error('Failed to create category:', response.status, errorBody);
+    throw new Error(errorBody.message || 'Failed to create category');
+  }
+
+  return await response.json();
+}
+
+export async function updateCategory(id: number, categoryData: { name?: string; slug?: string; parent?: number }): Promise<WooCategory> {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(categoryData),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json();
+    console.error(`Failed to update category ${id}:`, response.status, errorBody);
+    throw new Error(errorBody.message || `Failed to update category ${id}`);
+  }
+
+  return await response.json();
+}
+
+export async function deleteCategory(id: number, force: boolean = true): Promise<WooCategory> {
+  const headers = getAuthHeaders();
+  const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories/${id}?force=${force}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json();
+    console.error(`Failed to delete category ${id}:`, response.status, errorBody);
+    throw new Error(errorBody.message || `Failed to delete category ${id}`);
+  }
+
+  return await response.json();
+}
+
 
 export async function uploadImage(imageName: string, imageB64: string): Promise<{id: number, src: string}> {
     const wpApiUrl = process.env.WORDPRESS_API_URL;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package } from "lucide-react";
+import { Package, FolderTree } from "lucide-react";
 import { Button } from "./ui/button";
 
 export default function Header() {
@@ -12,10 +12,24 @@ export default function Header() {
             Addis Product AI
           </span>
         </Link>
-        <div className="flex flex-1 items-center justify-end space-x-4">
-          <nav className="flex items-center space-x-2">
-            {/* Future nav items can go here */}
+        <div className="flex flex-1 items-center justify-between space-x-4">
+           <nav className="flex items-center space-x-6 text-sm font-medium">
+            <Link
+              href="/dashboard"
+              className="transition-colors hover:text-foreground/80 text-foreground"
+            >
+              Products
+            </Link>
+             <Link
+              href="/categories"
+              className="transition-colors hover:text-foreground/80 text-foreground/60"
+            >
+              Categories
+            </Link>
           </nav>
+          <div className="flex items-center justify-end space-x-4">
+            {/* Future nav items can go here */}
+          </div>
         </div>
       </div>
     </header>
