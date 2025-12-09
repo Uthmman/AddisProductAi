@@ -33,18 +33,26 @@ type ProductFormProps = {
   product: WooProduct | null;
 };
 
+type ImageState = {
+  id?: number;
+  src: string;
+  alt: string;
+  file?: File;
+};
+
+
 export default function ProductForm({ product }: ProductFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [imagePreviews, setImagePreviews] = useState<(string)[]>(product?.images?.map(img => img.src) || []);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
   
-  const [aiContent, setAiContent] = useState<Partial<AIProductContent & { images: { id?: number; src?: string; alt?: string }[] }>>({});
+  const [images, setImages] = useState<ImageState[]>([]);
+  const [aiContent, setAiContent] = useState<Partial<AIProductContent & { images: { alt: string }[] }>>({});
   
   useEffect(() => {
     if (product) {
+      setImages(product.images.map(img => ({ ...img, src: img.src || '', alt: img.alt || '' })));
       setAiContent({
         name: product.name,
         description: product.description,
@@ -53,12 +61,9 @@ export default function ProductForm({ product }: ProductFormProps) {
         tags: product.tags.map(t => t.name),
         meta_data: product.meta_data,
         attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
-        images: product.images.map(img => ({ id: img.id, src: img.src, alt: img.alt })),
+        images: product.images.map(img => ({ alt: img.alt })),
         regular_price: parseFloat(product.regular_price)
       });
-      if (product.images?.length > 0) {
-        setImagePreviews(product.images.map(img => img.src));
-      }
     }
   }, [product]);
 
@@ -77,26 +82,40 @@ export default function ProductForm({ product }: ProductFormProps) {
     const files = event.target.files;
     if (files && files.length > 0) {
       const newFiles = Array.from(files);
-      const allFiles = [...imageFiles, ...newFiles];
-      setImageFiles(allFiles);
-
-      const newPreviews = await Promise.all(newFiles.map(file => fileToBase64(file)));
-      setImagePreviews(prev => [...prev, ...newPreviews]);
+      const newImageStates: ImageState[] = await Promise.all(
+        newFiles.map(async file => {
+          const src = await fileToBase64(file);
+          return { src, alt: '', file };
+        })
+      );
+      setImages(prev => [...prev, ...newImageStates]);
     }
   };
 
   const removeImage = (index: number) => {
-    setImagePreviews(previews => previews.filter((_, i) => i !== index));
-    setImageFiles(files => files.filter((_, i) => i !== index));
+    setImages(prev => prev.filter((_, i) => i !== index));
     setAiContent(p => {
-      const newImages = p.images?.filter((_, i) => i !== index);
-      return { ...p, images: newImages };
+        const newAiImages = p.images?.filter((_, i) => i !== index);
+        return { ...p, images: newAiImages };
+    });
+  }
+  
+  const handleAltTextChange = (index: number, alt: string) => {
+    setImages(prev => prev.map((img, i) => i === index ? { ...img, alt } : img));
+    setAiContent(p => {
+        const newAiImages = p.images ? [...p.images] : [];
+        if(newAiImages[index]) {
+            newAiImages[index] = { ...newAiImages[index], alt };
+        } else {
+             newAiImages[index] = { alt };
+        }
+        return { ...p, images: newAiImages };
     });
   }
 
 
   const handleGenerate = async (values: FormValues) => {
-    if (imagePreviews.length === 0) {
+    if (images.length === 0) {
         toast({
             variant: "destructive",
             title: "Image Required",
@@ -107,24 +126,36 @@ export default function ProductForm({ product }: ProductFormProps) {
 
     setIsGenerating(true);
     try {
-        let imageDataUrl = imagePreviews[0];
-        let imageFileName = imageFiles[0]?.name;
+        const imagesData = await Promise.all(
+            images.map(async (image) => {
+                if (image.file) {
+                    return fileToBase64(image.file);
+                }
+                // This part is tricky. Fetching and converting a URL to base64 can be blocked by CORS.
+                // For simplicity, we'll only send new files to the AI for now.
+                // Or if it's already a data URL.
+                if (image.src.startsWith('data:image')) {
+                    return image.src;
+                }
+                // In a real app, you might need a server-side proxy to fetch URL content.
+                // We'll return null and filter it out.
+                return null;
+            })
+        );
 
-        // If the first preview is from a file, it's already a data URL.
-        // If it's from an existing product, it's a URL.
-        if (imageFiles[0]) {
-             imageFileName = imageFiles[0].name;
-        } else if (product?.images?.[0]?.src) {
-            // As a workaround, we'll tell the user to re-upload if they want to use AI on an existing image without changes.
-            if(!imageDataUrl?.startsWith('data:image')) {
-                 toast({
-                    title: "Optimization Recommendation",
-                    description: "To optimize content based on an existing image, please re-upload it first.",
-                    variant: "default",
-                });
-                setIsGenerating(false);
-                return;
-            }
+        const validImagesData = imagesData.filter(d => d !== null) as string[];
+
+        if(validImagesData.length < images.length) {
+             toast({
+                title: "Optimization Recommendation",
+                description: "To optimize content based on existing images, please re-upload them first.",
+                variant: "default",
+            });
+        }
+        
+        if (validImagesData.length === 0) {
+             setIsGenerating(false);
+             return;
         }
         
         const response = await fetch('/api/products/ai-optimize', {
@@ -132,8 +163,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...values,
-                image_data: imageDataUrl,
-                image_name: imageFileName || 'product-image.jpg',
+                images_data: validImagesData,
                 price_etb: values.price_etb
             }),
         });
@@ -142,17 +172,25 @@ export default function ProductForm({ product }: ProductFormProps) {
             throw new Error('Failed to generate AI content');
         }
 
-        const data = await response.json();
+        const data: AIProductContent = await response.json();
         
-        // Preserve existing images and merge AI content
         setAiContent(prev => ({
           ...prev,
           ...data,
-          images: [
-            data.images[0], // AI-generated alt for the first image
-            ...(prev.images?.slice(1) || []),
-          ]
         }));
+        
+        setImages(prevImages => {
+            let aiImageIndex = 0;
+            return prevImages.map(img => {
+                // Only update alt text for images that were sent to the AI
+                if (img.file || img.src.startsWith('data:image')) {
+                    const newAlt = data.images?.[aiImageIndex]?.alt || img.alt;
+                    aiImageIndex++;
+                    return { ...img, alt: newAlt };
+                }
+                return img;
+            });
+        });
 
         toast({
             title: "Content Generated",
@@ -175,42 +213,39 @@ export default function ProductForm({ product }: ProductFormProps) {
     setIsSaving(true);
 
     try {
-        // Upload new images first
+        const newFilesToUpload = images.filter(img => img.file);
+
         const uploadedImages = await Promise.all(
-          imageFiles.map(async (file) => {
-            const base64 = await fileToBase64(file);
+          newFilesToUpload.map(async (image) => {
+            const base64 = await fileToBase64(image.file!);
             const response = await fetch('/api/products/upload-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image_data: base64, image_name: file.name }),
+              body: JSON.stringify({ image_data: base64, image_name: image.file!.name }),
             });
-            if (!response.ok) throw new Error(`Image upload failed for ${file.name}`);
-            return response.json();
+            if (!response.ok) throw new Error(`Image upload failed for ${image.file!.name}`);
+            const uploaded = await response.json();
+            return { ...uploaded, alt: image.alt };
           })
         );
         
-        // Combine existing images (that were not removed) and newly uploaded ones
-        const existingImages = product?.images?.filter(img => imagePreviews.includes(img.src)) || [];
-        const finalImages = [...existingImages, ...uploadedImages].map((img, index) => {
-            const aiImage = aiContent.images?.[index];
-            return {
-                id: img.id,
-                src: img.src,
-                alt: aiImage?.alt || (aiContent.images?.[0]?.alt || product?.name || form.getValues('raw_name'))
-            };
-        });
+        const existingImages = images.filter(img => !img.file);
+        const finalImages = [...existingImages, ...uploadedImages].map((img) => ({
+            id: img.id,
+            src: img.src,
+            alt: img.alt || aiContent.name || form.getValues('raw_name')
+        }));
 
-        // Combine original data, user edits, and AI content
         const finalData = {
-            name: aiContent.name || product?.name || form.getValues('raw_name'),
+            name: aiContent.name || form.getValues('raw_name'),
             slug: aiContent.slug,
             regular_price: (aiContent.regular_price || form.getValues('price_etb')).toString(),
-            description: aiContent.description || product?.description,
-            short_description: aiContent.short_description || product?.short_description,
-            tags: aiContent.tags?.map(tag => ({ name: tag })) || product?.tags,
+            description: aiContent.description,
+            short_description: aiContent.short_description,
+            tags: aiContent.tags?.map(tag => ({ name: tag })),
             images: finalImages,
-            attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })) || product?.attributes,
-            meta_data: aiContent.meta_data || product?.meta_data
+            attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
+            meta_data: aiContent.meta_data,
         };
 
         const url = product ? `/api/products/${product.id}` : '/api/products';
@@ -275,9 +310,9 @@ export default function ProductForm({ product }: ProductFormProps) {
                      <div className="space-y-2">
                         <Label htmlFor="product-image">Product Images</Label>
                         <div className="grid grid-cols-3 gap-2">
-                           {imagePreviews.map((src, index) => (
+                           {images.map((image, index) => (
                                <div key={index} className="relative aspect-square rounded-md overflow-hidden group">
-                                   <Image src={src} alt={`Product preview ${index + 1}`} fill style={{objectFit: 'cover'}} data-ai-hint="product image"/>
+                                   <Image src={image.src} alt={`Product preview ${index + 1}`} fill style={{objectFit: 'cover'}} data-ai-hint="product image"/>
                                    <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removeImage(index)}>
                                         <XIcon className="h-4 w-4" />
                                    </Button>
@@ -344,21 +379,26 @@ export default function ProductForm({ product }: ProductFormProps) {
                        <Label>Tags</Label>
                        <Input value={aiContent.tags?.join(', ') || ''} onChange={(e) => setAiContent(p => ({...p, tags: e.target.value.split(',').map(t => t.trim())}))} placeholder="AI generated tags..."/>
                    </div>
-                   <div className="space-y-2">
-                       <Label>Image Alt Text (First Image)</Label>
-                       <Input value={aiContent.images?.[0]?.alt || ''} onChange={(e) => setAiContent(p => ({...p, images: [{...p.images?.[0], alt: e.target.value}]}))} placeholder="AI generated image alt text..."/>
+                   
+                   <div className="space-y-4">
+                       <Label>Product Gallery & Alt Text</Label>
+                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                           {images.map((image, index) => (
+                              <div key={index} className="space-y-2">
+                                <Image src={image.src} alt={image.alt || `Product gallery image ${index + 1}`} width={150} height={150} className="rounded-md object-cover aspect-square" />
+                                <Input 
+                                  value={image.alt}
+                                  onChange={(e) => handleAltTextChange(index, e.target.value)}
+                                  placeholder={`Alt text for image ${index + 1}...`}
+                                />
+                              </div>
+                           ))}
+                       </div>
                    </div>
+
                    <div className="space-y-2">
                         <Label>Meta Description</Label>
                         <Textarea value={getMetaValue('_yoast_wpseo_metadesc') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_metadesc', e.target.value)} rows={3} placeholder="AI generated meta description for SEO..." />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Product Gallery</Label>
-                        <div className="grid grid-cols-4 gap-2">
-                            {imagePreviews.map((src, index) => (
-                                src && <Image key={index} src={src} alt={aiContent.images?.[index]?.alt || `Product gallery image ${index + 1}`} width={100} height={100} className="rounded-md object-cover" />
-                            ))}
-                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -375,5 +415,3 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
-
-    

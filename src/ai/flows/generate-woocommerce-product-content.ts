@@ -21,8 +21,8 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
   amharic_name: z.string().describe('The Amharic name of the product.'),
   focus_keywords: z.string().describe('Comma-separated keywords for SEO.'),
   price_etb: z.number().describe('The price of the product in ETB.'),
-  image_data: z.string().describe(
-    "The product image as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+  images_data: z.array(z.string()).describe(
+    "The product images as an array of data URIs that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
   ),
 });
 export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooCommerceProductContentInputSchema>;
@@ -40,7 +40,7 @@ const GenerateWooCommerceProductContentOutputSchema = z.object({
   attributes: z
     .array(z.object({name: z.string(), option: z.string()}))
     .describe('Product attributes.'),
-  images: z.array(z.object({alt: z.string()})).describe('Image alt texts.'),
+  images: z.array(z.object({alt: z.string()})).describe('Image alt texts for each provided image.'),
   regular_price: z.number().describe('The price of the product.'),
 });
 export type GenerateWooCommerceProductContentOutput = z.infer<typeof GenerateWooCommerceProductContentOutputSchema>;
@@ -57,7 +57,9 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
   name: 'generateWooCommerceProductContentPrompt',
   input: {schema: GenerateWooCommerceProductContentInputSchema},
   output: {schema: GenerateWooCommerceProductContentOutputSchema},
-  prompt: `You are a specialized e-commerce content optimizer, focused on high conversion and excellent SEO performance in the **Addis Ababa, Ethiopia** market. Analyze the product image and data to generate a complete, SEO-optimized JSON object for a WooCommerce product update. The name must be refined for specificity, and Amharic input must be leveraged for local search optimization (Amharic keywords are high-value). The output MUST be a single, valid JSON object with NO external text.
+  prompt: `You are a specialized e-commerce content optimizer, focused on high conversion and excellent SEO performance in the **Addis Ababa, Ethiopia** market. Analyze the product images and data to generate a complete, SEO-optimized JSON object for a WooCommerce product update. The name must be refined for specificity, and Amharic input must be leveraged for local search optimization (Amharic keywords are high-value). The output MUST be a single, valid JSON object with NO external text.
+
+For each image provided, generate a descriptive and SEO-optimized alt text. The 'images' array in your output JSON should contain one object with alt text for each image in the input.
 
 Input Data:
 {{{json input}}}
