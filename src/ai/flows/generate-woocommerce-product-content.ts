@@ -75,7 +75,10 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
 
 {{#if fieldToGenerate}}
 You are being asked to generate a single field: \`{{fieldToGenerate}}\`. 
-Base your response on the provided input data and the existing product content. The generated value for \`{{fieldToGenerate}}\` should be consistent with the other product details.
+Base your response on the provided input data and the existing product content below. The generated value for \`{{fieldTogenerate}}\` should be consistent with the other product details.
+
+Existing Content Context:
+{{{json existingContent}}}
 {{else}}
 You are being asked to generate all content fields. For each image provided, generate a descriptive and SEO-optimized alt text. The 'images' array in your output JSON should contain one object with alt text for each image in the input.
 {{/if}}
@@ -103,5 +106,3 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     return output!;
   }
 );
-
-    
