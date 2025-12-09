@@ -43,6 +43,17 @@ type ImageState = {
 
 type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'images' | null;
 
+async function imageUrlToDataUri(url: string): Promise<string> {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
 
 export default function ProductForm({ product }: ProductFormProps) {
   const router = useRouter();
@@ -129,16 +140,30 @@ export default function ProductForm({ product }: ProductFormProps) {
     setGeneratingField(field);
     try {
         const imagesData = await Promise.all(
-            images.map(image => image.src.startsWith('data:image') ? image.src : null)
+            images.map(async (image) => {
+                if (image.src.startsWith('data:image')) {
+                    return image.src;
+                }
+                // Convert remote URLs to data URIs for the AI
+                if (image.src.startsWith('http')) {
+                    try {
+                        return await imageUrlToDataUri(image.src);
+                    } catch (error) {
+                        console.error(`Failed to convert image URL to data URI: ${image.src}`, error);
+                        return null; // Skip images that fail to convert
+                    }
+                }
+                return null;
+            })
         );
-
+        
         const validImagesData = imagesData.filter(d => d !== null) as string[];
         
-        if (validImagesData.length === 0 && field !== null && field !== 'all' && field !== 'images' ) {
-            toast({
-                title: "Image data needed",
-                description: "AI generation requires at least one newly uploaded image for context.",
-                variant: "default",
+        if (validImagesData.length === 0 ) {
+             toast({
+                title: "Image Data Could Not Be Processed",
+                description: "We couldn't process any of the product images for AI generation.",
+                variant: "destructive",
             });
             setGeneratingField(null);
             return;
@@ -171,12 +196,9 @@ export default function ProductForm({ product }: ProductFormProps) {
             setImages(prevImages => {
                 let aiImageIndex = 0;
                 return prevImages.map(img => {
-                    if (img.file || img.src.startsWith('data:image')) {
-                        const newAlt = data.images?.[aiImageIndex]?.alt || img.alt;
-                        aiImageIndex++;
-                        return { ...img, alt: newAlt };
-                    }
-                    return img;
+                    const newAlt = data.images?.[aiImageIndex]?.alt || img.alt;
+                    aiImageIndex++;
+                    return { ...img, alt: newAlt };
                 });
             });
         }
@@ -428,3 +450,5 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
+
+    
