@@ -38,7 +38,7 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
 
 export async function getProductCategories(): Promise<WooCategory[]> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?hide_empty=true&orderby=count&order=desc`, { headers, cache: 'no-store' });
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?hide_empty=true&orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
         const errorBody = await response.text();
@@ -47,7 +47,7 @@ export async function getProductCategories(): Promise<WooCategory[]> {
     }
 
     const categories: WooCategory[] = await response.json();
-    return categories.filter(c => c.name !== 'Uncategorized');
+    return categories.filter(c => c.slug !== 'uncategorized');
 }
 
 
