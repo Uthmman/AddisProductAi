@@ -24,24 +24,38 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
   images_data: z.array(z.string()).describe(
     "The product images as an array of data URIs that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
   ),
+  fieldToGenerate: z.enum([
+      'all',
+      'name',
+      'slug',
+      'description',
+      'short_description',
+      'tags',
+      'meta_data',
+      'attributes',
+      'images',
+  ]).optional().describe('The specific field to generate content for. If not provided, all fields will be generated.'),
+  existingContent: z.any().optional().describe('Existing product content to provide context for single-field generation.')
 });
 export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooCommerceProductContentInputSchema>;
 
 // Define the output schema for the flow
 const GenerateWooCommerceProductContentOutputSchema = z.object({
-  name: z.string().describe('Refined, SEO-Optimized English Product Title.'),
-  slug: z.string().describe('URL-friendly, English slug.'),
-  description: z.string().describe('SEO-rich description formatted with HTML <p> tags.'),
-  short_description: z.string().describe('Concise bullet-pointed summary.'),
-  tags: z.array(z.string()).describe('English and Amharic keywords.'),
+  name: z.string().optional().describe('Refined, SEO-Optimized English Product Title.'),
+  slug: z.string().optional().describe('URL-friendly, English slug based on the new name.'),
+  description: z.string().optional().describe('SEO-rich description formatted with HTML <p> tags.'),
+  short_description: z.string().optional().describe('Concise bullet-pointed summary.'),
+  tags: z.array(z.string()).optional().describe('English and Amharic keywords.'),
   meta_data: z
     .array(z.object({key: z.string(), value: z.string()}))
-    .describe('Meta data for SEO.'),
+    .optional()
+    .describe('Meta data for SEO, especially the _yoast_wpseo_metadesc.'),
   attributes: z
     .array(z.object({name: z.string(), option: z.string()}))
+    .optional()
     .describe('Product attributes.'),
-  images: z.array(z.object({alt: z.string()})).describe('Image alt texts for each provided image.'),
-  regular_price: z.number().describe('The price of the product.'),
+  images: z.array(z.object({alt: z.string()})).optional().describe('Image alt texts for each provided image.'),
+  regular_price: z.number().optional().describe('The price of the product.'),
 });
 export type GenerateWooCommerceProductContentOutput = z.infer<typeof GenerateWooCommerceProductContentOutputSchema>;
 
@@ -59,7 +73,12 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
   output: {schema: GenerateWooCommerceProductContentOutputSchema},
   prompt: `You are a specialized e-commerce content optimizer, focused on high conversion and excellent SEO performance in the **Addis Ababa, Ethiopia** market. Analyze the product images and data to generate a complete, SEO-optimized JSON object for a WooCommerce product update. The name must be refined for specificity, and Amharic input must be leveraged for local search optimization (Amharic keywords are high-value). The output MUST be a single, valid JSON object with NO external text.
 
-For each image provided, generate a descriptive and SEO-optimized alt text. The 'images' array in your output JSON should contain one object with alt text for each image in the input.
+{{#if fieldToGenerate}}
+You are being asked to generate a single field: \`{{fieldToGenerate}}\`. 
+Base your response on the provided input data and the existing product content. The generated value for \`{{fieldToGenerate}}\` should be consistent with the other product details.
+{{else}}
+You are being asked to generate all content fields. For each image provided, generate a descriptive and SEO-optimized alt text. The 'images' array in your output JSON should contain one object with alt text for each image in the input.
+{{/if}}
 
 Input Data:
 {{{json input}}}

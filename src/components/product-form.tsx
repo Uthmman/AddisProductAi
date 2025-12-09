@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent } from "@/lib/types";
 import { fileToBase64 } from "@/lib/utils";
 import { Loader2, Sparkles, UploadCloud, X as XIcon } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 // Simplified schema for form validation
 const FormSchema = z.object({
@@ -40,12 +41,14 @@ type ImageState = {
   file?: File;
 };
 
+type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'images' | null;
+
 
 export default function ProductForm({ product }: ProductFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingField, setGeneratingField] = useState<GeneratingField>(null);
   
   const [images, setImages] = useState<ImageState[]>([]);
   const [aiContent, setAiContent] = useState<Partial<AIProductContent & { images: { alt: string }[] }>>({});
@@ -113,8 +116,7 @@ export default function ProductForm({ product }: ProductFormProps) {
     });
   }
 
-
-  const handleGenerate = async (values: FormValues) => {
+  const handleGenerate = async (values: FormValues, field: GeneratingField = 'all') => {
     if (images.length === 0) {
         toast({
             variant: "destructive",
@@ -124,77 +126,64 @@ export default function ProductForm({ product }: ProductFormProps) {
         return;
     }
 
-    setIsGenerating(true);
+    setGeneratingField(field);
     try {
         const imagesData = await Promise.all(
-            images.map(async (image) => {
-                if (image.file) {
-                    return fileToBase64(image.file);
-                }
-                // This part is tricky. Fetching and converting a URL to base64 can be blocked by CORS.
-                // For simplicity, we'll only send new files to the AI for now.
-                // Or if it's already a data URL.
-                if (image.src.startsWith('data:image')) {
-                    return image.src;
-                }
-                // In a real app, you might need a server-side proxy to fetch URL content.
-                // We'll return null and filter it out.
-                return null;
-            })
+            images.map(image => image.src.startsWith('data:image') ? image.src : null)
         );
 
         const validImagesData = imagesData.filter(d => d !== null) as string[];
-
-        if(validImagesData.length < images.length) {
-             toast({
-                title: "Optimization Recommendation",
-                description: "To optimize content based on existing images, please re-upload them first.",
+        
+        if (validImagesData.length === 0 && field !== null && field !== 'all' && field !== 'images' ) {
+            toast({
+                title: "Image data needed",
+                description: "AI generation requires at least one newly uploaded image for context.",
                 variant: "default",
             });
+            setGeneratingField(null);
+            return;
         }
-        
-        if (validImagesData.length === 0) {
-             setIsGenerating(false);
-             return;
-        }
-        
+
         const response = await fetch('/api/products/ai-optimize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...values,
                 images_data: validImagesData,
-                price_etb: values.price_etb
+                price_etb: values.price_etb,
+                fieldToGenerate: field,
+                existingContent: aiContent
             }),
         });
 
         if (!response.ok) {
-            throw new Error('Failed to generate AI content');
+            throw new Error(`Failed to generate AI content for ${field}`);
         }
 
-        const data: AIProductContent = await response.json();
+        const data: Partial<AIProductContent> = await response.json();
         
         setAiContent(prev => ({
           ...prev,
           ...data,
         }));
         
-        setImages(prevImages => {
-            let aiImageIndex = 0;
-            return prevImages.map(img => {
-                // Only update alt text for images that were sent to the AI
-                if (img.file || img.src.startsWith('data:image')) {
-                    const newAlt = data.images?.[aiImageIndex]?.alt || img.alt;
-                    aiImageIndex++;
-                    return { ...img, alt: newAlt };
-                }
-                return img;
+        if (data.images) {
+            setImages(prevImages => {
+                let aiImageIndex = 0;
+                return prevImages.map(img => {
+                    if (img.file || img.src.startsWith('data:image')) {
+                        const newAlt = data.images?.[aiImageIndex]?.alt || img.alt;
+                        aiImageIndex++;
+                        return { ...img, alt: newAlt };
+                    }
+                    return img;
+                });
             });
-        });
+        }
 
         toast({
             title: "Content Generated",
-            description: "AI-optimized content has been populated for your review.",
+            description: `AI-optimized content for ${field} has been populated.`,
         });
 
     } catch (error) {
@@ -202,10 +191,10 @@ export default function ProductForm({ product }: ProductFormProps) {
         toast({
             variant: "destructive",
             title: "Generation Failed",
-            description: "There was an error generating content. Please try again.",
+            description: `There was an error generating content for ${field}. Please try again.`,
         });
     } finally {
-        setIsGenerating(false);
+        setGeneratingField(null);
     }
   };
 
@@ -294,6 +283,27 @@ export default function ProductForm({ product }: ProductFormProps) {
     });
   }
 
+  const renderGenButton = (field: GeneratingField) => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-accent/70 hover:text-accent"
+            onClick={form.handleSubmit((values) => handleGenerate(values, field))}
+            disabled={generatingField !== null}
+          >
+            {generatingField === field ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>AI Generate {field}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 
   return (
     <Form {...form}>
@@ -345,9 +355,9 @@ export default function ProductForm({ product }: ProductFormProps) {
                     )} />
                 </CardContent>
             </Card>
-            <Button type="button" size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={form.handleSubmit(handleGenerate)} disabled={isGenerating}>
-              {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-              AI Optimize & Generate
+            <Button type="button" size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={form.handleSubmit((values) => handleGenerate(values, 'all'))} disabled={generatingField !== null}>
+              {generatingField === 'all' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              AI Optimize All Fields
             </Button>
           </div>
 
@@ -356,32 +366,35 @@ export default function ProductForm({ product }: ProductFormProps) {
              <Card>
                 <CardHeader>
                     <CardTitle>{product ? 'Product Content Preview' : 'AI Generated Content'}</CardTitle>
-                    <CardDescription>Review and edit the content below before saving. You can also regenerate it using the AI.</CardDescription>
+                    <CardDescription>Review and edit the content below. Use the ✨ icon to generate content for a specific field.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                    <div className="space-y-2">
-                       <Label>Product Name</Label>
+                       <div className="flex justify-between items-center"><Label>Product Name</Label>{renderGenButton('name')}</div>
                        <Input value={aiContent.name || ''} onChange={(e) => setAiContent(p => ({...p, name: e.target.value}))} placeholder="AI generated name will appear here..."/>
                    </div>
                     <div className="space-y-2">
-                        <Label>Slug</Label>
+                        <div className="flex justify-between items-center"><Label>Slug</Label>{renderGenButton('slug')}</div>
                         <Input value={aiContent.slug || ''} onChange={(e) => setAiContent(p => ({ ...p, slug: e.target.value }))} placeholder="AI generated slug..." />
                     </div>
                    <div className="space-y-2">
-                       <Label>Description</Label>
+                       <div className="flex justify-between items-center"><Label>Description</Label>{renderGenButton('description')}</div>
                        <Textarea value={aiContent.description || ''} onChange={(e) => setAiContent(p => ({...p, description: e.target.value}))} rows={6} placeholder="AI generated description..."/>
                    </div>
                    <div className="space-y-2">
-                       <Label>Short Description</Label>
+                       <div className="flex justify-between items-center"><Label>Short Description</Label>{renderGenButton('short_description')}</div>
                        <Textarea value={aiContent.short_description || ''} onChange={(e) => setAiContent(p => ({...p, short_description: e.target.value}))} rows={4} placeholder="AI generated short description..."/>
                    </div>
                     <div className="space-y-2">
-                       <Label>Tags</Label>
+                       <div className="flex justify-between items-center"><Label>Tags</Label>{renderGenButton('tags')}</div>
                        <Input value={aiContent.tags?.join(', ') || ''} onChange={(e) => setAiContent(p => ({...p, tags: e.target.value.split(',').map(t => t.trim())}))} placeholder="AI generated tags..."/>
                    </div>
                    
                    <div className="space-y-4">
-                       <Label>Product Gallery & Alt Text</Label>
+                        <div className="flex justify-between items-center">
+                            <Label>Product Gallery & Alt Text</Label>
+                            {renderGenButton('images')}
+                        </div>
                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                            {images.map((image, index) => (
                               <div key={index} className="space-y-2">
@@ -397,7 +410,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                    </div>
 
                    <div className="space-y-2">
-                        <Label>Meta Description</Label>
+                        <div className="flex justify-between items-center"><Label>Meta Description</Label>{renderGenButton('meta_data')}</div>
                         <Textarea value={getMetaValue('_yoast_wpseo_metadesc') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_metadesc', e.target.value)} rows={3} placeholder="AI generated meta description for SEO..." />
                     </div>
                 </CardContent>
@@ -406,7 +419,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         </div>
 
         <div className="mt-8 flex justify-end">
-          <Button type="button" size="lg" onClick={onSubmit} disabled={isSaving}>
+          <Button type="button" size="lg" onClick={onSubmit} disabled={isSaving || generatingField !== null}>
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {product ? "Save Changes" : "Create Product"}
           </Button>

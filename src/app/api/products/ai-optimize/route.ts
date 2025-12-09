@@ -8,7 +8,19 @@ const InputSchema = z.object({
   amharic_name: z.string(),
   focus_keywords: z.string(),
   price_etb: z.number(),
-  images_data: z.array(z.string()), // Array of Base64 encoded images
+  images_data: z.array(z.string()),
+  fieldToGenerate: z.enum([
+      'all',
+      'name',
+      'slug',
+      'description',
+      'short_description',
+      'tags',
+      'meta_data',
+      'attributes',
+      'images',
+  ]).optional(),
+  existingContent: z.any().optional(),
 });
 
 
@@ -25,7 +37,6 @@ export async function POST(request: NextRequest) {
     
     const aiContent = await generateWooCommerceProductContent(aiInput);
 
-    // The response contains all AI-generated text content, including alt text for all images.
     return NextResponse.json(aiContent);
 
   } catch (error) {

@@ -26,15 +26,15 @@ export interface WooProduct {
 }
 
 export type AIProductContent = {
-  name: string;
-  slug: string;
-  description: string;
-  short_description: string;
-  tags: string[];
-  meta_data: { key: string; value: string }[];
-  attributes: { name: string; option: string }[];
-  images: { alt: string }[];
-  regular_price: number;
+  name?: string;
+  slug?: string;
+  description?: string;
+  short_description?: string;
+  tags?: string[];
+  meta_data?: { key: string; value: string }[];
+  attributes?: { name: string; option: string }[];
+  images?: { alt: string }[];
+  regular_price?: number;
 };
 
 export interface WooCategory {
