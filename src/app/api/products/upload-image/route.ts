@@ -17,14 +17,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { image_data, image_name } = validation.data;
+    // Correctly await the async uploadImage function
     const uploadedImage = await uploadImage(image_name, image_data);
 
     return NextResponse.json(uploadedImage);
 
-  } catch (error) {
-    console.error('Image upload failed:', error);
-    return NextResponse.json({ message: 'An unexpected error occurred during image upload.' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Image upload failed:', error.message);
+    return NextResponse.json({ message: error.message || 'An unexpected error occurred during image upload.' }, { status: 500 });
   }
 }
-
-    
