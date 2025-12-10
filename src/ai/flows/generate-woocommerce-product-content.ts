@@ -93,8 +93,17 @@ Existing Content Context:
 You are being asked to generate all content fields. For each image provided, generate a descriptive and SEO-optimized alt text. The 'images' array in your output JSON should contain one object with alt text for each image in the input.
 {{/if}}
 
-Input Data:
-{{{json input}}}
+Input Data (text fields):
+Raw Name: {{{raw_name}}}
+Material: {{{material}}}
+Amharic Name: {{{amharic_name}}}
+Focus Keywords: {{{focus_keywords}}}
+Price (ETB): {{{price_etb}}}
+
+Images:
+{{#each images_data}}
+{{media url=this}}
+{{/each}}
 `,
 });
 
