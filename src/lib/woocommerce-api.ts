@@ -167,7 +167,7 @@ export async function deleteCategory(id: number, force: boolean = true): Promise
 }
 
 
-export async function uploadImage(imageName: string, imageBuffer: Buffer, mimeType: string): Promise<{id: number, src: string}> {
+export async function uploadImage(imageName: string, imageData: string): Promise<{id: number, src: string}> {
     const wpApiUrl = process.env.WORDPRESS_API_URL;
     const user = process.env.WORDPRESS_AUTH_USER;
     const pass = process.env.WORDPRESS_AUTH_PASS;
@@ -176,6 +176,13 @@ export async function uploadImage(imageName: string, imageBuffer: Buffer, mimeTy
         console.error("WordPress API credentials or URL are not set.");
         throw new Error("WordPress API credentials or URL are not set.");
     }
+    
+    const mimeTypeMatch = imageData.match(/^data:(image\/[a-z]+);base64,/);
+    if (!mimeTypeMatch) {
+      throw new Error('Invalid Base64 image format. Could not determine MIME type.');
+    }
+    const mimeType = mimeTypeMatch[1];
+    const imageBuffer = Buffer.from(imageData.split(';base64,').pop()!, 'base64');
     
     const response = await fetch(`${wpApiUrl}/media`, {
       method: 'POST',

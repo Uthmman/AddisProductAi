@@ -18,21 +18,14 @@ export async function POST(request: NextRequest) {
 
     const { image_data, image_name } = validation.data;
     
-    // Extract mime type and base64 data
-    const mimeTypeMatch = image_data.match(/^data:(image\/[a-z]+);base64,/);
-    if (!mimeTypeMatch) {
-      throw new Error('Invalid Base64 image format. Could not determine MIME type.');
-    }
-    const mimeType = mimeTypeMatch[1];
-    const imageBuffer = Buffer.from(image_data.split(';base64,').pop()!, 'base64');
-    
-    // Correctly await the async uploadImage function
-    const uploadedImage = await uploadImage(image_name, imageBuffer, mimeType);
+    // The uploadImage function is designed to handle the full data URI.
+    // Pass the data directly to it.
+    const uploadedImage = await uploadImage(image_name, image_data);
 
     return NextResponse.json(uploadedImage);
 
   } catch (error: any) {
-    console.error('Image upload failed:', error.message);
+    console.error('Image upload failed:', error);
     const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred during image upload.';
     return NextResponse.json({ message: errorMessage }, { status: 500 });
   }
