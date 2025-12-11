@@ -18,15 +18,21 @@ export async function POST(request: NextRequest) {
 
     const { image_data, image_name } = validation.data;
     
-    // The uploadImage function is designed to handle the full data URI.
-    // Pass the data directly to it.
     const uploadedImage = await uploadImage(image_name, image_data);
 
     return NextResponse.json(uploadedImage);
 
   } catch (error: any) {
-    console.error('Image upload failed:', error);
+    // Log the detailed error from the underlying API call
+    console.error('Image upload failed:', {
+      message: error.message,
+      statusCode: error.response?.status,
+      body: error.response?.data,
+    });
+    
     const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred during image upload.';
-    return NextResponse.json({ message: errorMessage }, { status: 500 });
+    const statusCode = error.response?.status || 500;
+
+    return NextResponse.json({ message: errorMessage }, { status: statusCode });
   }
 }
