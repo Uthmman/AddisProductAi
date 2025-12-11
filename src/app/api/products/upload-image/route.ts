@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
 
     const { image_data, image_name } = validation.data;
     
+    // Directly pass the raw base64 data URI and name to the uploadImage function
     const uploadedImage = await uploadImage(image_name, image_data);
 
     return NextResponse.json(uploadedImage);

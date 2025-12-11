@@ -196,8 +196,8 @@ export async function uploadImage(imageName: string, imageData: string): Promise
 
     if (!response.ok) {
       const errorBody = await response.json();
-      console.error("Failed to upload image:", response.status, errorBody);
-      throw new Error(errorBody.message || 'Failed to upload image');
+      console.error("Failed to upload image to WordPress:", response.status, errorBody);
+      throw new Error(errorBody.message || 'Failed to upload image to WordPress');
     }
 
     const data = await response.json();
