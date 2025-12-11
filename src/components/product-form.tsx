@@ -42,6 +42,7 @@ type ImageState = {
   src: string;
   alt: string;
   file?: File;
+  fileName?: string;
 };
 
 // Represents a category in the UI state. Can be an existing one or a new one suggested by AI.
@@ -50,10 +51,17 @@ type DisplayCategory = {
     name: string;
 };
 
-
 type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | null;
 
 type SaveAction = 'publish' | 'draft';
+
+type StoredFormState = {
+    formValues: FormValues;
+    aiContent: Partial<AIProductContent>;
+    images: Omit<ImageState, 'file'>[];
+    selectedCategories: DisplayCategory[];
+};
+
 
 async function imageUrlToDataUri(url: string): Promise<string> {
     const response = await fetch(url);
@@ -77,6 +85,72 @@ export default function ProductForm({ product }: ProductFormProps) {
   const [availableCategories, setAvailableCategories] = useState<WooCategory[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<DisplayCategory[]>([]);
   
+  const isNew = product === null;
+  const storageKey = isNew ? 'product-form-new' : `product-form-${product.id}`;
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      raw_name: product?.name || "",
+      material: product?.attributes.find(a => a.name === "Material")?.options[0] || "",
+      price_etb: parseFloat(product?.price || "0"),
+      focus_keywords: product?.tags.map(t => t.name).join(', ') || "",
+      amharic_name: product?.meta_data.find(m => m.key === 'amharic_name')?.value || "",
+    },
+  });
+
+  // Load from local storage on mount
+  useEffect(() => {
+    const savedStateJSON = localStorage.getItem(storageKey);
+    if (savedStateJSON) {
+        try {
+            const savedState: StoredFormState = JSON.parse(savedStateJSON);
+            form.reset(savedState.formValues);
+            setAiContent(savedState.aiContent);
+            setImages(savedState.images);
+            setSelectedCategories(savedState.selectedCategories);
+             toast({
+                title: "Draft Restored",
+                description: "Your previous work has been loaded.",
+            });
+        } catch (error) {
+            console.error("Failed to parse saved state from localStorage", error);
+        }
+    } else {
+         if (product) {
+            setImages(product.images.map(img => ({ ...img, src: img.src || '', alt: img.alt || '' })));
+            setSelectedCategories(product.categories.map(cat => ({ id: cat.id, name: cat.name })));
+            setAiContent({
+                name: product.name,
+                description: product.description,
+                short_description: product.short_description,
+                slug: product.slug,
+                tags: product.tags.map(t => t.name),
+                categories: product.categories.map(c => c.name),
+                meta_data: product.meta_data,
+                attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
+                images: product.images.map(img => ({ alt: img.alt })),
+                regular_price: parseFloat(product.regular_price)
+            });
+        }
+    }
+  }, [product, storageKey, form, toast]);
+
+
+  // Save to local storage on change
+  useEffect(() => {
+    const formValues = form.getValues();
+    const imagesToSave = images.map(({ file, ...rest }) => rest);
+    const stateToSave: StoredFormState = {
+        formValues,
+        aiContent,
+        images: imagesToSave,
+        selectedCategories
+    };
+    localStorage.setItem(storageKey, JSON.stringify(stateToSave));
+  }, [form.watch(), aiContent, images, selectedCategories, storageKey]);
+
+
   useEffect(() => {
     async function fetchCategories() {
         try {
@@ -97,41 +171,6 @@ export default function ProductForm({ product }: ProductFormProps) {
     fetchCategories();
   }, [toast]);
   
-  useEffect(() => {
-    if (product) {
-      setImages(product.images.map(img => ({ ...img, src: img.src || '', alt: img.alt || '' })));
-      
-      const productCategories = product.categories.map(cat => ({
-        id: cat.id,
-        name: cat.name,
-      }));
-      setSelectedCategories(productCategories);
-
-      setAiContent({
-        name: product.name,
-        description: product.description,
-        short_description: product.short_description,
-        slug: product.slug,
-        tags: product.tags.map(t => t.name),
-        categories: product.categories.map(c => c.name),
-        meta_data: product.meta_data,
-        attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
-        images: product.images.map(img => ({ alt: img.alt })),
-        regular_price: parseFloat(product.regular_price)
-      });
-    }
-  }, [product]);
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(FormSchema),
-    defaultValues: {
-      raw_name: product?.name || "",
-      material: product?.attributes.find(a => a.name === "Material")?.options[0] || "",
-      price_etb: parseFloat(product?.price || "0"),
-      focus_keywords: product?.tags.map(t => t.name).join(', ') || "",
-      amharic_name: product?.meta_data.find(m => m.key === 'amharic_name')?.value || "",
-    },
-  });
 
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -140,7 +179,7 @@ export default function ProductForm({ product }: ProductFormProps) {
       const newImageStates: ImageState[] = await Promise.all(
         newFiles.map(async file => {
           const src = await fileToBase64(file);
-          return { src, alt: '', file };
+          return { src, alt: '', file, fileName: file.name };
         })
       );
       setImages(prev => [...prev, ...newImageStates]);
@@ -284,12 +323,12 @@ export default function ProductForm({ product }: ProductFormProps) {
             const response = await fetch('/api/products/upload-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image_data: base64, image_name: image.file!.name }),
+              body: JSON.stringify({ image_data: base64, image_name: image.fileName! }),
             });
 
             if (!response.ok) {
               const errorData = await response.json();
-              throw new Error(errorData.message || `Image upload failed for ${image.file!.name}`);
+              throw new Error(errorData.message || `Image upload failed for ${image.fileName!}`);
             }
 
             const uploaded = await response.json();
@@ -347,6 +386,10 @@ export default function ProductForm({ product }: ProductFormProps) {
             title: "Success!",
             description: `Product "${savedProduct.name}" has been saved as a ${action}.`,
         });
+
+        // Clear local storage after successful submission
+        localStorage.removeItem(storageKey);
+        
         router.push('/dashboard');
         router.refresh();
 
@@ -582,3 +625,5 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
+
+    
