@@ -284,7 +284,12 @@ export default function ProductForm({ product }: ProductFormProps) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image_data: base64, image_name: image.file!.name }),
             });
-            if (!response.ok) throw new Error(`Image upload failed for ${image.file!.name}`);
+
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.message || `Image upload failed for ${image.file!.name}`);
+            }
+
             const uploaded = await response.json();
             return { ...uploaded, alt: image.alt };
           })
@@ -570,5 +575,3 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
-
-    
