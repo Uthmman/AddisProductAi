@@ -55,13 +55,6 @@ type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_descript
 
 type SaveAction = 'publish' | 'draft';
 
-type StoredFormState = {
-    formValues: FormValues;
-    aiContent: Partial<AIProductContent>;
-    images: Omit<ImageState, 'file'>[];
-    selectedCategories: DisplayCategory[];
-};
-
 
 async function imageUrlToDataUri(url: string): Promise<string> {
     const response = await fetch(url);
@@ -84,9 +77,6 @@ export default function ProductForm({ product }: ProductFormProps) {
   const [aiContent, setAiContent] = useState<Partial<AIProductContent>>({});
   const [availableCategories, setAvailableCategories] = useState<WooCategory[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<DisplayCategory[]>([]);
-  
-  const isNew = product === null;
-  const storageKey = isNew ? 'product-form-new' : `product-form-${product.id}`;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
@@ -101,54 +91,30 @@ export default function ProductForm({ product }: ProductFormProps) {
 
   // Load from local storage on mount
   useEffect(() => {
-    const savedStateJSON = localStorage.getItem(storageKey);
-    if (savedStateJSON) {
-        try {
-            const savedState: StoredFormState = JSON.parse(savedStateJSON);
-            form.reset(savedState.formValues);
-            setAiContent(savedState.aiContent);
-            setImages(savedState.images);
-            setSelectedCategories(savedState.selectedCategories);
-             toast({
-                title: "Draft Restored",
-                description: "Your previous work has been loaded.",
-            });
-        } catch (error) {
-            console.error("Failed to parse saved state from localStorage", error);
-        }
-    } else {
-         if (product) {
-            setImages(product.images.map(img => ({ ...img, src: img.src || '', alt: img.alt || '' })));
-            setSelectedCategories(product.categories.map(cat => ({ id: cat.id, name: cat.name })));
-            setAiContent({
-                name: product.name,
-                description: product.description,
-                short_description: product.short_description,
-                slug: product.slug,
-                tags: product.tags.map(t => t.name),
-                categories: product.categories.map(c => c.name),
-                meta_data: product.meta_data,
-                attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
-                images: product.images.map(img => ({ alt: img.alt })),
-                regular_price: parseFloat(product.regular_price)
-            });
-        }
+     if (product) {
+        form.reset({
+          raw_name: product.name || "",
+          material: product.attributes.find(a => a.name === "Material")?.options[0] || "",
+          price_etb: parseFloat(product.price || "0"),
+          focus_keywords: product.tags.map(t => t.name).join(', ') || "",
+          amharic_name: product.meta_data.find(m => m.key === 'amharic_name')?.value as string || "",
+        });
+        setImages(product.images.map(img => ({ ...img, src: img.src || '', alt: img.alt || '' })));
+        setSelectedCategories(product.categories.map(cat => ({ id: cat.id, name: cat.name })));
+        setAiContent({
+            name: product.name,
+            description: product.description,
+            short_description: product.short_description,
+            slug: product.slug,
+            tags: product.tags.map(t => t.name),
+            categories: product.categories.map(c => c.name),
+            meta_data: product.meta_data,
+            attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
+            images: product.images.map(img => ({ alt: img.alt })),
+            regular_price: parseFloat(product.regular_price)
+        });
     }
-  }, [product, storageKey, form, toast]);
-
-
-  // Save to local storage on change
-  useEffect(() => {
-    const formValues = form.getValues();
-    const imagesToSave = images.map(({ file, ...rest }) => rest);
-    const stateToSave: StoredFormState = {
-        formValues,
-        aiContent,
-        images: imagesToSave,
-        selectedCategories
-    };
-    localStorage.setItem(storageKey, JSON.stringify(stateToSave));
-  }, [form.watch(), aiContent, images, selectedCategories, storageKey]);
+  }, [product, form]);
 
 
   useEffect(() => {
@@ -319,11 +285,12 @@ export default function ProductForm({ product }: ProductFormProps) {
 
         const uploadedImages = await Promise.all(
           newFilesToUpload.map(async (image) => {
-            const base64 = await fileToBase64(image.file!);
+            if (!image.file) throw new Error("Image file is missing.");
+            const base64 = await fileToBase64(image.file);
             const response = await fetch('/api/products/upload-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image_data: base64, image_name: image.fileName! }),
+              body: JSON.stringify({ image_data: base64, image_name: image.fileName || image.file.name }),
             });
 
             if (!response.ok) {
@@ -386,9 +353,6 @@ export default function ProductForm({ product }: ProductFormProps) {
             title: "Success!",
             description: `Product "${savedProduct.name}" has been saved as a ${action}.`,
         });
-
-        // Clear local storage after successful submission
-        localStorage.removeItem(storageKey);
         
         router.push('/dashboard');
         router.refresh();
