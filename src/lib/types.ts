@@ -60,4 +60,5 @@ export interface Settings {
     instagramUrl: string;
     telegramUrl: string;
     tiktokUrl: string;
+    commonKeywords?: string;
 }

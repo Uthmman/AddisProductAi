@@ -6,12 +6,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Settings } from '@/lib/types';
+import { Textarea } from '@/components/ui/textarea';
 
 const SettingsSchema = z.object({
   phoneNumber: z.string().optional(),
@@ -19,6 +20,7 @@ const SettingsSchema = z.object({
   instagramUrl: z.string().url().or(z.literal('')).optional(),
   telegramUrl: z.string().url().or(z.literal('')).optional(),
   tiktokUrl: z.string().url().or(z.literal('')).optional(),
+  commonKeywords: z.string().optional(),
 });
 
 type SettingsFormValues = z.infer<typeof SettingsSchema>;
@@ -36,6 +38,7 @@ export default function SettingsPage() {
       instagramUrl: '',
       telegramUrl: '',
       tiktokUrl: '',
+      commonKeywords: '',
     },
   });
 
@@ -124,6 +127,10 @@ export default function SettingsPage() {
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-full" />
             </div>
+             <div className="space-y-2">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-24 w-full" />
+            </div>
              <div className="flex justify-end">
                 <Skeleton className="h-10 w-32" />
             </div>
@@ -140,7 +147,7 @@ export default function SettingsPage() {
          <CardHeader>
           <CardTitle>Business Information</CardTitle>
           <CardDescription>
-            This information will be used by the AI to create outbound links in product descriptions.
+            This information will be used by the AI to create links and suggest content.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -207,6 +214,22 @@ export default function SettingsPage() {
                         <FormControl>
                         <Input placeholder="https://tiktok.com/@your-profile" {...field} />
                         </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="commonKeywords"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Common Keywords</FormLabel>
+                        <FormControl>
+                        <Textarea placeholder="zenbaba furniture, made in ethiopia, addis ababa..." {...field} />
+                        </FormControl>
+                        <FormDescription>
+                            Comma-separated keywords that will be suggested on the product form.
+                        </FormDescription>
                         <FormMessage />
                     </FormItem>
                     )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, useCallback } from "react";
+import { useEffect, useState, useTransition, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -56,8 +56,6 @@ type DisplayCategory = {
 type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | null;
 
 type SaveAction = 'publish' | 'draft';
-
-const COMMON_KEYWORDS = ["zenbaba furniture", "made in ethiopia", "addis ababa", "sheger", "modern furniture", "ethiopian craft"];
 
 
 async function imageUrlToDataUri(url: string): Promise<string> {
@@ -438,6 +436,11 @@ export default function ProductForm({ product }: ProductFormProps) {
     const newKeywords = currentKeywords ? `${currentKeywords}, ${keyword}` : keyword;
     form.setValue('focus_keywords', newKeywords);
   };
+  
+  const commonKeywords = useMemo(() => {
+    if (!settings?.commonKeywords) return [];
+    return settings.commonKeywords.split(',').map(kw => kw.trim()).filter(Boolean);
+  }, [settings]);
 
 
 
@@ -510,7 +513,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                             <FormLabel>Focus Keywords</FormLabel>
                             <FormControl><Input placeholder="e.g., handmade, ethiopian craft" {...field} /></FormControl>
                              <div className="flex flex-wrap gap-1 pt-2">
-                                {COMMON_KEYWORDS.map(kw => (
+                                {commonKeywords.map(kw => (
                                     <Button key={kw} type="button" size="sm" variant="outline" className="text-xs h-7" onClick={() => handleAddKeyword(kw)}>
                                         {kw}
                                     </Button>
@@ -652,5 +655,3 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
-
-    

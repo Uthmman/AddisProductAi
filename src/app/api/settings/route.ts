@@ -20,6 +20,7 @@ export async function GET() {
       instagramUrl: "",
       telegramUrl: "",
       tiktokUrl: "",
+      commonKeywords: "zenbaba furniture, made in ethiopia, addis ababa, sheger, modern furniture, ethiopian craft",
     }, { status: 500 });
   }
 }
