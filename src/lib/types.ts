@@ -59,4 +59,5 @@ export interface Settings {
     facebookUrl: string;
     instagramUrl: string;
     telegramUrl: string;
+    tiktokUrl: string;
 }

@@ -43,6 +43,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
     facebookUrl: z.string().optional(),
     instagramUrl: z.string().optional(),
     telegramUrl: z.string().optional(),
+    tiktokUrl: z.string().optional(),
   }).optional().describe('General business settings like contact info and social media links.'),
   primaryCategory: z.object({
       id: z.number(),
@@ -103,6 +104,7 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
 - Facebook: {{{settings.facebookUrl}}}
 - Instagram: {{{settings.instagramUrl}}}
 - Telegram: {{{settings.telegramUrl}}}
+- TikTok: {{{settings.tiktokUrl}}}
 - Primary Category: {{{primaryCategory.name}}} (Slug: {{{primaryCategory.slug}}})
 
 **Available Categories for selection:**

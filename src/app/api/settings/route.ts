@@ -19,6 +19,7 @@ export async function GET() {
       facebookUrl: "",
       instagramUrl: "",
       telegramUrl: "",
+      tiktokUrl: "",
     }, { status: 500 });
   }
 }

@@ -18,6 +18,7 @@ const SettingsSchema = z.object({
   facebookUrl: z.string().url().or(z.literal('')).optional(),
   instagramUrl: z.string().url().or(z.literal('')).optional(),
   telegramUrl: z.string().url().or(z.literal('')).optional(),
+  tiktokUrl: z.string().url().or(z.literal('')).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof SettingsSchema>;
@@ -34,6 +35,7 @@ export default function SettingsPage() {
       facebookUrl: '',
       instagramUrl: '',
       telegramUrl: '',
+      tiktokUrl: '',
     },
   });
 
@@ -118,6 +120,10 @@ export default function SettingsPage() {
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-full" />
             </div>
+            <div className="space-y-2">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-10 w-full" />
+            </div>
              <div className="flex justify-end">
                 <Skeleton className="h-10 w-32" />
             </div>
@@ -187,6 +193,19 @@ export default function SettingsPage() {
                         <FormLabel>Telegram URL</FormLabel>
                         <FormControl>
                         <Input placeholder="https://t.me/your-channel" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="tiktokUrl"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>TikTok URL</FormLabel>
+                        <FormControl>
+                        <Input placeholder="https://tiktok.com/@your-profile" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
