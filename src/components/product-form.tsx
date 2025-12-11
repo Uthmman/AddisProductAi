@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent, WooCategory } from "@/lib/types";
 import { fileToBase64, cn } from "@/lib/utils";
-import { Loader2, Sparkles, UploadCloud, X as XIcon, Check } from "lucide-react";
+import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
@@ -53,6 +53,8 @@ type DisplayCategory = {
 
 type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | null;
 
+type SaveAction = 'publish' | 'draft';
+
 async function imageUrlToDataUri(url: string): Promise<string> {
     const response = await fetch(url);
     const blob = await response.blob();
@@ -78,7 +80,7 @@ export default function ProductForm({ product }: ProductFormProps) {
   useEffect(() => {
     async function fetchCategories() {
         try {
-            const res = await fetch('/api/products/categories');
+            const res = await fetch('/api/products/categories?all=true');
             if (res.ok) {
                 const data: WooCategory[] = await res.json();
                 setAvailableCategories(data);
@@ -270,7 +272,7 @@ export default function ProductForm({ product }: ProductFormProps) {
     }
   };
 
-  const onSubmit = async () => {
+  const onSubmit = async (action: SaveAction) => {
     setIsSaving(true);
 
     try {
@@ -323,6 +325,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             images: finalImages,
             attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
             meta_data: aiContent.meta_data,
+            status: action,
         };
 
         const url = product ? `/api/products/${product.id}` : '/api/products';
@@ -342,7 +345,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         const savedProduct = await response.json();
         toast({
             title: "Success!",
-            description: `Product "${savedProduct.name}" has been saved.`,
+            description: `Product "${savedProduct.name}" has been saved as a ${action}.`,
         });
         router.push('/dashboard');
         router.refresh();
@@ -565,8 +568,12 @@ export default function ProductForm({ product }: ProductFormProps) {
           </div>
         </div>
 
-        <div className="mt-8 flex justify-end">
-          <Button type="button" size="lg" onClick={onSubmit} disabled={isSaving || generatingField !== null}>
+        <div className="mt-8 flex justify-end gap-4">
+          <Button type="button" size="lg" variant="outline" onClick={() => onSubmit('draft')} disabled={isSaving || generatingField !== null}>
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save as Draft
+          </Button>
+          <Button type="button" size="lg" onClick={() => onSubmit('publish')} disabled={isSaving || generatingField !== null}>
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {product ? "Save Changes" : "Create Product"}
           </Button>
