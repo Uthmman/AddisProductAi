@@ -116,6 +116,23 @@ export async function updateProduct(id: number, productData: any): Promise<WooPr
     return await response.json();
 }
 
+export async function deleteProduct(id: number): Promise<{id: number}> {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/${id}?force=true`, {
+        method: 'DELETE',
+        headers
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error(`Failed to delete product ${id}:`, response.status, errorBody);
+        throw new Error(errorBody.message || `Failed to delete product ${id}`);
+    }
+
+    const result = await response.json();
+    return { id: result.id };
+}
+
 export async function createCategory(categoryData: { name: string; slug?: string; parent?: number, image?: { id?: number, src?: string } }): Promise<WooCategory> {
   const headers = getAuthHeaders();
   const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories`, {

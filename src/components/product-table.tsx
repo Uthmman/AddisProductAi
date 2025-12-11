@@ -2,10 +2,22 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { WooProduct, WooCategory } from "@/lib/types";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { ProductCard } from "./product-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+
 
 function ProductGridSkeleton() {
   return (
@@ -38,6 +50,24 @@ export default function ProductTable() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalProducts, setTotalProducts] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const [deletingProduct, setDeletingProduct] = useState<WooProduct | null>(null);
+  const { toast } = useToast();
+
+  const fetchProducts = async () => {
+      setIsLoading(true);
+      try {
+        const categoryQuery = selectedCategory !== 'all' ? `&category=${selectedCategory}` : '';
+        const response = await fetch(`/api/products?page=${page}&per_page=${perPage}${categoryQuery}`);
+        const data = await response.json();
+        setProducts(data.products);
+        setTotalPages(data.totalPages);
+        setTotalProducts(data.totalProducts);
+      } catch (error) {
+        console.error("Failed to fetch products:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -55,22 +85,6 @@ export default function ProductTable() {
   }, []);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      setIsLoading(true);
-      try {
-        const categoryQuery = selectedCategory !== 'all' ? `&category=${selectedCategory}` : '';
-        const response = await fetch(`/api/products?page=${page}&per_page=${perPage}${categoryQuery}`);
-        const data = await response.json();
-        setProducts(data.products);
-        setTotalPages(data.totalPages);
-        setTotalProducts(data.totalProducts);
-      } catch (error) {
-        console.error("Failed to fetch products:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     startTransition(() => {
       fetchProducts();
     });
@@ -95,6 +109,32 @@ export default function ProductTable() {
   const handlePreviousPage = () => {
     if (page > 1) {
       setPage(page - 1);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!deletingProduct) return;
+    try {
+        const response = await fetch(`/api/products/${deletingProduct.id}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to delete product.');
+        }
+        toast({
+            title: 'Success!',
+            description: `Product "${deletingProduct.name}" has been deleted.`,
+        });
+        fetchProducts(); // Refresh the list
+    } catch (error: any) {
+        toast({
+            title: 'Error',
+            description: error.message || 'Could not delete product.',
+            variant: 'destructive',
+        });
+    } finally {
+        setDeletingProduct(null);
     }
   };
 
@@ -144,7 +184,7 @@ export default function ProductTable() {
         ) : products.length > 0 ? (
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                 {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                    <ProductCard key={product.id} product={product} onDelete={setDeletingProduct} />
                 ))}
             </div>
         ) : (
@@ -174,6 +214,24 @@ export default function ProductTable() {
           Next
         </Button>
       </div>
+
+      <AlertDialog open={!!deletingProduct} onOpenChange={() => setDeletingProduct(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this product?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the <strong>{deletingProduct?.name}</strong> product.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProduct} className={buttonVariants({ variant: "destructive" })}>
+                Delete
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

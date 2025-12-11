@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Edit } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { WooProduct } from "@/lib/types";
@@ -10,9 +10,10 @@ import { formatCurrency } from "@/lib/utils";
 
 type ProductCardProps = {
   product: WooProduct;
+  onDelete: (product: WooProduct) => void;
 };
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, onDelete }: ProductCardProps) {
   return (
     <Card className="flex flex-col">
       <CardHeader className="p-0 border-b">
@@ -33,11 +34,16 @@ export function ProductCard({ product }: ProductCardProps) {
         <p className="text-base font-semibold text-foreground">
           {formatCurrency(product.price)}
         </p>
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/products/${product.id}`}>
-            <Edit className="h-4 w-4" />
-          </Link>
-        </Button>
+        <div>
+          <Button variant="ghost" size="icon" asChild>
+            <Link href={`/products/${product.id}`}>
+              <Edit className="h-4 w-4" />
+            </Link>
+          </Button>
+           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onDelete(product)}>
+              <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );
