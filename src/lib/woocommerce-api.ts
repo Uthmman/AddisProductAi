@@ -220,3 +220,11 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     const data = await response.json();
     return { id: data.id, src: data.source_url };
 }
+
+export async function getSettings(): Promise<any> {
+    const response = await fetch('/api/settings', { cache: 'no-store' });
+    if (!response.ok) {
+        throw new Error('Failed to fetch settings');
+    }
+    return response.json();
+}

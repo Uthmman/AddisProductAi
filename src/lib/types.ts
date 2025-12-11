@@ -53,3 +53,10 @@ export interface WooCategory {
   menu_order: number;
   count: number;
 }
+
+export interface Settings {
+    phoneNumber: string;
+    facebookUrl: string;
+    instagramUrl: string;
+    telegramUrl: string;
+}

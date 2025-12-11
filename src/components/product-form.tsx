@@ -14,13 +14,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { WooProduct, AIProductContent, WooCategory } from "@/lib/types";
+import { WooProduct, AIProductContent, WooCategory, Settings } from "@/lib/types";
 import { fileToBase64, cn } from "@/lib/utils";
 import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Badge } from "./ui/badge";
+import { getSettings } from "@/lib/woocommerce-api";
+
 
 // Simplified schema for form validation
 const FormSchema = z.object({
@@ -55,6 +57,8 @@ type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_descript
 
 type SaveAction = 'publish' | 'draft';
 
+const COMMON_KEYWORDS = ["zenbaba furniture", "made in ethiopia", "addis ababa", "sheger", "modern furniture", "ethiopian craft"];
+
 
 async function imageUrlToDataUri(url: string): Promise<string> {
     const response = await fetch(url);
@@ -77,6 +81,8 @@ export default function ProductForm({ product }: ProductFormProps) {
   const [aiContent, setAiContent] = useState<Partial<AIProductContent>>({});
   const [availableCategories, setAvailableCategories] = useState<WooCategory[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<DisplayCategory[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
@@ -84,7 +90,7 @@ export default function ProductForm({ product }: ProductFormProps) {
       raw_name: product?.name || "",
       material: product?.attributes.find(a => a.name === "Material")?.options[0] || "",
       price_etb: parseFloat(product?.price || "0"),
-      focus_keywords: product?.tags.map(t => t.name).join(', ') || "",
+      focus_keywords: product?.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value || product?.tags.map(t => t.name).join(', ') || "",
       amharic_name: product?.meta_data.find(m => m.key === 'amharic_name')?.value || "",
     },
   });
@@ -96,7 +102,7 @@ export default function ProductForm({ product }: ProductFormProps) {
           raw_name: product.name || "",
           material: product.attributes.find(a => a.name === "Material")?.options[0] || "",
           price_etb: parseFloat(product.price || "0"),
-          focus_keywords: product.tags.map(t => t.name).join(', ') || "",
+          focus_keywords: product?.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value as string || product?.tags.map(t => t.name).join(', ') || "",
           amharic_name: product.meta_data.find(m => m.key === 'amharic_name')?.value as string || "",
         });
         setImages(product.images.map(img => ({ ...img, src: img.src || '', alt: img.alt || '' })));
@@ -118,23 +124,30 @@ export default function ProductForm({ product }: ProductFormProps) {
 
 
   useEffect(() => {
-    async function fetchCategories() {
+    async function fetchInitialData() {
         try {
-            const res = await fetch('/api/products/categories?all=true');
-            if (res.ok) {
-                const data: WooCategory[] = await res.json();
+            const [categoriesData, settingsData] = await Promise.all([
+                fetch('/api/products/categories?all=true'),
+                getSettings()
+            ]);
+            
+            if (categoriesData.ok) {
+                const data: WooCategory[] = await categoriesData.json();
                 setAvailableCategories(data);
             }
+            
+            setSettings(settingsData);
+
         } catch (error) {
-            console.error("Failed to fetch categories", error);
+            console.error("Failed to fetch initial data", error);
             toast({
                 title: "Error",
-                description: "Could not load product categories.",
+                description: "Could not load product categories or settings.",
                 variant: "destructive"
             });
         }
     }
-    fetchCategories();
+    fetchInitialData();
   }, [toast]);
   
 
@@ -218,6 +231,11 @@ export default function ProductForm({ product }: ProductFormProps) {
             ...aiContent,
             categories: selectedCategories.map(c => c.name)
         };
+        
+        // Find the primary category details to pass to the AI
+        const primaryCategoryName = selectedCategories[0]?.name;
+        const primaryCategory = availableCategories.find(c => c.name === primaryCategoryName);
+
 
         const response = await fetch('/api/products/ai-optimize', {
             method: 'POST',
@@ -229,6 +247,8 @@ export default function ProductForm({ product }: ProductFormProps) {
                 fieldToGenerate: field,
                 existingContent: currentAiContent,
                 availableCategories,
+                settings,
+                primaryCategory,
             }),
         });
 
@@ -259,6 +279,14 @@ export default function ProductForm({ product }: ProductFormProps) {
             });
             setSelectedCategories(aiSelectedCategories);
         }
+        
+        if (data.meta_data) {
+            const focusKw = data.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value;
+            if(focusKw) {
+                form.setValue('focus_keywords', focusKw);
+            }
+        }
+
 
         toast({
             title: "Content Generated",
@@ -320,6 +348,19 @@ export default function ProductForm({ product }: ProductFormProps) {
             return c.id ? { id: c.id } : { name: c.name };
         });
 
+        // Combine meta data, ensuring user-input focus keyword is included
+        const userFocusKeyword = form.getValues('focus_keywords');
+        let finalMetaData = aiContent.meta_data ? [...aiContent.meta_data] : [];
+        
+        // Remove any existing focus keyword from AI content to avoid duplicates
+        finalMetaData = finalMetaData.filter(m => m.key !== '_yoast_wpseo_focuskw');
+        
+        // Add the user-entered one
+        if (userFocusKeyword) {
+            finalMetaData.push({ key: '_yoast_wpseo_focuskw', value: userFocusKeyword });
+        }
+
+
         const finalData = {
             name: aiContent.name || form.getValues('raw_name'),
             slug: aiContent.slug,
@@ -330,7 +371,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             tags: aiContent.tags?.map(tag => ({ name: tag })),
             images: finalImages,
             attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
-            meta_data: aiContent.meta_data,
+            meta_data: finalMetaData,
             status: action,
         };
 
@@ -391,6 +432,13 @@ export default function ProductForm({ product }: ProductFormProps) {
         }
     });
   }, []);
+  
+  const handleAddKeyword = (keyword: string) => {
+    const currentKeywords = form.getValues('focus_keywords') || '';
+    const newKeywords = currentKeywords ? `${currentKeywords}, ${keyword}` : keyword;
+    form.setValue('focus_keywords', newKeywords);
+  };
+
 
 
   const renderGenButton = (field: GeneratingField) => (
@@ -458,7 +506,18 @@ export default function ProductForm({ product }: ProductFormProps) {
                         <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" placeholder="e.g., 1500" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="focus_keywords" render={({ field }) => (
-                        <FormItem><FormLabel>Focus Keywords</FormLabel><FormControl><Input placeholder="e.g., handmade, ethiopian craft" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem>
+                            <FormLabel>Focus Keywords</FormLabel>
+                            <FormControl><Input placeholder="e.g., handmade, ethiopian craft" {...field} /></FormControl>
+                             <div className="flex flex-wrap gap-1 pt-2">
+                                {COMMON_KEYWORDS.map(kw => (
+                                    <Button key={kw} type="button" size="sm" variant="outline" className="text-xs h-7" onClick={() => handleAddKeyword(kw)}>
+                                        {kw}
+                                    </Button>
+                                ))}
+                            </div>
+                            <FormMessage />
+                        </FormItem>
                     )} />
                     <FormField control={form.control} name="amharic_name" render={({ field }) => (
                         <FormItem><FormLabel>Amharic Name</FormLabel><FormControl><Input placeholder="e.g., የባህል ልብስ" {...field} /></FormControl><FormMessage /></FormItem>
@@ -536,7 +595,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                     </div>
                    <div className="space-y-2">
                        <div className="flex justify-between items-center"><Label>Description</Label>{renderGenButton('description')}</div>
-                       <Textarea value={aiContent.description || ''} onChange={(e) => setAiContent(p => ({...p, description: e.target.value}))} rows={6} placeholder="AI generated description..."/>
+                       <Textarea value={aiContent.description || ''} onChange={(e) => setAiContent(p => ({...p, description: e.target.value}))} rows={10} placeholder="AI generated description..."/>
                    </div>
                    <div className="space-y-2">
                        <div className="flex justify-between items-center"><Label>Short Description</Label>{renderGenButton('short_description')}</div>
@@ -567,7 +626,11 @@ export default function ProductForm({ product }: ProductFormProps) {
                    </div>
 
                    <div className="space-y-2">
-                        <div className="flex justify-between items-center"><Label>Meta Description</Label>{renderGenButton('meta_data')}</div>
+                        <div className="flex justify-between items-center"><Label>Yoast Focus Keyphrase</Label>{renderGenButton('meta_data')}</div>
+                        <Input value={getMetaValue('_yoast_wpseo_focuskw') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_focuskw', e.target.value)} placeholder="AI generated focus keyphrase for SEO..." />
+                    </div>
+                   <div className="space-y-2">
+                        <div className="flex justify-between items-center"><Label>Yoast Meta Description</Label>{renderGenButton('meta_data')}</div>
                         <Textarea value={getMetaValue('_yoast_wpseo_metadesc') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_metadesc', e.target.value)} rows={3} placeholder="AI generated meta description for SEO..." />
                     </div>
                 </CardContent>

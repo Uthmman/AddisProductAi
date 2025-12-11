@@ -23,6 +23,8 @@ const InputSchema = z.object({
       'categories',
   ]).optional(),
   existingContent: z.any().optional(),
+  settings: z.any().optional(),
+  primaryCategory: z.any().optional(),
 });
 
 

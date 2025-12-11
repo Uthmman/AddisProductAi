@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package, FolderTree } from "lucide-react";
+import { Package, FolderTree, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 
 export default function Header() {
@@ -25,6 +25,12 @@ export default function Header() {
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
               Categories
+            </Link>
+             <Link
+              href="/settings"
+              className="transition-colors hover:text-foreground/80 text-foreground/60"
+            >
+              Settings
             </Link>
           </nav>
           <div className="flex items-center justify-end space-x-4">

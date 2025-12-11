@@ -37,7 +37,18 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
       'images',
       'categories',
   ]).optional().describe('The specific field to generate content for. If not provided, all fields will be generated.'),
-  existingContent: z.any().optional().describe('Existing product content to provide context for single-field generation.')
+  existingContent: z.any().optional().describe('Existing product content to provide context for single-field generation.'),
+  settings: z.object({
+    phoneNumber: z.string().optional(),
+    facebookUrl: z.string().optional(),
+    instagramUrl: z.string().optional(),
+    telegramUrl: z.string().optional(),
+  }).optional().describe('General business settings like contact info and social media links.'),
+  primaryCategory: z.object({
+      id: z.number(),
+      name: z.string(),
+      slug: z.string(),
+  }).optional().describe('The primary category of the product, used for creating inbound links.'),
 });
 export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooCommerceProductContentInputSchema>;
 
@@ -45,14 +56,14 @@ export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooC
 const GenerateWooCommerceProductContentOutputSchema = z.object({
   name: z.string().optional().describe('Refined, SEO-Optimized English Product Title.'),
   slug: z.string().optional().describe('URL-friendly, English slug based on the new name.'),
-  description: z.string().optional().describe('SEO-rich description formatted with HTML <p> tags.'),
+  description: z.string().optional().describe('SEO-rich description of about 300 words, formatted with HTML tags. It must include inbound and outbound links.'),
   short_description: z.string().optional().describe('Concise bullet-pointed summary.'),
   tags: z.array(z.string()).optional().describe('English and Amharic keywords.'),
   categories: z.array(z.string()).optional().describe('An array of category names, chosen from the provided list or newly created if appropriate.'),
   meta_data: z
     .array(z.object({key: z.string(), value: z.string()}))
     .optional()
-    .describe('Meta data for SEO, especially the _yoast_wpseo_metadesc.'),
+    .describe('Meta data for SEO, including _yoast_wpseo_metadesc and _yoast_wpseo_focuskw (the focus keyphrase).'),
   attributes: z
     .array(z.object({name: z.string(), option: z.string()}))
     .optional()
@@ -76,11 +87,25 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
   output: {schema: GenerateWooCommerceProductContentOutputSchema},
   prompt: `You are a specialized e-commerce content optimizer, focused on high conversion and excellent SEO performance in the **Addis Ababa, Ethiopia** market. Analyze the product images and data to generate a complete, SEO-optimized JSON object for a WooCommerce product update. The name must be refined for specificity, and Amharic input must be leveraged for local search optimization (Amharic keywords are high-value). The output MUST be a single, valid JSON object with NO external text.
 
-When generating image alt text (the 'images' field), create descriptive text that also includes relevant SEO keywords such as 'zenbaba furniture', 'ethiopia', 'addis ababa', the product's Amharic name ({{{amharic_name}}}), and other related terms. This will improve search engine visibility.
+**Key Content Requirements:**
+1.  **Description:** Generate a compelling, SEO-rich product description of approximately 300 words. Format it with HTML tags (e.g., <p>, <strong>, <ul>, <li>).
+2.  **Linking Strategy:**
+    *   **Inbound Link:** Naturally weave an inbound link into the description pointing to the product's primary category page. Use the format \`<a href="/product-category/{{{primaryCategory.slug}}}/">Explore more {{{primaryCategory.name}}}</a>\`.
+    *   **Outbound Links:** Naturally integrate outbound links to the provided social media pages and a telephone link. For the phone, use the format \`<a href="tel:{{{settings.phoneNumber}}}">call us</a>\`. For social media, link relevant phrases to the URLs provided in the settings.
+3.  **Yoast SEO:**
+    *   Generate a concise and compelling meta description for the \`_yoast_wpseo_metadesc\` field.
+    *   Generate a primary "Focus Keyphrase" for the \`_yoast_wpseo_focuskw\` field. This should be based on the most important search term for the product.
+4.  **Image Alt Text:** Create descriptive alt text for each image that includes SEO keywords like 'zenbaba furniture', 'ethiopia', 'addis ababa', and the product's Amharic name ({{{amharic_name}}}).
+5.  **Categories:** Select the most relevant categories from the provided list. Your response for 'categories' should be an array of category NAME strings.
 
-Based on the product information, select the most relevant categories from the list provided in 'availableCategories'. Your response for the 'categories' field should be an array of category NAME strings. If no existing category is a good fit, you have the creative freedom to suggest a new, relevant category name.
+**Business & Link Information:**
+- Phone Number: {{{settings.phoneNumber}}}
+- Facebook: {{{settings.facebookUrl}}}
+- Instagram: {{{settings.instagramUrl}}}
+- Telegram: {{{settings.telegramUrl}}}
+- Primary Category: {{{primaryCategory.name}}} (Slug: {{{primaryCategory.slug}}})
 
-Available Categories for selection:
+**Available Categories for selection:**
 {{{json availableCategories}}}
 
 {{#if fieldToGenerate}}
