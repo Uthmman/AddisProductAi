@@ -439,7 +439,7 @@ export default function ProductForm({ product }: ProductFormProps) {
   
   const commonKeywords = useMemo(() => {
     if (!settings?.commonKeywords) return [];
-    return settings.commonKeywords.split(',').map(kw => kw.trim()).filter(Boolean);
+    return [...new Set(settings.commonKeywords.split(',').map(kw => kw.trim()).filter(Boolean))];
   }, [settings]);
 
 
@@ -513,8 +513,8 @@ export default function ProductForm({ product }: ProductFormProps) {
                             <FormLabel>Focus Keywords</FormLabel>
                             <FormControl><Input placeholder="e.g., handmade, ethiopian craft" {...field} /></FormControl>
                              <div className="flex flex-wrap gap-1 pt-2">
-                                {commonKeywords.map(kw => (
-                                    <Button key={kw} type="button" size="sm" variant="outline" className="text-xs h-7" onClick={() => handleAddKeyword(kw)}>
+                                {commonKeywords.map((kw, index) => (
+                                    <Button key={`${kw}-${index}`} type="button" size="sm" variant="outline" className="text-xs h-7" onClick={() => handleAddKeyword(kw)}>
                                         {kw}
                                     </Button>
                                 ))}
