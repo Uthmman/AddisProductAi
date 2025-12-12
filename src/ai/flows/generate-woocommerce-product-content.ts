@@ -94,8 +94,9 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
     *   **Inbound Link:** Naturally weave an inbound link into the description pointing to the product's primary category page. Use the format \`<a href="/product-category/{{{primaryCategory.slug}}}/">Explore more {{{primaryCategory.name}}}</a>\`.
     *   **Outbound Links:** Naturally integrate outbound links to the provided social media pages and a telephone link. For the phone, use the format \`<a href="tel:{{{settings.phoneNumber}}}">call us</a>\`. For social media, link relevant phrases to the URLs provided in the settings.
 3.  **Yoast SEO:**
-    *   Generate a concise and compelling meta description for the \`_yoast_wpseo_metadesc\` field.
-    *   Generate a primary "Focus Keyphrase" for the \`_yoast_wpseo_focuskw\` field. This should be based on the most important search term for the product.
+    *   **Focus Keyphrase:** Generate a primary "Focus Keyphrase" for the \`_yoast_wpseo_focuskw\` field. This keyphrase MUST NOT be more than 4 words.
+    *   **Meta Description:** Generate a concise meta description for \`_yoast_wpseo_metadesc\`. This description MUST contain the exact Focus Keyphrase.
+    *   **Title and Description Integration:** The exact Focus Keyphrase MUST be present in the generated product \`name\` (SEO Title) and within the first paragraph of the product \`description\`.
 4.  **Image Alt Text:** Create descriptive alt text for each image that includes SEO keywords like 'zenbaba furniture', 'ethiopia', 'addis ababa', and the product's Amharic name ({{{amharic_name}}}).
 5.  **Categories:** Select the most relevant categories from the provided list. Your response for 'categories' should be an array of category NAME strings.
 
