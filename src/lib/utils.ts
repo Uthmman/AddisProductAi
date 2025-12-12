@@ -50,6 +50,10 @@ export function applyWatermark(originalImageSrc: string, watermarkImageSrc: stri
       canvas.width = originalImage.width;
       canvas.height = originalImage.height;
 
+      // Fill the background with white. This is important for JPEG conversion.
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
       ctx.drawImage(originalImage, 0, 0);
 
       const watermarkImage = new Image();
