@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "./ui/skeleton";
 
 export default function CategoryTable() {
   const [categories, setCategories] = useState<WooCategory[]>([]);
@@ -122,74 +123,82 @@ export default function CategoryTable() {
 
   return (
     <div>
-        <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold font-headline">Categories</h1>
-            <Button onClick={openNewDialog}>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold font-headline">Categories</h1>
+            <Button onClick={openNewDialog} className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 New Category
             </Button>
         </div>
   
         {isLoading ? (
-            <p>Loading categories...</p>
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
         ) : (
             <div className="rounded-md border">
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead className="w-[80px]">Image</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Parent</TableHead>
-                    <TableHead className="text-right">Product Count</TableHead>
-                    <TableHead className="w-[120px] text-right">Actions</TableHead>
-                </TableRow>
-                </TableHeader>
-                <TableBody>
-                {categories.length > 0 ? categories.map((cat) => (
-                    <TableRow key={cat.id}>
-                        <TableCell>
-                            {cat.image ? (
-                                <Image 
-                                    src={cat.image.src} 
-                                    alt={cat.name} 
-                                    width={48} 
-                                    height={48} 
-                                    className="rounded-md object-cover w-12 h-12"
-                                />
-                            ) : (
-                                <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md">
-                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                                </div>
-                            )}
-                        </TableCell>
-                        <TableCell className="font-medium">{cat.name}</TableCell>
-                        <TableCell>{cat.slug}</TableCell>
-                        <TableCell>{cat.parent ? getParentCategoryName(cat.parent) : '—'}</TableCell>
-                        <TableCell className="text-right">{cat.count}</TableCell>
-                        <TableCell className="text-right">
-                           <Button variant="ghost" size="icon" onClick={() => openEditDialog(cat)}>
-                                <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => openDeleteDialog(cat)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </TableCell>
-                    </TableRow>
-                )) : (
+              <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
                     <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
-                            No categories found.
-                        </TableCell>
+                        <TableHead className="w-[60px] sm:w-[80px]">Image</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead className="hidden md:table-cell">Slug</TableHead>
+                        <TableHead className="hidden lg:table-cell">Parent</TableHead>
+                        <TableHead className="text-right">Products</TableHead>
+                        <TableHead className="w-[100px] text-right">Actions</TableHead>
                     </TableRow>
-                )}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                    {categories.length > 0 ? categories.map((cat) => (
+                        <TableRow key={cat.id}>
+                            <TableCell>
+                                {cat.image ? (
+                                    <Image 
+                                        src={cat.image.src} 
+                                        alt={cat.name} 
+                                        width={48} 
+                                        height={48} 
+                                        className="rounded-md object-cover w-12 h-12"
+                                    />
+                                ) : (
+                                    <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md">
+                                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                )}
+                            </TableCell>
+                            <TableCell className="font-medium">{cat.name}</TableCell>
+                            <TableCell className="hidden md:table-cell">{cat.slug}</TableCell>
+                            <TableCell className="hidden lg:table-cell">{cat.parent ? getParentCategoryName(cat.parent) : '—'}</TableCell>
+                            <TableCell className="text-right">{cat.count}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end">
+                                <Button variant="ghost" size="icon" onClick={() => openEditDialog(cat)}>
+                                    <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => openDeleteDialog(cat)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                        </TableRow>
+                    )) : (
+                        <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                                No categories found.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                    </TableBody>
+                </Table>
+              </div>
             </div>
         )}
         
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-md w-[90%]">
                 <DialogHeader>
                     <DialogTitle>{editingCategory ? 'Edit Category' : 'Create New Category'}</DialogTitle>
                 </DialogHeader>

@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 
 function ProductGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
       {[...Array(12)].map((_, i) => (
         <div key={i} className="rounded-lg border bg-card flex flex-col">
             <div className="aspect-square w-full">
@@ -32,7 +32,10 @@ function ProductGridSkeleton() {
             </div>
             <div className="p-3 flex justify-between items-center">
                 <Skeleton className="h-7 w-20" />
-                <Skeleton className="h-7 w-7 rounded-full" />
+                <div className="flex items-center">
+                  <Skeleton className="h-7 w-7 rounded-md" />
+                  <Skeleton className="h-7 w-7 rounded-md ml-1" />
+                </div>
             </div>
         </div>
       ))}
@@ -142,7 +145,7 @@ export default function ProductTable() {
   return (
     <div className="w-full">
        <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-           <div className="text-sm text-muted-foreground">
+           <div className="text-sm text-muted-foreground flex-1">
              {totalProducts > 0 ? (
                 <span>
                     Showing <strong>{products.length}</strong> of <strong>{totalProducts}</strong> products
@@ -151,7 +154,7 @@ export default function ProductTable() {
                 <span>&nbsp;</span>
              )}
            </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Select value={selectedCategory} onValueChange={handleCategoryChange}>
                 <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter by category" />
@@ -182,7 +185,7 @@ export default function ProductTable() {
         {(isLoading || isPending) ? (
             <ProductGridSkeleton />
         ) : products.length > 0 ? (
-             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                 {products.map((product) => (
                     <ProductCard key={product.id} product={product} onDelete={setDeletingProduct} />
                 ))}
@@ -193,8 +196,8 @@ export default function ProductTable() {
             </div>
         )}
       
-      <div className="flex items-center justify-end space-x-2 py-4 mt-4">
-        <div className="flex-1 text-sm text-muted-foreground">
+      <div className="flex items-center justify-between sm:justify-end space-x-2 py-4 mt-4">
+        <div className="flex-1 text-sm text-muted-foreground sm:hidden">
           Page {page} of {totalPages}
         </div>
         <Button

@@ -100,7 +100,7 @@ export default function SettingsPage() {
   if (isLoading) {
     return (
       <div className="container mx-auto py-10 max-w-2xl">
-        <h1 className="text-3xl font-bold font-headline mb-6">Settings</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-6">Settings</h1>
         <Card>
           <CardHeader>
              <Skeleton className="h-6 w-1/3" />
@@ -142,7 +142,7 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto py-10 max-w-2xl">
-      <h1 className="text-3xl font-bold font-headline mb-6">Settings</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-6">Settings</h1>
       <Card>
          <CardHeader>
           <CardTitle>Business Information</CardTitle>
@@ -235,7 +235,7 @@ export default function SettingsPage() {
                     )}
                 />
                 <div className="flex justify-end">
-                    <Button type="submit" disabled={isSaving}>
+                    <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
                     {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Settings
                     </Button>

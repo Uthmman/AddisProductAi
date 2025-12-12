@@ -28,19 +28,19 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
         </div>
       </CardHeader>
       <CardContent className="p-3 flex-grow">
-        <CardTitle className="text-base font-bold line-clamp-2">{product.name}</CardTitle>
+        <CardTitle className="text-sm sm:text-base font-bold line-clamp-2">{product.name}</CardTitle>
       </CardContent>
-      <CardFooter className="p-3 flex justify-between items-center">
-        <p className="text-base font-semibold text-foreground">
+      <CardFooter className="p-2 sm:p-3 flex justify-between items-center">
+        <p className="text-sm sm:text-base font-semibold text-foreground">
           {formatCurrency(product.price)}
         </p>
-        <div>
-          <Button variant="ghost" size="icon" asChild>
+        <div className="flex items-center">
+          <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" asChild>
             <Link href={`/products/${product.id}`}>
               <Edit className="h-4 w-4" />
             </Link>
           </Button>
-           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => onDelete(product)}>
+           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8 sm:h-9 sm:w-9" onClick={() => onDelete(product)}>
               <Trash2 className="h-4 w-4" />
           </Button>
         </div>

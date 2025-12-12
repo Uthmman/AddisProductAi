@@ -553,7 +553,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                       <div className="flex justify-between items-center"><Label>Categories</Label>{renderGenButton('categories')}</div>
                         <Popover>
                             <PopoverTrigger asChild>
-                                <Button variant="outline" className="w-full justify-start font-normal h-auto min-h-10">
+                                <Button variant="outline" className="w-full justify-start font-normal h-auto min-h-10 text-left">
                                     <div className="flex gap-1 flex-wrap">
                                       {selectedCategories.length > 0 ? (
                                         selectedCategories.map(cat => (
@@ -563,7 +563,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                                           </Badge>
                                         ))
                                       ) : (
-                                        <span>Select categories...</span>
+                                        <span className="text-muted-foreground">Select categories...</span>
                                       )}
                                     </div>
                                 </Button>
@@ -617,7 +617,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                            {images.map((image, index) => (
                               <div key={index} className="space-y-2">
-                                <Image src={image.src} alt={image.alt || `Product gallery image ${index + 1}`} width={150} height={150} className="rounded-md object-cover aspect-square" />
+                                <Image src={image.src} alt={image.alt || `Product gallery image ${index + 1}`} width={150} height={150} className="rounded-md object-cover aspect-square w-full" />
                                 <Input 
                                   value={image.alt}
                                   onChange={(e) => handleAltTextChange(index, e.target.value)}
@@ -641,12 +641,12 @@ export default function ProductForm({ product }: ProductFormProps) {
           </div>
         </div>
 
-        <div className="mt-8 flex justify-end gap-4">
-          <Button type="button" size="lg" variant="outline" onClick={() => onSubmit('draft')} disabled={isSaving || generatingField !== null}>
+        <div className="mt-8 flex flex-col sm:flex-row justify-end gap-4">
+          <Button type="button" size="lg" variant="outline" onClick={() => onSubmit('draft')} disabled={isSaving || generatingField !== null} className="w-full sm:w-auto">
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Save as Draft
           </Button>
-          <Button type="button" size="lg" onClick={() => onSubmit('publish')} disabled={isSaving || generatingField !== null}>
+          <Button type="button" size="lg" onClick={() => onSubmit('publish')} disabled={isSaving || generatingField !== null} className="w-full sm:w-auto">
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {product ? "Save Changes" : "Create Product"}
           </Button>

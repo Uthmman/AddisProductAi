@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function CategoriesPage() {
   return (
-    <div className="container mx-auto py-10">
+    <div className="container mx-auto py-6 sm:py-10">
       <Suspense fallback={<CategoryTableSkeleton />}>
         <CategoryTable />
       </Suspense>
@@ -29,8 +29,8 @@ function CategoryTableSkeleton() {
             <div className="flex h-12 items-center px-4">
               <Skeleton className="h-6 w-16" />
               <Skeleton className="h-6 w-1/4 ml-4" />
-              <Skeleton className="h-6 w-1/4 ml-auto" />
-              <Skeleton className="h-6 w-1/4 ml-auto" />
+              <Skeleton className="h-6 w-1/4 ml-auto hidden md:block" />
+              <Skeleton className="h-6 w-1/4 ml-auto hidden lg:block" />
               <Skeleton className="h-6 w-16 ml-auto" />
             </div>
           </div>
@@ -39,8 +39,8 @@ function CategoryTableSkeleton() {
               <div key={i} className="flex h-16 items-center px-4 border-b">
                 <Skeleton className="h-12 w-12 rounded-md" />
                 <Skeleton className="h-8 flex-1 ml-4" />
-                <Skeleton className="h-8 w-1/4 ml-auto" />
-                <Skeleton className="h-8 w-1/4 ml-auto" />
+                 <Skeleton className="h-8 w-1/4 ml-auto hidden md:block" />
+                 <Skeleton className="h-8 w-1/4 ml-auto hidden lg:block" />
                 <Skeleton className="h-8 w-16 ml-auto" />
               </div>
             ))}
