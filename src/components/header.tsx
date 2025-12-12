@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Package, FolderTree, Settings } from "lucide-react";
+import { Package, FolderTree, Settings, FileText } from "lucide-react";
 import { Button } from "./ui/button";
+import NavLink from "./nav-link";
 
 export default function Header() {
   return (
@@ -13,25 +14,23 @@ export default function Header() {
           </span>
         </Link>
         <div className="flex flex-1 items-center justify-between space-x-2 md:space-x-4">
-           <nav className="flex items-center space-x-2 sm:space-x-4 text-sm font-medium">
-            <Link
-              href="/dashboard"
-              className="transition-colors hover:text-foreground/80 text-foreground text-xs sm:text-sm"
-            >
+           <nav className="flex items-center space-x-1 sm:space-x-2 text-sm font-medium">
+            <NavLink href="/dashboard">
+              <Package className="h-4 w-4 mr-2" />
               Products
-            </Link>
-             <Link
-              href="/categories"
-              className="transition-colors hover:text-foreground/80 text-foreground/60 text-xs sm:text-sm"
-            >
-              Categories
-            </Link>
-             <Link
-              href="/settings"
-              className="transition-colors hover:text-foreground/80 text-foreground/60 text-xs sm:text-sm"
-            >
-              Settings
-            </Link>
+            </NavLink>
+             <NavLink href="/categories">
+                <FolderTree className="h-4 w-4 mr-2" />
+                Categories
+             </NavLink>
+             <NavLink href="/content">
+                <FileText className="h-4 w-4 mr-2" />
+                Content
+             </NavLink>
+             <NavLink href="/settings">
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+             </NavLink>
           </nav>
           <div className="flex items-center justify-end space-x-2">
             {/* Future nav items can go here */}
