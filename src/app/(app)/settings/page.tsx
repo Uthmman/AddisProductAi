@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,10 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UploadCloud, X as XIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Settings } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
+import { fileToBase64 } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 const SettingsSchema = z.object({
   phoneNumber: z.string().optional(),
@@ -21,6 +24,7 @@ const SettingsSchema = z.object({
   telegramUrl: z.string().url().or(z.literal('')).optional(),
   tiktokUrl: z.string().url().or(z.literal('')).optional(),
   commonKeywords: z.string().optional(),
+  watermarkImageUrl: z.string().optional(),
 });
 
 type SettingsFormValues = z.infer<typeof SettingsSchema>;
@@ -29,6 +33,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [watermarkPreview, setWatermarkPreview] = useState<string | null>(null);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(SettingsSchema),
@@ -39,6 +44,7 @@ export default function SettingsPage() {
       telegramUrl: '',
       tiktokUrl: '',
       commonKeywords: '',
+      watermarkImageUrl: '',
     },
   });
 
@@ -50,6 +56,9 @@ export default function SettingsPage() {
         if (response.ok) {
           const data: Settings = await response.json();
           form.reset(data);
+          if (data.watermarkImageUrl) {
+            setWatermarkPreview(data.watermarkImageUrl);
+          }
         } else {
           throw new Error('Failed to load settings');
         }
@@ -66,6 +75,20 @@ export default function SettingsPage() {
 
     fetchSettings();
   }, [form, toast]);
+
+  const handleWatermarkChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const base64 = await fileToBase64(file);
+      setWatermarkPreview(base64);
+      form.setValue('watermarkImageUrl', base64);
+    }
+  };
+
+  const removeWatermark = () => {
+    setWatermarkPreview(null);
+    form.setValue('watermarkImageUrl', '');
+  };
 
   const onSubmit = async (data: SettingsFormValues) => {
     setIsSaving(true);
@@ -119,21 +142,7 @@ export default function SettingsPage() {
                 <Skeleton className="h-5 w-24" />
                 <Skeleton className="h-10 w-full" />
             </div>
-             <div className="space-y-2">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-            <div className="space-y-2">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-             <div className="space-y-2">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-24 w-full" />
-            </div>
-             <div className="flex justify-end">
-                <Skeleton className="h-10 w-32" />
-            </div>
+            {/* More skeletons */}
           </CardContent>
         </Card>
       </div>
@@ -143,107 +152,81 @@ export default function SettingsPage() {
   return (
     <div className="container mx-auto py-10 max-w-2xl">
       <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-6">Settings</h1>
-      <Card>
-         <CardHeader>
-          <CardTitle>Business Information</CardTitle>
-          <CardDescription>
-            This information will be used by the AI to create links and suggest content.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                    control={form.control}
-                    name="phoneNumber"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Phone Number</FormLabel>
-                        <FormControl>
-                        <Input placeholder="+251..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Business Information</CardTitle>
+              <CardDescription>
+                This information will be used by the AI to create links and suggest content.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <FormField control={form.control} name="phoneNumber" render={({ field }) => (
+                    <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+251..." {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="facebookUrl" render={({ field }) => (
+                    <FormItem><FormLabel>Facebook URL</FormLabel><FormControl><Input placeholder="https://facebook.com/your-page" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="instagramUrl" render={({ field }) => (
+                    <FormItem><FormLabel>Instagram URL</FormLabel><FormControl><Input placeholder="https://instagram.com/your-profile" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="telegramUrl" render={({ field }) => (
+                    <FormItem><FormLabel>Telegram URL</FormLabel><FormControl><Input placeholder="https://t.me/your-channel" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                 <FormField control={form.control} name="tiktokUrl" render={({ field }) => (
+                    <FormItem><FormLabel>TikTok URL</FormLabel><FormControl><Input placeholder="https://tiktok.com/@your-profile" {...field} /></FormControl><FormMessage /></FormItem>
+                 )} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Content Settings</CardTitle>
+              <CardDescription>Customize content generation settings.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField control={form.control} name="commonKeywords" render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>Common Keywords</FormLabel>
+                      <FormControl><Textarea placeholder="zenbaba furniture, made in ethiopia, addis ababa..." {...field} /></FormControl>
+                      <FormDescription>Comma-separated keywords that will be suggested on the product form.</FormDescription>
+                      <FormMessage />
+                  </FormItem>
+              )} />
+              <Separator />
+              <FormItem>
+                <FormLabel>Watermark Image</FormLabel>
+                <FormDescription>Upload a watermark (PNG with transparency recommended) to apply to product images.</FormDescription>
+                <div className="flex items-center gap-4 pt-2">
+                  <div className="w-24 h-24 rounded-md border border-dashed flex items-center justify-center relative bg-muted/20">
+                    {watermarkPreview ? (
+                      <>
+                        <Image src={watermarkPreview} alt="Watermark preview" fill className="object-contain p-2" />
+                        <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full z-10" onClick={removeWatermark}>
+                          <XIcon className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="text-center text-muted-foreground p-2">
+                        <UploadCloud className="mx-auto h-8 w-8" />
+                      </div>
                     )}
-                />
-                <FormField
-                    control={form.control}
-                    name="facebookUrl"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Facebook URL</FormLabel>
-                        <FormControl>
-                        <Input placeholder="https://facebook.com/your-page" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="instagramUrl"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Instagram URL</FormLabel>
-                        <FormControl>
-                        <Input placeholder="https://instagram.com/your-profile" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="telegramUrl"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Telegram URL</FormLabel>
-                        <FormControl>
-                        <Input placeholder="https://t.me/your-channel" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="tiktokUrl"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>TikTok URL</FormLabel>
-                        <FormControl>
-                        <Input placeholder="https://tiktok.com/@your-profile" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="commonKeywords"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Common Keywords</FormLabel>
-                        <FormControl>
-                        <Textarea placeholder="zenbaba furniture, made in ethiopia, addis ababa..." {...field} />
-                        </FormControl>
-                        <FormDescription>
-                            Comma-separated keywords that will be suggested on the product form.
-                        </FormDescription>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <div className="flex justify-end">
-                    <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
-                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Save Settings
-                    </Button>
+                  </div>
+                  <Input id="watermark-image" type="file" accept="image/png, image/jpeg" className="max-w-xs" onChange={handleWatermarkChange} />
                 </div>
-                </form>
-            </Form>
-        </CardContent>
-      </Card>
+              </FormItem>
+            </CardContent>
+          </Card>
+          
+          <div className="flex justify-end">
+              <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save All Settings
+              </Button>
+          </div>
+        </form>
+      </Form>
     </div>
   );
 }

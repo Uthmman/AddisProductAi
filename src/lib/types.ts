@@ -61,4 +61,5 @@ export interface Settings {
     telegramUrl: string;
     tiktokUrl: string;
     commonKeywords?: string;
+    watermarkImageUrl?: string;
 }

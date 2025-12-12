@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent, WooCategory, Settings } from "@/lib/types";
-import { fileToBase64, cn } from "@/lib/utils";
+import { fileToBase64, cn, applyWatermark } from "@/lib/utils";
 import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -312,11 +312,17 @@ export default function ProductForm({ product }: ProductFormProps) {
         const uploadedImages = await Promise.all(
           newFilesToUpload.map(async (image) => {
             if (!image.file) throw new Error("Image file is missing.");
-            const base64 = await fileToBase64(image.file);
+            
+            let imageBase64 = await fileToBase64(image.file);
+
+            if (settings?.watermarkImageUrl) {
+              imageBase64 = await applyWatermark(imageBase64, settings.watermarkImageUrl);
+            }
+
             const response = await fetch('/api/products/upload-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image_data: base64, image_name: image.fileName || image.file.name }),
+              body: JSON.stringify({ image_data: imageBase64, image_name: image.fileName || image.file.name }),
             });
 
             if (!response.ok) {
@@ -439,7 +445,8 @@ export default function ProductForm({ product }: ProductFormProps) {
   
   const commonKeywords = useMemo(() => {
     if (!settings?.commonKeywords) return [];
-    return [...new Set(settings.commonKeywords.split(',').map(kw => kw.trim()).filter(Boolean))];
+    const keywords = settings.commonKeywords.split(',').map(kw => kw.trim()).filter(Boolean);
+    return [...new Set(keywords)];
   }, [settings]);
 
 
