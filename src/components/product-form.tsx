@@ -15,13 +15,14 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent, WooCategory, Settings } from "@/lib/types";
-import { fileToBase64, cn, applyWatermark } from "@/lib/utils";
+import { fileToBase64, cn, applyWatermark as applyWatermarkUtil } from "@/lib/utils";
 import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Badge } from "./ui/badge";
 import { getSettings } from "@/lib/woocommerce-api";
+import { Switch } from "./ui/switch";
 
 
 // Simplified schema for form validation
@@ -80,6 +81,7 @@ export default function ProductForm({ product }: ProductFormProps) {
   const [availableCategories, setAvailableCategories] = useState<WooCategory[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<DisplayCategory[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [applyWatermark, setApplyWatermark] = useState(true);
 
 
   const form = useForm<FormValues>({
@@ -135,6 +137,9 @@ export default function ProductForm({ product }: ProductFormProps) {
             }
             
             setSettings(settingsData);
+            if (!settingsData?.watermarkImageUrl) {
+                setApplyWatermark(false);
+            }
 
         } catch (error) {
             console.error("Failed to fetch initial data", error);
@@ -315,8 +320,8 @@ export default function ProductForm({ product }: ProductFormProps) {
             
             let imageBase64 = await fileToBase64(image.file);
 
-            if (settings?.watermarkImageUrl) {
-              imageBase64 = await applyWatermark(imageBase64, settings.watermarkImageUrl, settings);
+            if (applyWatermark && settings?.watermarkImageUrl) {
+              imageBase64 = await applyWatermarkUtil(imageBase64, settings.watermarkImageUrl, settings);
             }
 
             const response = await fetch('/api/products/upload-image', {
@@ -538,6 +543,17 @@ export default function ProductForm({ product }: ProductFormProps) {
               {generatingField === 'all' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               AI Optimize All Fields
             </Button>
+             {settings?.watermarkImageUrl && (
+                <div className="flex items-center space-x-2 justify-center">
+                    <Switch
+                        id="watermark-toggle"
+                        checked={applyWatermark}
+                        onCheckedChange={setApplyWatermark}
+                        disabled={!settings.watermarkImageUrl}
+                    />
+                    <Label htmlFor="watermark-toggle" className="cursor-pointer">Apply Watermark to Images</Label>
+                </div>
+            )}
           </div>
 
           {/* RIGHT COLUMN: AI PREVIEW */}
