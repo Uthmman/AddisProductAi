@@ -316,7 +316,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             let imageBase64 = await fileToBase64(image.file);
 
             if (settings?.watermarkImageUrl) {
-              imageBase64 = await applyWatermark(imageBase64, settings.watermarkImageUrl);
+              imageBase64 = await applyWatermark(imageBase64, settings.watermarkImageUrl, settings);
             }
 
             const response = await fetch('/api/products/upload-image', {

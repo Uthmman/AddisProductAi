@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { Settings } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -27,8 +28,16 @@ export function fileToBase64(file: File): Promise<string> {
 }
 
 
-export function applyWatermark(originalImageSrc: string, watermarkImageSrc: string): Promise<string> {
+export function applyWatermark(originalImageSrc: string, watermarkImageSrc: string, options: Partial<Settings> = {}): Promise<string> {
   return new Promise((resolve, reject) => {
+    const {
+      watermarkPlacement = 'bottom-right',
+      watermarkScale = 40,
+      watermarkOpacity = 0.7,
+      watermarkPadding = 5
+    } = options;
+
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -46,17 +55,44 @@ export function applyWatermark(originalImageSrc: string, watermarkImageSrc: stri
       const watermarkImage = new Image();
       watermarkImage.crossOrigin = 'anonymous';
       watermarkImage.onload = () => {
-        // Configuration for the watermark
-        const scale = 0.4; // Watermark will be 40% of the original image's width
-        const padding = 0.05; // 5% padding from the corner
+        
+        const scale = watermarkScale / 100;
+        const padding = watermarkPadding / 100;
 
         const watermarkWidth = originalImage.width * scale;
         const watermarkHeight = watermarkImage.height * (watermarkWidth / watermarkImage.width);
         
-        const x = originalImage.width - watermarkWidth - (originalImage.width * padding);
-        const y = originalImage.height - watermarkHeight - (originalImage.height * padding);
+        const paddingX = originalImage.width * padding;
+        const paddingY = originalImage.height * padding;
 
-        ctx.globalAlpha = 0.7; // Set watermark opacity
+        let x = 0;
+        let y = 0;
+
+        switch (watermarkPlacement) {
+            case 'bottom-right':
+                x = originalImage.width - watermarkWidth - paddingX;
+                y = originalImage.height - watermarkHeight - paddingY;
+                break;
+            case 'bottom-left':
+                x = paddingX;
+                y = originalImage.height - watermarkHeight - paddingY;
+                break;
+            case 'top-right':
+                x = originalImage.width - watermarkWidth - paddingX;
+                y = paddingY;
+                break;
+            case 'top-left':
+                x = paddingX;
+                y = paddingY;
+                break;
+            case 'center':
+                x = (originalImage.width - watermarkWidth) / 2;
+                y = (originalImage.height - watermarkHeight) / 2;
+                break;
+        }
+
+
+        ctx.globalAlpha = watermarkOpacity;
         ctx.drawImage(watermarkImage, x, y, watermarkWidth, watermarkHeight);
         
         resolve(canvas.toDataURL('image/jpeg', 0.9)); // Return as high-quality JPEG

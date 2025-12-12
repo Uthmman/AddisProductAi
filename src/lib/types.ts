@@ -62,4 +62,8 @@ export interface Settings {
     tiktokUrl: string;
     commonKeywords?: string;
     watermarkImageUrl?: string;
+    watermarkPlacement?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center';
+    watermarkScale?: number;
+    watermarkOpacity?: number;
+    watermarkPadding?: number;
 }
