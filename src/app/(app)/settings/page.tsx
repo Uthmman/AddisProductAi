@@ -58,6 +58,13 @@ export default function SettingsPage() {
     },
   });
 
+  const watermarkSettings = form.watch([
+    "watermarkPlacement",
+    "watermarkScale",
+    "watermarkOpacity",
+    "watermarkPadding",
+  ]);
+
   useEffect(() => {
     const fetchSettings = async () => {
       setIsLoading(true);
@@ -137,6 +144,41 @@ export default function SettingsPage() {
     }
   };
 
+  const getWatermarkPosition = () => {
+    const [placement, scale, , padding] = watermarkSettings;
+    const style: React.CSSProperties = {
+      width: `${scale}%`,
+      height: 'auto',
+    };
+
+    const paddingValue = `${padding}%`;
+
+    switch (placement) {
+      case 'bottom-right':
+        style.bottom = paddingValue;
+        style.right = paddingValue;
+        break;
+      case 'bottom-left':
+        style.bottom = paddingValue;
+        style.left = paddingValue;
+        break;
+      case 'top-right':
+        style.top = paddingValue;
+        style.right = paddingValue;
+        break;
+      case 'top-left':
+        style.top = paddingValue;
+        style.left = paddingValue;
+        break;
+      case 'center':
+        style.top = '50%';
+        style.left = '50%';
+        style.transform = 'translate(-50%, -50%)';
+        break;
+    }
+    return style;
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-10 max-w-2xl">
@@ -167,150 +209,195 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-10 max-w-2xl">
+    <div className="container mx-auto py-10 max-w-4xl">
       <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-6">Settings</h1>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Business Information</CardTitle>
-              <CardDescription>
-                This information will be used by the AI to create links and suggest content.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <FormField control={form.control} name="phoneNumber" render={({ field }) => (
-                    <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+251..." {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="facebookUrl" render={({ field }) => (
-                    <FormItem><FormLabel>Facebook URL</FormLabel><FormControl><Input placeholder="https://facebook.com/your-page" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="instagramUrl" render={({ field }) => (
-                    <FormItem><FormLabel>Instagram URL</FormLabel><FormControl><Input placeholder="https://instagram.com/your-profile" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="telegramUrl" render={({ field }) => (
-                    <FormItem><FormLabel>Telegram URL</FormLabel><FormControl><Input placeholder="https://t.me/your-channel" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                 <FormField control={form.control} name="tiktokUrl" render={({ field }) => (
-                    <FormItem><FormLabel>TikTok URL</FormLabel><FormControl><Input placeholder="https://tiktok.com/@your-profile" {...field} /></FormControl><FormMessage /></FormItem>
-                 )} />
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+            <div className="space-y-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Business Information</CardTitle>
+                  <CardDescription>
+                    This information will be used by the AI to create links and suggest content.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <FormField control={form.control} name="phoneNumber" render={({ field }) => (
+                        <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+251..." {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="facebookUrl" render={({ field }) => (
+                        <FormItem><FormLabel>Facebook URL</FormLabel><FormControl><Input placeholder="https://facebook.com/your-page" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="instagramUrl" render={({ field }) => (
+                        <FormItem><FormLabel>Instagram URL</FormLabel><FormControl><Input placeholder="https://instagram.com/your-profile" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="telegramUrl" render={({ field }) => (
+                        <FormItem><FormLabel>Telegram URL</FormLabel><FormControl><Input placeholder="https://t.me/your-channel" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                     <FormField control={form.control} name="tiktokUrl" render={({ field }) => (
+                        <FormItem><FormLabel>TikTok URL</FormLabel><FormControl><Input placeholder="https://tiktok.com/@your-profile" {...field} /></FormControl><FormMessage /></FormItem>
+                     )} />
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Content Settings</CardTitle>
-              <CardDescription>Customize content generation and image watermarking.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FormField control={form.control} name="commonKeywords" render={({ field }) => (
-                  <FormItem>
-                      <FormLabel>Common Keywords</FormLabel>
-                      <FormControl><Textarea placeholder="zenbaba furniture, made in ethiopia, addis ababa..." {...field} /></FormControl>
-                      <FormDescription>Comma-separated keywords that will be suggested on the product form.</FormDescription>
-                      <FormMessage />
-                  </FormItem>
-              )} />
-              <Separator />
-              <div className="space-y-4 pt-2">
-                <FormLabel>Watermark Settings</FormLabel>
-                <FormDescription>Upload a watermark (PNG with transparency recommended) to apply to product images.</FormDescription>
-                 <FormItem>
-                    <div className="flex items-center gap-4">
-                      <div className="w-24 h-24 rounded-md border border-dashed flex items-center justify-center relative bg-muted/20">
-                        {watermarkPreview ? (
-                          <>
-                            <Image src={watermarkPreview} alt="Watermark preview" fill className="object-contain p-2" />
-                            <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full z-10" onClick={removeWatermark}>
-                              <XIcon className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <div className="text-center text-muted-foreground p-2">
-                            <UploadCloud className="mx-auto h-8 w-8" />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Content Settings</CardTitle>
+                  <CardDescription>Customize content generation and image watermarking.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <FormField control={form.control} name="commonKeywords" render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Common Keywords</FormLabel>
+                          <FormControl><Textarea placeholder="zenbaba furniture, made in ethiopia, addis ababa..." {...field} /></FormControl>
+                          <FormDescription>Comma-separated keywords that will be suggested on the product form.</FormDescription>
+                          <FormMessage />
+                      </FormItem>
+                  )} />
+                </CardContent>
+              </Card>
+            </div>
+            <div className="space-y-8">
+              <Card>
+                  <CardHeader>
+                    <CardTitle>Watermark Settings</CardTitle>
+                    <CardDescription>Upload a watermark and configure its appearance.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                     <FormItem>
+                        <FormLabel>Upload Watermark</FormLabel>
+                        <FormDescription>PNG with transparency recommended.</FormDescription>
+                        <div className="flex items-center gap-4 pt-2">
+                          <div className="w-24 h-24 rounded-md border border-dashed flex items-center justify-center relative bg-muted/20">
+                            {watermarkPreview ? (
+                              <>
+                                <Image src={watermarkPreview} alt="Watermark preview" fill className="object-contain p-2" />
+                                <Button variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6 rounded-full z-10" onClick={removeWatermark}>
+                                  <XIcon className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <div className="text-center text-muted-foreground p-2">
+                                <UploadCloud className="mx-auto h-8 w-8" />
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <Input id="watermark-image" type="file" accept="image/png, image/jpeg" className="max-w-xs" onChange={handleWatermarkChange} />
-                    </div>
-                </FormItem>
-
-                <FormField
-                  control={form.control}
-                  name="watermarkPlacement"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Placement</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select placement" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="bottom-right">Bottom Right</SelectItem>
-                          <SelectItem value="bottom-left">Bottom Left</SelectItem>
-                          <SelectItem value="top-right">Top Right</SelectItem>
-                          <SelectItem value="top-left">Top Left</SelectItem>
-                          <SelectItem value="center">Center</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
+                          <Input id="watermark-image" type="file" accept="image/png, image/jpeg" className="max-w-xs" onChange={handleWatermarkChange} />
+                        </div>
                     </FormItem>
-                  )}
-                />
 
-                <FormField
-                    control={form.control}
-                    name="watermarkScale"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Size: {field.value}% of image width</FormLabel>
-                            <FormControl>
-                                <Slider
-                                    min={5} max={100} step={1}
-                                    defaultValue={[field.value]}
-                                    onValueChange={(vals) => field.onChange(vals[0])}
-                                />
-                            </FormControl>
-                        </FormItem>
+                     {watermarkPreview && (
+                      <>
+                        <Separator />
+                        <div className="space-y-4 pt-2">
+                          <FormLabel>Watermark Preview</FormLabel>
+                           <div className="relative aspect-video w-full rounded-md overflow-hidden bg-muted">
+                              <Image 
+                                src="https://picsum.photos/seed/preview/600/400" 
+                                alt="Preview background" 
+                                data-ai-hint="product background"
+                                fill
+                                className="object-cover" 
+                              />
+                               <div
+                                className="absolute transition-all"
+                                style={{
+                                    ...getWatermarkPosition(),
+                                    opacity: watermarkSettings[2],
+                                }}
+                               >
+                                  <Image
+                                    src={watermarkPreview}
+                                    alt="Watermark"
+                                    width={200}
+                                    height={200}
+                                    className="w-full h-auto"
+                                  />
+                               </div>
+                           </div>
+                        </div>
+                        <Separator />
+
+                        <FormField
+                          control={form.control}
+                          name="watermarkPlacement"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Placement</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select placement" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                                  <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                                  <SelectItem value="top-right">Top Right</SelectItem>
+                                  <SelectItem value="top-left">Top Left</SelectItem>
+                                  <SelectItem value="center">Center</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="watermarkScale"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Size: {field.value}% of image width</FormLabel>
+                                    <FormControl>
+                                        <Slider
+                                            min={5} max={100} step={1}
+                                            value={[field.value]}
+                                            onValueChange={(vals) => field.onChange(vals[0])}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="watermarkOpacity"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Opacity: {Math.round(field.value * 100)}%</FormLabel>
+                                    <FormControl>
+                                        <Slider
+                                            min={0} max={1} step={0.05}
+                                            value={[field.value]}
+                                            onValueChange={(vals) => field.onChange(vals[0])}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="watermarkPadding"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Padding: {field.value}% from edge</FormLabel>
+                                    <FormControl>
+                                        <Slider
+                                            min={0} max={25} step={1}
+                                            value={[field.value]}
+                                            onValueChange={(vals) => field.onChange(vals[0])}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                      </>
                     )}
-                />
-                <FormField
-                    control={form.control}
-                    name="watermarkOpacity"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Opacity: {Math.round(field.value * 100)}%</FormLabel>
-                            <FormControl>
-                                <Slider
-                                    min={0} max={1} step={0.05}
-                                    defaultValue={[field.value]}
-                                    onValueChange={(vals) => field.onChange(vals[0])}
-                                />
-                            </FormControl>
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="watermarkPadding"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Padding: {field.value}% from edge</FormLabel>
-                            <FormControl>
-                                <Slider
-                                    min={0} max={25} step={1}
-                                    defaultValue={[field.value]}
-                                    onValueChange={(vals) => field.onChange(vals[0])}
-                                />
-                            </FormControl>
-                        </FormItem>
-                    )}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                  </CardContent>
+              </Card>
+            </div>
+          </div>
           
           <div className="flex justify-end">
               <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
