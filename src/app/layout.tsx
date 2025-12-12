@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "Addis Product AI",
   description: "AI-powered product management for WooCommerce.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
