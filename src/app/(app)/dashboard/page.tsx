@@ -12,7 +12,7 @@ export const metadata = {
 export default function DashboardPage() {
   return (
     <div className="container mx-auto py-6 sm:py-10">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+      <div className="flex flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-2xl sm:text-3xl font-bold font-headline">Products</h1>
         <Button asChild>
           <Link href="/products/new">
