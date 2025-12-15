@@ -54,7 +54,7 @@ type DisplayCategory = {
     name: string;
 };
 
-type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | null;
+type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | 'regular_price' | null;
 
 type SaveAction = 'publish' | 'draft';
 
@@ -572,6 +572,10 @@ export default function ProductForm({ product }: ProductFormProps) {
                         <div className="flex justify-between items-center"><Label>Slug</Label>{renderGenButton('slug')}</div>
                         <Input value={aiContent.slug || ''} onChange={(e) => setAiContent(p => ({ ...p, slug: e.target.value }))} placeholder="AI generated slug..." />
                     </div>
+                    <div className="space-y-2">
+                       <div className="flex justify-between items-center"><Label>Regular Price (ETB)</Label>{renderGenButton('regular_price')}</div>
+                       <Input type="number" value={aiContent.regular_price || ''} onChange={(e) => setAiContent(p => ({ ...p, regular_price: parseFloat(e.target.value) || 0 }))} placeholder="AI generated price..."/>
+                   </div>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center"><Label>Categories</Label>{renderGenButton('categories')}</div>
                         <Popover>

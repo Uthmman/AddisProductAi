@@ -21,6 +21,7 @@ const InputSchema = z.object({
       'attributes',
       'images',
       'categories',
+      'regular_price',
   ]).optional(),
   existingContent: z.any().optional(),
   settings: z.any().optional(),

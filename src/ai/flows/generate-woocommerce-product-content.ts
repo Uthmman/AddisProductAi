@@ -36,6 +36,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
       'attributes',
       'images',
       'categories',
+      'regular_price',
   ]).optional().describe('The specific field to generate content for. If not provided, all fields will be generated.'),
   existingContent: z.any().optional().describe('Existing product content to provide context for single-field generation.'),
   settings: z.object({
