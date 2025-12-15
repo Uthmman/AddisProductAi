@@ -1,0 +1,12 @@
+[33mcommit 1dd555d93431d2a9d698bde4ffb7dbfe4a911600[m
+Author: ENSRA TECH <ensratech@gmail.com>
+Date:   Mon Dec 15 05:41:53 2025 +0000
+
+    add another page to view product without editing
+
+"\033[B"
+"\033[B.pub"
+src/app/(app)/products/[id]/view/loading.tsx
+src/app/(app)/products/[id]/view/page.tsx
+src/components/product-card.tsx
+src/components/product-table.tsx
