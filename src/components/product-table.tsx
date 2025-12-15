@@ -33,7 +33,8 @@ function ProductGridSkeleton() {
             <div className="p-3 flex justify-between items-center">
                 <Skeleton className="h-7 w-20" />
                 <div className="flex items-center">
-                  <Skeleton className="h-7 w-7 rounded-md" />
+                  <Skeleton className="h-7 w-7 rounded-md ml-1" />
+                  <Skeleton className="h-7 w-7 rounded-md ml-1" />
                   <Skeleton className="h-7 w-7 rounded-md ml-1" />
                 </div>
             </div>
