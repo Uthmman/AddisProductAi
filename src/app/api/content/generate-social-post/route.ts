@@ -7,6 +7,7 @@ const InputSchema = z.object({
   productId: z.string(),
   platform: z.enum(['telegram']),
   topic: z.string(),
+  tone: z.enum(['descriptive', 'playful']),
 });
 
 
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid input', errors: validation.error.issues }, { status: 400 });
     }
 
-    const { productId, platform, topic } = validation.data;
+    const { productId, platform, topic, tone } = validation.data;
 
     const productIdNum = parseInt(productId, 10);
     if (isNaN(productIdNum)) {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
        return NextResponse.json({ message: `Product with ID ${productId} not found.` }, { status: 404 });
     }
     
-    const aiContent = await generateSocialMediaPost({ product, platform, topic, settings });
+    const aiContent = await generateSocialMediaPost({ product, platform, topic, settings, tone });
 
     return NextResponse.json(aiContent);
 

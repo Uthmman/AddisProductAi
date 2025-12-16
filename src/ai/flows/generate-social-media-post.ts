@@ -21,6 +21,7 @@ const GenerateSocialMediaPostInputSchema = z.object({
   platform: z.enum(['telegram']).describe('The target social media platform.'),
   topic: z.string().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
   settings: z.any().describe('The application settings object.'),
+  tone: z.enum(['descriptive', 'playful']).describe('The desired tone for the post.'),
 });
 export type GenerateSocialMediaPostInput = z.infer<typeof GenerateSocialMediaPostInputSchema>;
 
@@ -59,34 +60,38 @@ const generateSocialMediaPostPrompt = ai.definePrompt({
 
 **Post Details:**
 - Topic/Angle: {{{topic}}}
+- Desired Tone: {{{tone}}}
 
 **Instructions for {{platform}}:**
 
-Your output MUST strictly follow this format. Use a mix of English and Amharic. Use emojis to make it visually appealing.
+Your output MUST be a single string containing only the post content. Follow the format that matches the desired tone.
 
-- Start with the Product ID (e.g., "#{{product.id}}").
-- Item Code: Use the format "→ Item code: {{{product.sku}}}".
-- List key product details and dimensions using the "→" prefix. Include Amharic translations for labels like "Dimension" (ልኬት) where appropriate.
-- Include key features like "Comfortable and Stylish Design".
-- Mention color availability.
-- The Call to Action section should be clear: "CALL: {{{settings.phoneNumber}}}" and a link to the Telegram profile.
-- Finish with a list of relevant hashtags in both English and Amharic.
+---
+**IF TONE IS 'descriptive':**
+Use a clear, structured format with arrows. Mix English and Amharic for labels.
 
-**Example 1 Format:**
+**Descriptive Example:**
 #139
 → Item code: ZF0512
 → Overall Dimension: አልጋው ሚወስደው 200 cm (L) x 130 cm (W)
+→ Side Table ኮሞዲኖ: 50 cm (H) x 45 cm (W)
 → mattresses measuring: የፍራሽ ልኬት 120 cm x 190 cm
 → Comfortable and Stylish Design
 → Includes a matching side table
+→ Includes metal leg and chipboard
 → Color: Available in different colors
+→ Ideal for Home or Apartment Use
 
-CALL: 0996994690
-📱 telegram (http://t.me/zenbabafurniture1)
+    CALL: 0996994690
+    📱  telegram (http://t.me/zenbabafurniture1)
 
-#BedroomFurniture #singlebed #bed #ZF0512
+#BedroomFurniture #singlebed #bed #sidetable #drawer #ZF0512 #tapeseri
 
-**Example 2 Format:**
+---
+**IF TONE IS 'playful':**
+Use an engaging, emoji-rich format. Focus on lifestyle and appeal.
+
+**Playful Example:**
 #Item code: ZF0406
 🌟የልጆን ክፍል ውብ እና ማራኪ በሆኑ የዘንባባ ፈርኒቸር አልጋዎች ያሳምሩ!🛏️✨
 
@@ -109,7 +114,7 @@ CALL: 0996994690
 #ZenbabaFurniture
 
 ---
-Now, generate the post based on the provided product information. Your final output must be a single string containing only the post content, adhering to one of the example formats.
+Now, generate the post based on the provided product information and the desired tone.
 `,
 });
 

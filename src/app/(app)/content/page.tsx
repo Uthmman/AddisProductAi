@@ -25,6 +25,7 @@ const SocialPostSchema = z.object({
   productId: z.string().min(1, 'Please select a product.'),
   platform: z.string().min(1, 'Please select a platform.'),
   topic: z.string().min(3, 'Please enter a brief topic.'),
+  tone: z.enum(['descriptive', 'playful']),
 });
 
 type PostFormValues = z.infer<typeof PostGeneratorSchema>;
@@ -114,7 +115,7 @@ function SocialPostGenerator() {
 
   const form = useSocialForm<SocialPostFormValues>({
     resolver: zodResolver(SocialPostSchema),
-    defaultValues: { productId: '', platform: 'telegram', topic: '' },
+    defaultValues: { productId: '', platform: 'telegram', topic: '', tone: 'descriptive' },
   });
 
   useEffect(() => {
@@ -203,6 +204,21 @@ function SocialPostGenerator() {
                   <FormControl>
                     <Input placeholder="e.g., 'New arrival', 'Limited time offer'" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+               <FormField control={form.control} name="tone" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tone</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger><SelectValue placeholder="Select a tone" /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="descriptive">Descriptive</SelectItem>
+                      <SelectItem value="playful">Playful & Interactive</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )} />
