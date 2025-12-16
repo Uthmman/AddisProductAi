@@ -12,9 +12,8 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { getProduct } from '@/lib/woocommerce-api';
+import { getProduct, getSettings } from '@/lib/woocommerce-api';
 import { z } from 'genkit';
-import { getSettings } from '@/lib/woocommerce-api';
 
 // Define the input schema for the flow
 const GenerateSocialMediaPostInputSchema = z.object({
