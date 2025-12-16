@@ -12,14 +12,15 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { getProduct, getSettings } from '@/lib/woocommerce-api';
+import { WooProduct, Settings } from '@/lib/types';
 import { z } from 'genkit';
 
 // Define the input schema for the flow
 const GenerateSocialMediaPostInputSchema = z.object({
-  productId: z.string().describe('The ID of the WooCommerce product.'),
+  product: z.any().describe('The full WooCommerce product object.'),
   platform: z.enum(['telegram']).describe('The target social media platform.'),
   topic: z.string().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
+  settings: z.any().describe('The application settings object.'),
 });
 export type GenerateSocialMediaPostInput = z.infer<typeof GenerateSocialMediaPostInputSchema>;
 
@@ -39,6 +40,8 @@ export async function generateSocialMediaPost(
 // Define the prompt for the Gemini API
 const generateSocialMediaPostPrompt = ai.definePrompt({
   name: 'generateSocialMediaPostPrompt',
+  input: { schema: GenerateSocialMediaPostInputSchema },
+  output: { schema: GenerateSocialMediaPostOutputSchema },
   prompt: `You are a social media marketing expert for Zenbaba Furniture, a furniture company in Addis Ababa, Ethiopia. Your task is to create an engaging post for {{platform}}.
 
 **Product Information:**
@@ -118,26 +121,7 @@ const generateSocialMediaPostFlow = ai.defineFlow(
     outputSchema: GenerateSocialMediaPostOutputSchema,
   },
   async (input) => {
-    const productIdNum = parseInt(input.productId, 10);
-    if (isNaN(productIdNum)) {
-      throw new Error('Invalid Product ID');
-    }
-    
-    const [product, settings] = await Promise.all([
-      getProduct(productIdNum),
-      getSettings(),
-    ]);
-
-    if (!product) {
-      throw new Error(`Product with ID ${input.productId} not found.`);
-    }
-
-    const { output } = await generateSocialMediaPostPrompt({
-      ...input,
-      product,
-      settings,
-    });
-    
+    const { output } = await generateSocialMediaPostPrompt(input);
     return output!;
   }
 );

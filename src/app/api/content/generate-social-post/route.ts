@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSocialMediaPost } from '@/ai/flows/generate-social-media-post';
 import { z } from 'zod';
+import { getProduct, getSettings } from '@/lib/woocommerce-api';
 
 const InputSchema = z.object({
   productId: z.string(),
@@ -17,8 +18,25 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json({ message: 'Invalid input', errors: validation.error.issues }, { status: 400 });
     }
+
+    const { productId, platform, topic } = validation.data;
+
+    const productIdNum = parseInt(productId, 10);
+    if (isNaN(productIdNum)) {
+      return NextResponse.json({ message: 'Invalid Product ID' }, { status: 400 });
+    }
     
-    const aiContent = await generateSocialMediaPost(validation.data);
+    // Fetch product and settings data here, before calling the flow
+    const [product, settings] = await Promise.all([
+        getProduct(productIdNum),
+        getSettings()
+    ]);
+    
+    if (!product) {
+       return NextResponse.json({ message: `Product with ID ${productId} not found.` }, { status: 404 });
+    }
+    
+    const aiContent = await generateSocialMediaPost({ product, platform, topic, settings });
 
     return NextResponse.json(aiContent);
 
