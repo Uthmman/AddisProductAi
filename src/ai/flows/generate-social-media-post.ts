@@ -19,7 +19,7 @@ import { z } from 'genkit';
 const GenerateSocialMediaPostInputSchema = z.object({
   product: z.any().describe('The full WooCommerce product object.'),
   platform: z.enum(['telegram']).describe('The target social media platform.'),
-  topic: z.string().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
+  topic: z.string().optional().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
   settings: z.any().describe('The application settings object.'),
   tone: z.enum(['descriptive', 'playful']).describe('The desired tone for the post.'),
 });

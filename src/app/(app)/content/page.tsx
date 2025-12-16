@@ -24,7 +24,7 @@ const PostGeneratorSchema = z.object({
 const SocialPostSchema = z.object({
   productId: z.string().min(1, 'Please select a product.'),
   platform: z.string().min(1, 'Please select a platform.'),
-  topic: z.string().min(3, 'Please enter a brief topic.'),
+  topic: z.string().optional(),
   tone: z.enum(['descriptive', 'playful']),
 });
 
@@ -200,7 +200,7 @@ function SocialPostGenerator() {
               )} />
               <FormField control={form.control} name="topic" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Topic / Angle</FormLabel>
+                  <FormLabel>Topic / Angle (Optional)</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g., 'New arrival', 'Limited time offer'" {...field} />
                   </FormControl>

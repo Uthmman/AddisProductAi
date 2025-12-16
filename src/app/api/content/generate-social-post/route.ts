@@ -6,7 +6,7 @@ import { getProduct, getSettings } from '@/lib/woocommerce-api';
 const InputSchema = z.object({
   productId: z.string(),
   platform: z.enum(['telegram']),
-  topic: z.string(),
+  topic: z.string().optional(),
   tone: z.enum(['descriptive', 'playful']),
 });
 
