@@ -2,10 +2,10 @@ import { getProduct } from "@/lib/woocommerce-api";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Edit, Image as ImageIcon } from "lucide-react";
+import { Edit, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { WooProduct } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
@@ -60,12 +60,20 @@ export default async function ProductViewPage({ params }: ProductPageProps) {
           <h1 className="text-2xl sm:text-3xl font-bold font-headline">{product.name}</h1>
           <p className="text-muted-foreground mt-1">{product.categories.map(c => c.name).join(', ')}</p>
         </div>
-        <Button asChild>
-          <Link href={`/products/${product.id}`}>
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Product
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+              <Link href={product.permalink} target="_blank">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                View on Site
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href={`/products/${product.id}`}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Product
+              </Link>
+            </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 xl:gap-12">
