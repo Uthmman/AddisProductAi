@@ -40,31 +40,74 @@ export async function generateSocialMediaPost(
 // Define the prompt for the Gemini API
 const generateSocialMediaPostPrompt = ai.definePrompt({
   name: 'generateSocialMediaPostPrompt',
-  prompt: `You are a social media marketing expert for a furniture company in Addis Ababa, Ethiopia. Your task is to create an engaging post for {{platform}}.
+  prompt: `You are a social media marketing expert for Zenbaba Furniture, a furniture company in Addis Ababa, Ethiopia. Your task is to create an engaging post for {{platform}}.
 
 **Product Information:**
 - Name: {{{product.name}}}
+- SKU: {{{product.sku}}}
 - Price: {{{product.price}}} ETB
 - Link: {{{product.permalink}}}
 - Description: {{{product.short_description}}}
+- Dimensions: {{{json product.attributes}}}
 
 **Business Information:**
 - Phone Number: {{{settings.phoneNumber}}}
 - Telegram: {{{settings.telegramUrl}}}
+- Website: (The website URL can be derived from the product permalink)
 
 **Post Details:**
 - Topic/Angle: {{{topic}}}
 
 **Instructions for {{platform}}:**
 
-- **Engaging Intro:** Start with a hook that grabs attention.
-- **Key Features:** Highlight 2-3 key benefits or features of the product. Use emojis to make it visually appealing.
-- **Amharic & English:** Mix English and Amharic naturally. Use Amharic for prices and key local phrases.
-- **Formatting:** Use bold for the product name and price. Use bullet points or numbered lists for features.
-- **Call to Action (CTA):** Include a strong CTA. Encourage users to order via Telegram or call the provided phone number. Include the product link.
-- **Hashtags:** Include 5-7 relevant hashtags in both English and Amharic.
+Your output MUST strictly follow this format. Use a mix of English and Amharic. Use emojis to make it visually appealing.
 
-**Output:** Your final output must be a single string containing only the post content.
+- Start with the Product ID (e.g., "#{{product.id}}").
+- Item Code: Use the format "→ Item code: {{{product.sku}}}".
+- List key product details and dimensions using the "→" prefix. Include Amharic translations for labels like "Dimension" (ልኬት) where appropriate.
+- Include key features like "Comfortable and Stylish Design".
+- Mention color availability.
+- The Call to Action section should be clear: "CALL: {{{settings.phoneNumber}}}" and a link to the Telegram profile.
+- Finish with a list of relevant hashtags in both English and Amharic.
+
+**Example 1 Format:**
+#139
+→ Item code: ZF0512
+→ Overall Dimension: አልጋው ሚወስደው 200 cm (L) x 130 cm (W)
+→ mattresses measuring: የፍራሽ ልኬት 120 cm x 190 cm
+→ Comfortable and Stylish Design
+→ Includes a matching side table
+→ Color: Available in different colors
+
+CALL: 0996994690
+📱 telegram (http://t.me/zenbabafurniture1)
+
+#BedroomFurniture #singlebed #bed #ZF0512
+
+**Example 2 Format:**
+#Item code: ZF0406
+🌟የልጆን ክፍል ውብ እና ማራኪ በሆኑ የዘንባባ ፈርኒቸር አልጋዎች ያሳምሩ!🛏️✨
+
+🎨በፈለጉት ከለር እና ዲዛይን
+🗄️የጎን እና የስር መሳቢያ ያለው
+🚚ለአዲስ አበባ ነዋሪዎች FREE delivery
+
+📞 አሁኑኑ ይደውሉ!
+📱 0996994690
+💬 Telegram
+
+🛍 More products 👇
+🔗 Telegram Channel
+🌐 Website
+
+✨ Make your kids' room beautiful and fun with Zenbaba Furniture! 🎉🛏️
+
+#Babybed #bed
+#KidsFurniture #HomeFurniture
+#ZenbabaFurniture
+
+---
+Now, generate the post based on the provided product information. Your final output must be a single string containing only the post content, adhering to one of the example formats.
 `,
 });
 
