@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -189,7 +190,20 @@ function SocialPostGenerator() {
                             <SelectTrigger><SelectValue placeholder="Select a product" /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            {products.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                            {products.map(p => (
+                                <SelectItem key={p.id} value={String(p.id)}>
+                                    <div className="flex items-center gap-3">
+                                        <Image
+                                            src={p.images?.[0]?.src || "https://picsum.photos/seed/placeholder/40/40"}
+                                            alt={p.name}
+                                            width={24}
+                                            height={24}
+                                            className="h-6 w-6 rounded-sm object-cover"
+                                        />
+                                        <span>{p.name}</span>
+                                    </div>
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                   )}
