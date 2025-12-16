@@ -51,7 +51,8 @@ const generateSocialMediaPostPrompt = ai.definePrompt({
 - Price: {{{product.price}}} ETB
 - Link: {{{product.permalink}}}
 - Description: {{{product.short_description}}}
-- Dimensions: {{{json product.attributes}}}
+- Attributes: {{{json product.attributes}}}
+- Categories: {{{json product.categories}}}
 
 **Business Information:**
 - Phone Number: {{{settings.phoneNumber}}}
@@ -65,6 +66,7 @@ const generateSocialMediaPostPrompt = ai.definePrompt({
 **Instructions for {{platform}}:**
 
 Your output MUST be a single string containing only the post content. Follow the format that matches the desired tone.
+Hashtags should be based on the product's categories, features, and item code. DO NOT use generic hashtags like #zenbabafurniture, #addisababa, or #ethiopia.
 
 ---
 **IF TONE IS 'descriptive':**
@@ -111,7 +113,7 @@ Use an engaging, emoji-rich format. Focus on lifestyle and appeal.
 
 #Babybed #bed
 #KidsFurniture #HomeFurniture
-#ZenbabaFurniture
+#ZF0406
 
 ---
 Now, generate the post based on the provided product information and the desired tone.
