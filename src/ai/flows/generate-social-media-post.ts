@@ -57,7 +57,7 @@ const generateSocialMediaPostPrompt = ai.definePrompt({
 **Business Information:**
 - Phone Number: {{{settings.phoneNumber}}}
 - Telegram: {{{settings.telegramUrl}}}
-- Website: (The website URL can be derived from the product permalink)
+- Product Website Link: {{{product.permalink}}}
 
 **Post Details:**
 - Topic/Angle: {{{topic}}}
@@ -91,7 +91,7 @@ Use a clear, structured format with arrows. Mix English and Amharic for labels.
 
 ---
 **IF TONE IS 'playful':**
-Use an engaging, emoji-rich format. Focus on lifestyle and appeal.
+Use an engaging, emoji-rich format. Focus on lifestyle and appeal. When you include a website link, it must be the product's specific link from the product information.
 
 **Playful Example:**
 #Item code: ZF0406
@@ -107,7 +107,7 @@ Use an engaging, emoji-rich format. Focus on lifestyle and appeal.
 
 🛍 More products 👇
 🔗 Telegram Channel
-🌐 Website
+🌐 Website ({{{product.permalink}}})
 
 ✨ Make your kids' room beautiful and fun with Zenbaba Furniture! 🎉🛏️
 
