@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm, useForm as useSocialForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +39,8 @@ type BlogPost = {
 
 type SocialPost = {
     content: string;
+    productImage?: string;
+    productName?: string;
 };
 
 function BlogGenerator() {
@@ -148,8 +151,17 @@ function SocialPostGenerator() {
         throw new Error((await response.json()).message || 'Failed to generate post.');
       }
       
-      const post = await response.json();
-      setGeneratedPost(post);
+      const postContent = await response.json();
+      
+      const selectedProduct = products.find(p => p.id === parseInt(data.productId, 10));
+
+      const postWithImage: SocialPost = {
+        ...postContent,
+        productImage: selectedProduct?.images?.[0]?.src,
+        productName: selectedProduct?.name,
+      };
+
+      setGeneratedPost(postWithImage);
       toast({ title: 'Success!', description: 'Your social media post has been generated.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: error.message });
@@ -277,11 +289,27 @@ function GeneratedContentPreview({ isGenerating, post }: { isGenerating: boolean
           </div>
         )}
         {post && 'content' in post && !('title' in post) && ( // Social Post
-            <div className="space-y-2">
-                <Label>Post Content</Label>
-                <div className="relative">
-                    <Textarea readOnly value={post.content} className="h-96 whitespace-pre-wrap" />
-                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(post.content)}><Copy className="h-4 w-4" /></Button>
+            <div className="space-y-4">
+                {post.productImage && (
+                    <div className="space-y-2">
+                        <Label>Product Image</Label>
+                        <div className="relative aspect-square w-full max-w-sm mx-auto rounded-md overflow-hidden">
+                           <Image
+                                src={post.productImage}
+                                alt={post.productName || 'Product Image'}
+                                fill
+                                className="object-cover"
+                                data-ai-hint="product image"
+                            />
+                        </div>
+                    </div>
+                )}
+                <div className="space-y-2">
+                    <Label>Post Content</Label>
+                    <div className="relative">
+                        <Textarea readOnly value={post.content} className="h-96 whitespace-pre-wrap" />
+                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(post.content)}><Copy className="h-4 w-4" /></Button>
+                    </div>
                 </div>
             </div>
         )}
