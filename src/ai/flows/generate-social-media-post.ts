@@ -85,7 +85,7 @@ Use a clear, structured format with arrows. Mix English and Amharic for labels.
 → Ideal for Home or Apartment Use
 
     CALL: 0996994690
-    📱  telegram (http://t.me/zenbabafurniture1)
+    📱  telegram: {{{settings.telegramUrl}}}
 
 #BedroomFurniture #singlebed #bed #sidetable #drawer #ZF0512 #tapeseri
 
@@ -103,11 +103,11 @@ Use an engaging, emoji-rich format. Focus on lifestyle and appeal. When you incl
 
 📞 አሁኑኑ ይደውሉ!
 📱 0996994690
-💬 Telegram
+💬 Telegram: {{{settings.telegramUrl}}}
 
 🛍 More products 👇
-🔗 Telegram Channel
-🌐 Website ({{{product.permalink}}})
+🔗 Telegram Channel: {{{settings.telegramUrl}}}
+🌐 Website: {{{product.permalink}}}
 
 ✨ Make your kids' room beautiful and fun with Zenbaba Furniture! 🎉🛏️
 
