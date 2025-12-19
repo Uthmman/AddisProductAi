@@ -224,10 +224,8 @@ export async function uploadImage(imageName: string, imageData: string): Promise
 
 // Function to get settings, safe for both client and server.
 export async function getSettings(): Promise<Partial<Settings>> {
-    // On the server, this might be an absolute URL if running in a different container than the web server
-    // For simplicity, we assume we can call the API route directly.
-    const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:9002';
-    const response = await fetch(`${baseUrl}/api/settings`, { cache: 'no-store' });
+    // A relative path works for client-side fetching.
+    const response = await fetch('/api/settings', { cache: 'no-store' });
     
     if (!response.ok) {
         console.error('Failed to fetch settings, returning default empty object.');
