@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSocialMediaPost } from '@/ai/flows/generate-social-media-post';
 import { z } from 'zod';
-import { getProduct, getSettings } from '@/lib/woocommerce-api';
+import { getProduct } from '@/lib/woocommerce-api';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { Settings } from '@/lib/types';
+
+
+// This function now reads settings from the file system, avoiding a fetch call.
+async function getSettingsFromFile(): Promise<Partial<Settings>> {
+    const settingsFilePath = path.join(process.cwd(), 'src', 'lib', 'settings.json');
+    try {
+        const fileContent = await fs.readFile(settingsFilePath, 'utf8');
+        return JSON.parse(fileContent);
+    } catch (error) {
+        console.warn('Could not read settings.json for social post, returning default empty object.', error);
+        return {};
+    }
+}
+
 
 const InputSchema = z.object({
   productId: z.string(),
@@ -30,7 +47,7 @@ export async function POST(request: NextRequest) {
     // Fetch product and settings data here, before calling the flow
     const [product, settings] = await Promise.all([
         getProduct(productIdNum),
-        getSettings()
+        getSettingsFromFile()
     ]);
     
     if (!product) {

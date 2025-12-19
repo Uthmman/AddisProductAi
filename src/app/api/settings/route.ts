@@ -11,18 +11,14 @@ export async function GET() {
     const fileContent = await fs.readFile(settingsFilePath, 'utf8');
     const settings = JSON.parse(fileContent);
     return NextResponse.json(settings);
-  } catch (error) {
-    // If the file doesn't exist or is invalid, return default settings
+  } catch (error: any) {
+    // If the file doesn't exist, it's not a server error, just return defaults.
+    if (error.code === 'ENOENT') {
+      return NextResponse.json({});
+    }
+    // For other errors (like parsing), log it and return an error response.
     console.error('Failed to read settings file:', error);
-    return NextResponse.json({
-      phoneNumber: "",
-      facebookUrl: "",
-      instagramUrl: "",
-      telegramUrl: "",
-      tiktokUrl: "",
-      commonKeywords: "zenbaba furniture, made in ethiopia, addis ababa, sheger, modern furniture, ethiopian craft",
-      watermarkImageUrl: "",
-    }, { status: 500 });
+    return NextResponse.json({ message: 'Could not read settings file.' }, { status: 500 });
   }
 }
 

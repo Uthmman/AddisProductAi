@@ -1,6 +1,4 @@
 import { WooProduct, WooCategory, Settings } from './types';
-import { promises as fs } from 'fs';
-import path from 'path';
 
 
 // In a real app, you would fetch from your WooCommerce API.
@@ -224,27 +222,16 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     return { id: data.id, src: data.source_url };
 }
 
-// Function to read settings directly from the file system for server-side use.
+// Function to get settings, safe for both client and server.
 export async function getSettings(): Promise<Partial<Settings>> {
-    const isServer = typeof window === 'undefined';
+    // On the server, this might be an absolute URL if running in a different container than the web server
+    // For simplicity, we assume we can call the API route directly.
+    const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:9002';
+    const response = await fetch(`${baseUrl}/api/settings`, { cache: 'no-store' });
     
-    if (isServer) {
-        const settingsFilePath = path.join(process.cwd(), 'src', 'lib', 'settings.json');
-        try {
-            const fileContent = await fs.readFile(settingsFilePath, 'utf8');
-            return JSON.parse(fileContent);
-        } catch (error) {
-            console.warn('Could not read settings.json, returning default empty object.', error);
-            // Return empty object if file doesn't exist or is invalid
-            return {};
-        }
-    } else {
-        // Client-side fetching remains the same
-        const response = await fetch('/api/settings', { cache: 'no-store' });
-        if (!response.ok) {
-            console.error('Failed to fetch settings, returning default empty object.');
-            return {};
-        }
-        return response.json();
+    if (!response.ok) {
+        console.error('Failed to fetch settings, returning default empty object.');
+        return {};
     }
+    return response.json();
 }
