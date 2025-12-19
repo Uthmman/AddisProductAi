@@ -8,7 +8,7 @@ const InputSchema = z.object({
   amharic_name: z.string(),
   focus_keywords: z.string(),
   price_etb: z.number(),
-  images_data: z.array(z.string()),
+  images_data: z.array(z.string()).describe('Can be data URIs or public URLs'),
   availableCategories: z.array(z.object({id: z.number(), name: z.string(), slug: z.string()})),
   fieldToGenerate: z.enum([
       'all',
@@ -28,6 +28,16 @@ const InputSchema = z.object({
   primaryCategory: z.any().optional(),
 });
 
+async function urlToDataUri(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image from ${url}: ${response.statusText}`);
+  }
+  const blob = await response.blob();
+  const buffer = Buffer.from(await blob.arrayBuffer());
+  return `data:${blob.type};base64,${buffer.toString('base64')}`;
+}
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +48,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid input', errors: validation.error.issues }, { status: 400 });
     }
 
-    const aiInput: GenerateWooCommerceProductContentInput = validation.data;
+    const inputData = validation.data;
+
+    // Convert any image URLs to data URIs on the server
+    const processedImagesData = await Promise.all(
+        inputData.images_data.map(async (imageData: string) => {
+            if (imageData.startsWith('http')) {
+                try {
+                    return await urlToDataUri(imageData);
+                } catch (error) {
+                    console.error(`Failed to convert image URL to data URI: ${imageData}`, error);
+                    return null; // Or handle the error as needed
+                }
+            }
+            return imageData; // It's already a data URI
+        })
+    );
+    
+    const validImagesData = processedImagesData.filter(d => d !== null) as string[];
+
+    if (validImagesData.length === 0) {
+        return NextResponse.json({ message: "Could not process any of the product images." }, { status: 400 });
+    }
+
+    const aiInput: GenerateWooCommerceProductContentInput = {
+        ...inputData,
+        images_data: validImagesData,
+    };
     
     const aiContent = await generateWooCommerceProductContent(aiInput);
 

@@ -59,17 +59,6 @@ type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_descript
 type SaveAction = 'publish' | 'draft';
 
 
-async function imageUrlToDataUri(url: string): Promise<string> {
-    const response = await fetch(url);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-}
-
 export default function ProductForm({ product }: ProductFormProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -201,51 +190,25 @@ export default function ProductForm({ product }: ProductFormProps) {
 
     setGeneratingField(field);
     try {
+        // The client now sends original image sources (data URI for new, URL for existing)
         const imagesData = await Promise.all(
-            images.map(async (image) => {
-                if (image.src.startsWith('data:image')) {
-                    return image.src;
-                }
-                if (image.src.startsWith('http')) {
-                    try {
-                        return await imageUrlToDataUri(image.src);
-                    } catch (error) {
-                        console.error(`Failed to convert image URL to data URI: ${image.src}`, error);
-                        return null;
-                    }
-                }
-                return null;
-            })
+            images.map(image => image.src)
         );
-        
-        const validImagesData = imagesData.filter(d => d !== null) as string[];
-        
-        if (validImagesData.length === 0 ) {
-             toast({
-                title: "Image Data Could Not Be Processed",
-                description: "We couldn't process any of the product images for AI generation.",
-                variant: "destructive",
-            });
-            setGeneratingField(null);
-            return;
-        }
         
         const currentAiContent = {
             ...aiContent,
             categories: selectedCategories.map(c => c.name)
         };
         
-        // Find the primary category details to pass to the AI
         const primaryCategoryName = selectedCategories[0]?.name;
         const primaryCategory = availableCategories.find(c => c.name === primaryCategoryName);
-
 
         const response = await fetch('/api/products/ai-optimize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...values,
-                images_data: validImagesData,
+                images_data: imagesData,
                 price_etb: values.price_etb,
                 fieldToGenerate: field,
                 existingContent: currentAiContent,
@@ -256,7 +219,8 @@ export default function ProductForm({ product }: ProductFormProps) {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to generate AI content for ${field}`);
+            const errorBody = await response.json();
+            throw new Error(errorBody.message || `Failed to generate AI content for ${field}`);
         }
 
         const data: Partial<AIProductContent> = await response.json();
