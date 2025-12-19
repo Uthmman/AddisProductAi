@@ -145,8 +145,8 @@ export default function ProductTable() {
 
   return (
     <div className="w-full">
-       <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-           <div className="text-sm text-muted-foreground flex-1">
+       <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+           <div className="text-sm text-muted-foreground flex-1 hidden sm:block">
              {totalProducts > 0 ? (
                 <span>
                     Showing <strong>{products.length}</strong> of <strong>{totalProducts}</strong> products
@@ -197,8 +197,8 @@ export default function ProductTable() {
             </div>
         )}
       
-      <div className="flex items-center justify-between sm:justify-end space-x-2 py-4 mt-4">
-        <div className="flex-1 text-sm text-muted-foreground sm:hidden">
+      <div className="flex items-center justify-between space-x-2 py-4 mt-4">
+        <div className="flex-1 text-sm text-muted-foreground">
           Page {page} of {totalPages}
         </div>
         <Button

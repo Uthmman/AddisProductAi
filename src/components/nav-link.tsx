@@ -17,7 +17,7 @@ export default function NavLink({ href, children }: NavLinkProps) {
     <Link
       href={href}
       className={cn(
-        'flex items-center rounded-md px-2 sm:px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
+        'flex items-center rounded-md px-2.5 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
         isActive
           ? 'bg-accent text-accent-foreground'
           : 'text-foreground/60 hover:text-foreground/80'

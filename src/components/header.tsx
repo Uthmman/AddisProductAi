@@ -16,19 +16,19 @@ export default function Header() {
         <div className="flex w-full flex-1 items-center justify-start overflow-x-auto md:justify-start">
            <nav className="flex items-center gap-1 text-sm font-medium">
             <NavLink href="/dashboard">
-              <Package className="h-4 w-4 mr-1 sm:mr-2" />
+              <Package className="h-4 w-4 mr-1.5" />
               Products
             </NavLink>
              <NavLink href="/categories">
-                <FolderTree className="h-4 w-4 mr-1 sm:mr-2" />
+                <FolderTree className="h-4 w-4 mr-1.5" />
                 Categories
              </NavLink>
              <NavLink href="/content">
-                <FileText className="h-4 w-4 mr-1 sm:mr-2" />
+                <FileText className="h-4 w-4 mr-1.5" />
                 Content
              </NavLink>
              <NavLink href="/settings">
-                <Settings className="h-4 w-4 mr-1 sm:mr-2" />
+                <Settings className="h-4 w-4 mr-1.5" />
                 Settings
              </NavLink>
           </nav>
