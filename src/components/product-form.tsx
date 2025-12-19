@@ -457,30 +457,43 @@ export default function ProductForm({ product }: ProductFormProps) {
 
 
   const renderGenButton = (field: GeneratingField) => (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-accent/70 hover:text-accent"
-            onClick={form.handleSubmit((values) => handleGenerate(values, field))}
-            disabled={generatingField !== null}
-          >
-            {generatingField === field ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>AI Generate {field}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-accent/70 hover:text-accent hidden sm:inline-flex"
+              onClick={form.handleSubmit((values) => handleGenerate(values, field))}
+              disabled={generatingField !== null}
+            >
+              {generatingField === field ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>AI Generate {field}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="sm:hidden"
+        onClick={form.handleSubmit((values) => handleGenerate(values, field))}
+        disabled={generatingField !== null}
+      >
+        {generatingField === field ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+        Generate
+      </Button>
+    </>
   );
 
   return (
     <Form {...form}>
-      <form onSubmit={(e) => e.preventDefault()}>
+      <form onSubmit={(e) => e.preventDefault()} className="pb-24 lg:pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* LEFT COLUMN: USER INPUT */}
           <div className="lg:col-span-1 flex flex-col gap-6">
@@ -492,7 +505,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
                         <Label htmlFor="product-image">Product Images</Label>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2">
                            {images.map((image, index) => (
                                <div key={index} className="relative aspect-square rounded-md overflow-hidden group">
                                    <Image src={image.src} alt={`Product preview ${index + 1}`} fill style={{objectFit: 'cover'}} data-ai-hint="product image"/>
@@ -668,15 +681,17 @@ export default function ProductForm({ product }: ProductFormProps) {
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col sm:flex-row justify-end gap-4">
-          <Button type="button" size="lg" variant="outline" onClick={() => onSubmit('draft')} disabled={isSaving || generatingField !== null} className="w-full sm:w-auto">
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save as Draft
-          </Button>
-          <Button type="button" size="lg" onClick={() => onSubmit('publish')} disabled={isSaving || generatingField !== null} className="w-full sm:w-auto">
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {product ? "Save Changes" : "Create Product"}
-          </Button>
+        <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 p-4 backdrop-blur-sm lg:static lg:mt-8 lg:flex lg:justify-end lg:gap-4 lg:border-none lg:bg-transparent lg:p-0">
+          <div className="flex flex-col sm:flex-row justify-end gap-4">
+            <Button type="button" size="lg" variant="outline" onClick={() => onSubmit('draft')} disabled={isSaving || generatingField !== null} className="w-full sm:w-auto">
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save as Draft
+            </Button>
+            <Button type="button" size="lg" onClick={() => onSubmit('publish')} disabled={isSaving || generatingField !== null} className="w-full sm:w-auto">
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {product ? "Save Changes" : "Create Product"}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>
