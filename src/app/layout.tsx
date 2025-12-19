@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
+import VConsole from "@/components/vconsole";
+
 
 export const metadata: Metadata = {
   title: "Addis Product AI",
@@ -24,6 +26,7 @@ export default function RootLayout({
       <body className={cn("font-body antialiased")}>
         {children}
         <Toaster />
+        <VConsole />
       </body>
     </html>
   );
