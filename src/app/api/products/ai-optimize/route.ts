@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateWooCommerceProductContent, GenerateWooCommerceProductContentInput } from '@/ai/flows/generate-woocommerce-product-content';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120; // Extend timeout to 120 seconds
+
 const InputSchema = z.object({
   raw_name: z.string(),
   material: z.string(),
