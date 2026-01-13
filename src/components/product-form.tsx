@@ -16,13 +16,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent, WooCategory, Settings } from "@/lib/types";
 import { fileToBase64, cn, applyWatermark as applyWatermarkUtil } from "@/lib/utils";
-import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save } from "lucide-react";
+import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save, Image as ImageIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Badge } from "./ui/badge";
 import { getSettings } from "@/lib/woocommerce-api";
 import { Switch } from "./ui/switch";
+import { useGooglePicker } from "@/hooks/use-google-picker";
 
 
 // Simplified schema for form validation
@@ -71,6 +72,18 @@ export default function ProductForm({ product }: ProductFormProps) {
   const [selectedCategories, setSelectedCategories] = useState<DisplayCategory[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [applyWatermark, setApplyWatermark] = useState(true);
+
+  const handlePickerSelect = (data: any[]) => {
+    const newImages = data.map(photo => ({
+      src: photo.url,
+      alt: '',
+    }));
+    setImages(prev => [...prev, ...newImages]);
+  };
+
+  const { openPicker, isPickerLoading } = useGooglePicker({
+    onSelect: handlePickerSelect,
+  });
 
 
   const form = useForm<FormValues>({
@@ -276,27 +289,37 @@ export default function ProductForm({ product }: ProductFormProps) {
     setIsSaving(true);
 
     try {
-        const newFilesToUpload = images.filter(img => img.file);
+        const newFilesToUpload = images.filter(img => img.file || (img.src && !img.id));
 
         const uploadedImages = await Promise.all(
           newFilesToUpload.map(async (image) => {
-            if (!image.file) throw new Error("Image file is missing.");
+            if (!image.file && !image.src.startsWith('http')) throw new Error("Image file is missing.");
             
-            let imageBase64 = await fileToBase64(image.file);
+            let imageBase64;
+            let imageName = image.fileName || `product-image-${Date.now()}.jpg`;
 
-            if (applyWatermark && settings?.watermarkImageUrl) {
+            if (image.file) {
+                imageBase64 = await fileToBase64(image.file);
+            } else {
+                // If it's a URL (from Google Photos), it needs to be fetched server-side
+                // The ai-optimize route already does this, we re-use that logic
+                // For direct save, we'll let the upload-image API handle it
+                imageBase64 = image.src;
+            }
+
+            if (applyWatermark && settings?.watermarkImageUrl && !image.src.startsWith('http')) { // Don't watermark URLs client-side
               imageBase64 = await applyWatermarkUtil(imageBase64, settings.watermarkImageUrl, settings);
             }
 
             const response = await fetch('/api/products/upload-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image_data: imageBase64, image_name: image.fileName || image.file.name }),
+              body: JSON.stringify({ image_data: imageBase64, image_name: imageName }),
             });
 
             if (!response.ok) {
               const errorData = await response.json();
-              throw new Error(errorData.message || `Image upload failed for ${image.fileName!}`);
+              throw new Error(errorData.message || `Image upload failed for ${imageName}`);
             }
 
             const uploaded = await response.json();
@@ -304,7 +327,7 @@ export default function ProductForm({ product }: ProductFormProps) {
           })
         );
         
-        const existingImages = images.filter(img => !img.file).map(img => ({
+        const existingImages = images.filter(img => img.id).map(img => ({
           id: img.id,
           src: img.src,
           alt: img.alt
@@ -468,7 +491,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
-                        <Label htmlFor="product-image">Product Images</Label>
+                        <Label>Product Images</Label>
                         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2">
                            {images.map((image, index) => (
                                <div key={index} className="relative aspect-square rounded-md overflow-hidden group">
@@ -485,6 +508,18 @@ export default function ProductForm({ product }: ProductFormProps) {
                                </div>
                                <Input id="product-image" type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleImageChange} multiple />
                            </div>
+                        </div>
+                        <div className="pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full"
+                                onClick={openPicker}
+                                disabled={isPickerLoading}
+                            >
+                                {isPickerLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+                                Select from Google Photos
+                            </Button>
                         </div>
                     </div>
                     

@@ -7,6 +7,16 @@ const UploadSchema = z.object({
   image_name: z.string(),
 });
 
+async function urlToDataUri(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image from ${url}: ${response.statusText}`);
+  }
+  const blob = await response.blob();
+  const buffer = Buffer.from(await blob.arrayBuffer());
+  return `data:${blob.type};base64,${buffer.toString('base64')}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -16,7 +26,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid input', errors: validation.error.issues }, { status: 400 });
     }
 
-    const { image_data, image_name } = validation.data;
+    let { image_data, image_name } = validation.data;
+
+    // If image_data is a URL, fetch it and convert to data URI
+    if (image_data.startsWith('http')) {
+        try {
+            image_data = await urlToDataUri(image_data);
+        } catch (error) {
+            console.error(`Failed to convert image URL to data URI: ${image_data}`, error);
+            return NextResponse.json({ message: "Could not process the provided image URL." }, { status: 400 });
+        }
+    }
     
     // Directly pass the raw base64 data URI and name to the uploadImage function
     const uploadedImage = await uploadImage(image_name, image_data);
