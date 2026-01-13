@@ -60,7 +60,7 @@ export function useGooglePicker({ onSelect }: UseGooglePickerProps) {
     view.setMimeTypes('image/png,image/jpeg,image/jpg');
     const picker = new window.google.picker.PickerBuilder()
       .enableFeature(window.google.picker.Feature.MULTISELECT_ENABLED)
-      .setAppId(clientId.split('-')[0])
+      .setAppId(clientId)
       .setOAuthToken(oauthToken)
       .addView(view)
       .addView(new window.google.picker.DocsUploadView())
