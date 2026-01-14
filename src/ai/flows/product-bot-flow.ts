@@ -15,7 +15,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { createProduct } from '@/lib/woocommerce-api';
 import { WooProduct } from '@/lib/types';
-import {ToolCall} from 'genkit/experimental';
 
 
 // Define the structure for a single message in the conversation
@@ -84,7 +83,7 @@ const productBotPrompt = ai.definePrompt({
 - Once you have both the name and the price, confirm with the user before you create the product. For example: "Great! I have the name as 'Product Name' and the price as '100'. Shall I create the product?"
 - If the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'.
 - After calling the tool, respond to the user based on the tool's output. If successful, say "I've created the product '[Product Name]' for you as a draft." If it fails, inform the user about the error.
-- Your response should only be the text reply to the user. Do not return JSON.
+- If you are not calling a tool, just provide the conversational response in the 'response' field of the output JSON.
 
 Conversation History:
 {{#each messages}}
@@ -105,9 +104,9 @@ export const productBotFlow = ai.defineFlow(
     const llmResponse = await productBotPrompt(input);
     
     // Check if the model decided to call a tool
-    if (llmResponse.toolCalls.length > 0) {
-      const toolCall = llmResponse.toolCalls[0] as ToolCall<typeof createProductTool>;
-      const toolResult = await toolCall.run();
+    if (llmResponse.toolCalls?.length > 0) {
+      const toolCall = llmResponse.toolCalls[0];
+      const toolResult = await createProductTool.run(toolCall.input);
 
       if (toolResult.success) {
         return {
@@ -124,10 +123,10 @@ export const productBotFlow = ai.defineFlow(
     }
 
     // If no tool was called, it's a conversational response.
-    const conversationalResponse = llmResponse.text;
-    if (conversationalResponse) {
+    // The model will format its response into the specified output schema.
+    if (llmResponse.output?.response) {
       return {
-          response: conversationalResponse,
+          response: llmResponse.output.response,
           isProductCreated: false,
       };
     }
