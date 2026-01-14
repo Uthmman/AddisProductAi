@@ -114,7 +114,7 @@ export const productBotFlow = ai.defineFlow(
     const toolCalls = llmResponse.toolCalls;
 
     // Check if the model decided to call a tool
-    if (toolCalls.length > 0) {
+    if (toolCalls && toolCalls.length > 0) {
       const toolCall = toolCalls[0];
       const toolResult = await createProductTool.run(toolCall.input);
 
