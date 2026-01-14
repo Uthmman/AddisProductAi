@@ -84,7 +84,7 @@ const productBotPrompt = ai.definePrompt({
 - Once you have both the name and the price, confirm with the user before you create the product. For example: "Great! I have the name as 'Product Name' and the price as '100'. Shall I create the product?"
 - If the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'.
 - After calling the tool, respond to the user based on the tool's output. If successful, say "I've created the product '[Product Name]' for you as a draft." If it fails, inform the user about the error.
-- Your final output must always be a valid JSON object matching the output schema.
+- Your response should only be the text reply to the user. Do not return JSON.
 
 Conversation History:
 {{#each messages}}
@@ -124,8 +124,12 @@ export const productBotFlow = ai.defineFlow(
     }
 
     // If no tool was called, it's a conversational response.
-    if (llmResponse.output) {
-      return llmResponse.output;
+    const conversationalResponse = llmResponse.text;
+    if (conversationalResponse) {
+      return {
+          response: conversationalResponse,
+          isProductCreated: false,
+      };
     }
     
     // Fallback in case of an unexpected response from the model
