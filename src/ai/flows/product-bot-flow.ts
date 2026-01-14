@@ -101,6 +101,15 @@ export const productBotFlow = ai.defineFlow(
     outputSchema: ProductBotOutputSchema,
   },
   async (input) => {
+
+    // Handle initial greeting without calling the LLM
+    if (!input.messages || input.messages.length === 0) {
+        return {
+            response: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?",
+            isProductCreated: false,
+        };
+    }
+    
     const llmResponse = await productBotPrompt(input);
     
     // Check if the model decided to call a tool
