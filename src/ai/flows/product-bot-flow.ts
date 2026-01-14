@@ -111,7 +111,7 @@ export const productBotFlow = ai.defineFlow(
     }
     
     const llmResponse = await productBotPrompt(input);
-    const toolCalls = await llmResponse.toolCalls();
+    const toolCalls = llmResponse.toolCalls;
 
     // Check if the model decided to call a tool
     if (toolCalls.length > 0) {
@@ -134,7 +134,7 @@ export const productBotFlow = ai.defineFlow(
 
     // If no tool was called, it's a conversational response.
     // The model will format its response into the specified output schema.
-    const output = await llmResponse.output();
+    const output = llmResponse.output;
     if (output?.response) {
       return {
           response: output.response,
