@@ -15,6 +15,8 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { createProduct } from '@/lib/woocommerce-api';
 import { WooProduct } from '@/lib/types';
+import {ToolCall} from 'genkit/experimental';
+
 
 // Define the structure for a single message in the conversation
 const MessageSchema = z.object({
@@ -101,26 +103,35 @@ export const productBotFlow = ai.defineFlow(
   },
   async (input) => {
     const llmResponse = await productBotPrompt(input);
-    const toolCalls = llmResponse.toolCalls();
     
-    if (toolCalls.length > 0) {
-        const toolCall = toolCalls[0];
-        const toolResult = await toolCall.run();
+    // Check if the model decided to call a tool
+    if (llmResponse.toolCalls.length > 0) {
+      const toolCall = llmResponse.toolCalls[0] as ToolCall<typeof createProductTool>;
+      const toolResult = await toolCall.run();
 
-        if(toolResult.success) {
-            return {
-                response: `I've created the product "${toolResult.product.name}" for you as a draft. You can view it in the products list.`,
-                isProductCreated: true,
-                product: toolResult.product,
-            };
-        } else {
-             return {
-                response: `Sorry, I encountered an error while creating the product: ${toolResult.error}`,
-                isProductCreated: false,
-            };
-        }
+      if (toolResult.success) {
+        return {
+          response: `I've created the product "${toolResult.product.name}" for you as a draft. You can view it in the products list.`,
+          isProductCreated: true,
+          product: toolResult.product,
+        };
+      } else {
+        return {
+          response: `Sorry, I encountered an error while creating the product: ${toolResult.error}`,
+          isProductCreated: false,
+        };
+      }
     }
 
-    return llmResponse.output()!;
+    // If no tool was called, it's a conversational response.
+    if (llmResponse.output) {
+      return llmResponse.output;
+    }
+    
+    // Fallback in case of an unexpected response from the model
+    return {
+        response: "I'm not sure how to respond to that. Can you rephrase?",
+        isProductCreated: false,
+    };
   }
 );
