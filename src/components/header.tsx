@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package, FolderTree, Settings, FileText } from "lucide-react";
+import { Package, FolderTree, Settings, FileText, Bot } from "lucide-react";
 import { Button } from "./ui/button";
 import NavLink from "./nav-link";
 
@@ -26,6 +26,10 @@ export default function Header() {
              <NavLink href="/content">
                 <FileText className="h-4 w-4 mr-1.5" />
                 Content
+             </NavLink>
+              <NavLink href="/bot">
+                <Bot className="h-4 w-4 mr-1.5" />
+                Bot
              </NavLink>
              <NavLink href="/settings">
                 <Settings className="h-4 w-4 mr-1.5" />
