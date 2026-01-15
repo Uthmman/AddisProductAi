@@ -48,8 +48,8 @@ export default function BotPage() {
         setIsThinking(true);
         try {
             const result: ProductBotOutput = await productBotFlow({ messages: [] });
-            if (result && result.response) {
-                setMessages([{ role: 'bot', content: result.response }]);
+            if (result && result.messages) {
+                setMessages(result.messages);
             }
         } catch (error: any) {
             toast({
