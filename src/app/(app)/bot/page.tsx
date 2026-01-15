@@ -64,7 +64,8 @@ export default function BotPage() {
     if (messages.length === 0) {
       getInitialGreeting();
     }
-  }, [toast, messages.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     const userMessage: Message = { role: 'user', content: data.message };
@@ -78,7 +79,10 @@ export default function BotPage() {
       const result = await productBotFlow({ messages: newMessages });
 
       if (result.messages) {
-        setMessages(result.messages);
+        setMessages(result.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })));
       } else {
         const botMessage: Message = { role: 'bot', content: result.response };
         setMessages((prev) => [...prev, botMessage]);

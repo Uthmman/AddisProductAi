@@ -35,7 +35,7 @@ const ProductBotOutputSchema = z.object({
   response: z.string().describe("The bot's next message to the user."),
   isProductCreated: z.boolean().describe('Set to true only when the product has been successfully created.'),
   product: z.any().optional().describe('The created product object, if isProductCreated is true.'),
-  messages: z.array(MessageSchema).optional().describe("The updated conversation history including the bot's response."),
+  messages: z.array(z.any()).optional().describe("The updated conversation history including the bot's response."),
 });
 export type ProductBotOutput = z.infer<typeof ProductBotOutputSchema>;
 
