@@ -12,10 +12,8 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { createProduct } from '@/lib/woocommerce-api';
-import { WooProduct } from '@/lib/types';
-
 
 // Define the structure for a single message in the conversation
 const MessageSchema = z.object({
@@ -84,7 +82,7 @@ export const productBotFlow = ai.defineFlow(
     // 3. Map history correctly
     const history = historyData.map(m => ({
       role: m.role === 'bot' ? 'model' : 'user' as const,
-      content: typeof m.content === 'string' ? [{ text: m.content }] : m.content
+      content: typeof m.content === 'string' ? [{ text: m.content }] : m.content,
     }));
 
 
