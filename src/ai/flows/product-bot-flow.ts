@@ -102,7 +102,7 @@ export const productBotFlow = ai.defineFlow(
   },
   async (input) => {
 
-    // Handle initial greeting without calling the LLM
+    // Handle initial greeting without calling the LLM to prevent errors
     if (!input.messages || input.messages.length === 0) {
         return {
             response: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?",
