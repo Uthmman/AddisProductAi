@@ -2,20 +2,23 @@
 
 /**
  * @fileOverview Defines a Genkit flow that acts as a conversational product creation bot.
- *
- * This flow manages a conversation to gather product details (name, price) and
- * then calls the WooCommerce API to create the product.
+ * This version is designed for a stateless environment like a Telegram bot,
+ * managing conversation history in a simple in-memory cache.
  *
  * - productBotFlow - The main conversational flow.
- * - ProductBotInput - The input type, containing the conversation history.
- * - ProductBotOutput - The output type, containing the bot's response and creation status.
+ * - ProductBotInput - The input type, containing the chatId and new message.
+ * - ProductBotOutput - The output type, containing the bot's response.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { createProduct } from '@/lib/woocommerce-api';
-import { Part, GenerationResponse, generate } from 'genkit';
+import { Part, generate } from 'genkit';
+import NodeCache from 'node-cache';
 
+// Simple in-memory cache to store conversation history.
+// TTL of 10 minutes (600 seconds) to clear old conversations.
+const conversationCache = new NodeCache({ stdTTL: 600 });
 
 // Define the structure for a single message in the conversation
 const MessageSchema = z.object({
@@ -26,16 +29,14 @@ export type Message = z.infer<typeof MessageSchema>;
 
 // Define the input schema for the flow
 const ProductBotInputSchema = z.object({
-  history: z.array(MessageSchema).describe('The history of the conversation so far.'),
+  chatId: z.string().describe('A unique identifier for the conversation, like a Telegram chat ID.'),
+  newMessage: z.string().describe('The latest message from the user.'),
 });
 export type ProductBotInput = z.infer<typeof ProductBotInputSchema>;
 
 // Define the output schema for the flow
 const ProductBotOutputSchema = z.object({
   text: z.string().describe("The bot's next text message to the user."),
-  newHistory: z.array(MessageSchema).describe('The full, updated conversation history.'),
-  isCreated: z.boolean().describe('Set to true only when the product has been successfully created.'),
-  product: z.any().optional().describe('The created product object, if isCreated is true.'),
 });
 export type ProductBotOutput = z.infer<typeof ProductBotOutputSchema>;
 
@@ -71,19 +72,29 @@ const createProductTool = ai.defineTool(
 
 
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
+  const { chatId, newMessage } = input;
+  
+  if (!newMessage) {
+    return {
+      text: "I didn't receive a message. Please try again.",
+    };
+  }
+
   try {
-    const fullHistory = (input.history || []).map(m => ({
+    // Retrieve history from cache or start a new one
+    const cachedHistory = conversationCache.get<Message[]>(chatId) || [];
+    
+    const initialHistory = cachedHistory.length === 0 
+      ? [{ role: 'model' as const, content: [{ text: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?" }] }]
+      : cachedHistory;
+
+    const historyForGenkit = initialHistory.map(m => ({
         role: m.role,
         content: m.content as Part[],
     }));
     
-    if (fullHistory.length === 0) {
-      return {
-        text: 'I encountered an error: The conversation history is empty.',
-        newHistory: [],
-        isCreated: false,
-      };
-    }
+    // Add the new user message to the history for the API call
+    historyForGenkit.push({ role: 'user', content: [{ text: newMessage }] });
 
     const response = await generate({
         system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name and price) and then use the available tool to create the product.
@@ -95,32 +106,17 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 - Only when the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'. The 'regular_price' MUST be a string.
 - After the tool runs, your response should be based on its output. If it was successful, say "I've created the product '[Product Name]' for you as a draft."
 - If the tool fails and throws an error, inform the user clearly that the creation failed and provide the error reason. For example: "I'm sorry, I couldn't create the product. The system reported an error: [error message]".`,
-        history: fullHistory,
+        history: historyForGenkit,
         tools: [createProductTool],
         model: ai.model,
     });
     
-    const newHistory = response.history.map(m => ({ role: m.role, content: m.content }));
-
-    let createdProduct = null;
-    const wasCreated = newHistory.some(m =>
-      m.content.some(part => {
-        if (part.toolResponse?.name === 'createProductTool') {
-          const output = part.toolResponse.output as any;
-          if (output.success) {
-            createdProduct = output.product;
-            return true;
-          }
-        }
-        return false;
-      })
-    );
+    // Save the full, updated history back to the cache
+    const newHistoryForCache = response.history.map(m => ({ role: m.role, content: m.content }));
+    conversationCache.set(chatId, newHistoryForCache);
 
     return {
       text: response.text,
-      newHistory: newHistory,
-      isCreated: wasCreated,
-      product: createdProduct,
     };
 
   } catch (error: any) {
@@ -128,8 +124,6 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     // Return an error state that the client can handle
     return {
       text: `I'm sorry, I encountered an error and couldn't process your request. The system reported: ${error.message}`,
-      newHistory: input.history, // return original history on error
-      isCreated: false,
     };
   }
 }
