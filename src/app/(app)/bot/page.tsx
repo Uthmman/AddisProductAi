@@ -84,7 +84,7 @@ export default function BotPage() {
     setIsThinking(true);
 
     try {
-      // 4. Call the server with the *complete* history and the new message text.
+      // 4. Call the server with the *complete* history.
       const result = await productBotFlow({
         history: historyForAPI,
       });

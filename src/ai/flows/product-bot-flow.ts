@@ -76,7 +76,6 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         content: m.content as Part[], // Cast to Genkit's Part[]
     }));
     
-    // The last message in the history is the new user message.
     const newMessage = fullHistory.pop();
     const chatHistory = fullHistory;
 
@@ -94,9 +93,11 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
       history: chatHistory,
     });
 
+    const userMessageText = newMessage?.content.find(p => p.text)?.text || '';
+
     // Send the new message. Genkit handles the tool-calling loop automatically.
     const response = await chat.send({
-      text: newMessage?.content.find(p => p.text)?.text || '', // Extract text from new message
+      text: userMessageText,
       tools: [createProductTool],
     });
 
