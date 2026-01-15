@@ -31,7 +31,7 @@ async function logMessage(message: any) {
     try {
         await fs.writeFile(logFilePath, JSON.stringify(logs, null, 2), 'utf8');
     } catch (error) {
-        console.error("Failed to write to log file:", error);
+        console.error("!!! FAILED TO WRITE TO LOG FILE !!!", error);
     }
 }
 
@@ -40,6 +40,11 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         
+        // Log to console immediately to verify receipt
+        console.log("--- TELEGRAM WEBHOOK RECEIVED ---");
+        console.log(JSON.stringify(body, null, 2));
+        console.log("---------------------------------");
+        
         // Log the entire received body to the file
         await logMessage(body);
 
@@ -47,7 +52,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ status: 'ok' });
 
     } catch (error: any) {
-        console.error('Telegram webhook logging error:', error);
+        console.error('!!! TELEGRAM WEBHOOK ERROR !!!:', error);
         
         // Log the error itself
         await logMessage({ error: { message: error.message, stack: error.stack } });
