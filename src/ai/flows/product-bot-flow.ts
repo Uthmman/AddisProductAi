@@ -72,16 +72,24 @@ const createProductTool = ai.defineTool(
 
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
   try {
-    const history = (input.history || []).map(m => ({
+    const fullHistory = (input.history || []).map(m => ({
         role: m.role,
         content: m.content as Part[],
     }));
     
-    if (history.length === 0) {
+    if (fullHistory.length === 0) {
         throw new Error("Cannot run bot flow with empty history.");
     }
     
-    // Initialize the chat with the existing history from the client
+    const lastUserMessage = fullHistory.pop();
+    if (!lastUserMessage || lastUserMessage.role !== 'user') {
+        throw new Error("Flow logic error: The last message in history must be from the user.");
+    }
+    
+    const userMessageText = (lastUserMessage.content[0] as {text: string}).text;
+    const chatHistory = fullHistory;
+
+    // Initialize the chat with the preceding history
     const chat = ai.chat({
       system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name and price) and then use the available tool to create the product.
 
@@ -92,13 +100,12 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 - Only when the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'. The 'regular_price' MUST be a string.
 - After the tool runs, your response should be based on its output. If it was successful, say "I've created the product '[Product Name]' for you as a draft."
 - If the tool fails and throws an error, inform the user clearly that the creation failed and provide the error reason. For example: "I'm sorry, I couldn't create the product. The system reported an error: [error message]".`,
-      history: history, // Provide the full history
+      history: chatHistory, 
       tools: [createProductTool],
     });
 
-    // Send an empty message to trigger the model to process the history,
-    // especially the last user message in it.
-    const response = await chat.send({});
+    // Send the user's latest message to the model.
+    const response = await chat.send(userMessageText);
 
     // Determine if the product was created in this turn
     let createdProduct = null;
