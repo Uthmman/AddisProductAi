@@ -4,15 +4,15 @@ config(); // Load environment variables from .env.local
 import { NextRequest, NextResponse } from 'next/server';
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
 
-const TELEGRAM_BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!TELEGRAM_BOT_TOKEN) {
-    console.warn("NEXT_PUBLIC_TELEGRAM_BOT_TOKEN is not set. The Telegram webhook will not work.");
+    console.warn("TELEGRAM_BOT_TOKEN is not set. The Telegram webhook will not work.");
 }
 
 async function sendTelegramMessage(chatId: number, text: string) {
     if (!TELEGRAM_BOT_TOKEN) {
-        console.error("Cannot send message: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN is not configured.");
+        console.error("Cannot send message: TELEGRAM_BOT_TOKEN is not configured.");
         return;
     }
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Telegram bot not configured on the server." }, { status: 500 });
     }
     
+    let chatId: number | undefined;
+
     try {
         const body = await request.json();
 
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ status: 'ok' }); // Not a message we can handle
         }
 
-        const chatId = message.chat.id;
+        chatId = message.chat.id;
         const userMessage = message.text;
 
         if (userMessage === '/start') {
@@ -73,15 +75,8 @@ export async function POST(request: NextRequest) {
         console.error('Telegram webhook error:', error);
         
         // Attempt to notify the user of an error if possible
-        try {
-            // Re-parsing the body is not ideal, but necessary in this catch block.
-            const reqBody = await request.json();
-            const chatId = reqBody.message?.chat?.id;
-            if (chatId) {
-                await sendTelegramMessage(chatId, "I'm sorry, I encountered an internal error and couldn't process your request.");
-            }
-        } catch (e) {
-            // Ignore if we can't even parse the body to get a chat ID
+        if (chatId) {
+            await sendTelegramMessage(chatId, `I'm sorry, I encountered an internal error and couldn't process your request.`);
         }
 
         return NextResponse.json({ message: "An internal error occurred." }, { status: 500 });
