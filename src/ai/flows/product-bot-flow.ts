@@ -67,32 +67,6 @@ const createProductTool = ai.defineTool(
     }
 );
 
-
-// Define the main prompt for the bot
-const productBotPrompt = ai.definePrompt({
-    name: 'productBotPrompt',
-    input: { schema: ProductBotInputSchema },
-    output: { schema: ProductBotOutputSchema },
-    tools: [createProductTool],
-    prompt: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name and price) and then use the available tool to create the product.
-
-- Start the conversation by greeting the user and asking what product they'd like to create.
-- Be conversational and friendly.
-- If the user provides a product name but no price, ask for the price.
-- If the user provides a price but no name, ask for the name.
-- Once you have both the name and the price, confirm with the user before you create the product. For example: "Great! I have the name as 'Product Name' and the price as '100'. Shall I create the product?"
-- If the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'.
-- After calling the tool, respond to the user based on the tool's output. If successful, say "I've created the product '[Product Name]' for you as a draft." If it fails, inform the user about the error.
-- If you are not calling a tool, just provide the conversational response in the 'response' field of the output JSON.
-
-Conversation History:
-{{#each messages}}
-- {{role}}: {{content}}
-{{/each}}
-`,
-});
-
-
 // Define and export the main flow function
 export const productBotFlow = ai.defineFlow(
   {
@@ -101,7 +75,6 @@ export const productBotFlow = ai.defineFlow(
     outputSchema: ProductBotOutputSchema,
   },
   async (input) => {
-
     // Handle initial greeting without calling the LLM to prevent errors
     if (!input.messages || input.messages.length === 0) {
         return {
@@ -109,43 +82,53 @@ export const productBotFlow = ai.defineFlow(
             isProductCreated: false,
         };
     }
+
+    // 1. Initialize the Chat with history
+    const chat = ai.chat({
+      system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name and price) and then use the available tool to create the product.
+
+- Be conversational and friendly.
+- If the user provides a product name but no price, ask for the price.
+- If the user provides a price but no name, ask for the name.
+- Once you have both the name and the price, confirm with the user before you create the product. For example: "Great! I have the name as 'Product Name' and the price as '100'. Shall I create the product?"
+- If the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'.
+- After the tool runs, your response should be based on its output. If successful, say "I've created the product '[Product Name]' for you as a draft." If it fails, inform the user about the error.
+`,
+      history: input.messages.map(m => ({
+        role: m.role === 'bot' ? 'model' : 'user',
+        content: [{ text: m.content }]
+      })),
+    });
+
+    // 2. Send the latest message (assuming the last message in the array is the new one)
+    const lastMessage = input.messages[input.messages.length - 1]?.content || "Hi";
     
-    const llmResponse = await productBotPrompt(input);
-    const toolCalls = llmResponse.toolCalls;
-
-    // Check if the model decided to call a tool
-    if (toolCalls && toolCalls.length > 0) {
-      const toolCall = toolCalls[0];
-      const toolResult = await createProductTool.run(toolCall.input);
-
-      if (toolResult.success) {
-        return {
-          response: `I've created the product "${toolResult.product.name}" for you as a draft. You can view it in the products list.`,
-          isProductCreated: true,
-          product: toolResult.product,
-        };
-      } else {
-        return {
-          response: `Sorry, I encountered an error while creating the product: ${toolResult.error}`,
-          isProductCreated: false,
-        };
-      }
+    // 3. Generate response with automatic tool execution
+    const response = await chat.send({
+      text: lastMessage,
+      tools: [createProductTool],
+    });
+    
+    // 4. Determine if a product was actually created during this turn
+    const successfulToolCall = response.history.find(m => 
+      m.role === 'model' && m.content.some(c => c.toolResponse?.name === 'createProductTool')
+    );
+    
+    const wasCreated = !!successfulToolCall;
+    
+    let createdProduct;
+    if (wasCreated) {
+        const toolResponseContent = successfulToolCall!.content.find(c => c.toolResponse)!;
+        const toolOutput = toolResponseContent.toolResponse!.output as any;
+        if (toolOutput.success) {
+            createdProduct = toolOutput.product;
+        }
     }
 
-    // If no tool was called, it's a conversational response.
-    // The model will format its response into the specified output schema.
-    const output = llmResponse.output;
-    if (output?.response) {
-      return {
-          response: output.response,
-          isProductCreated: false,
-      };
-    }
-    
-    // Fallback in case of an unexpected response from the model
     return {
-        response: "I'm not sure how to respond to that. Can you rephrase?",
-        isProductCreated: false,
+      response: response.text,
+      isProductCreated: wasCreated && !!createdProduct,
+      product: createdProduct,
     };
   }
 );
