@@ -77,13 +77,14 @@ export const productBotFlow = ai.defineFlow(
     outputSchema: ProductBotOutputSchema,
   },
   async (input): Promise<ProductBotOutput> => {
-    // 1. Handle initial greeting
-    if (!input.messages || input.messages.length === 0) {
-        const greeting = "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?";
+    // 1. Handle initial greeting - This should now be handled on the client
+    if (!input.messages || input.messages.length <= 1) {
+        const greeting = "I've received your message. What's the name and price of the product you'd like to add?";
+        const initialMessages = input.messages || [];
         return {
             response: greeting,
             isProductCreated: false,
-            messages: [{role: 'bot', content: greeting}]
+            messages: [...initialMessages, {role: 'bot', content: greeting}]
         };
     }
     

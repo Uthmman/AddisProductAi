@@ -26,7 +26,10 @@ type FormValues = z.infer<typeof FormSchema>;
 
 export default function BotPage() {
   const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>([]);
+  // Set initial greeting directly to avoid race conditions with useEffect
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'bot', content: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?" }
+  ]);
   const [isThinking, setIsThinking] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -42,31 +45,6 @@ export default function BotPage() {
     }
   }, [messages]);
 
-  // Initial greeting from the bot
-  useEffect(() => {
-    const getInitialGreeting = async () => {
-        setIsThinking(true);
-        try {
-            const result: ProductBotOutput = await productBotFlow({ messages: [] });
-            if (result && result.messages) {
-                setMessages(result.messages);
-            }
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Could not get a response from the bot.',
-            });
-        } finally {
-            setIsThinking(false);
-        }
-    };
-    if (messages.length === 0) {
-      getInitialGreeting();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     const userMessage: Message = { role: 'user', content: data.message };
     const newMessages: Message[] = [...messages, userMessage];
@@ -78,9 +56,12 @@ export default function BotPage() {
     try {
       const result: ProductBotOutput = await productBotFlow({ messages: newMessages });
 
-      if (result.messages) {
+      if (result && result.messages) {
         setMessages(result.messages);
+      } else if (result && result.response) {
+         setMessages((prev) => [...prev, { role: 'bot', content: result.response }]);
       }
+
 
       if (result.isProductCreated && result.product) {
          toast({
