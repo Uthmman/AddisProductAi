@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -30,10 +29,20 @@ const getMessageText = (content: any[] | string): string => {
     return content;
   }
   if (Array.isArray(content)) {
+    // Filter out parts that are not text or are empty.
     return content
-      .filter(part => part.text) // Only include parts that have text
-      .map(part => part.text)
-      .join('');
+      .map(part => {
+        if (part.text) {
+          return part.text;
+        }
+        // Don't render tool calls or tool responses in the main chat view
+        if (part.toolCall || part.toolResponse) {
+          return '';
+        }
+        return '';
+      })
+      .join('')
+      .trim();
   }
   return '';
 };
@@ -62,20 +71,26 @@ export default function BotPage() {
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     const userMessageText = data.message;
-    
-    // Add user's message to the display immediately for responsiveness
-    setMessages(prev => [...prev, { role: 'user', content: [{ text: userMessageText }] }]);
     form.reset();
+
+    // 1. Create a new message object for the user's input.
+    const newUserMessage: Message = { role: 'user', content: [{ text: userMessageText }] };
+
+    // 2. Create an optimistic new history for the UI and the API call.
+    const newHistoryForUI = [...messages, newUserMessage];
+
+    // 3. Update the UI immediately for responsiveness.
+    setMessages(newHistoryForUI);
     setIsThinking(true);
 
     try {
-      // The server action receives the current history and the new message text
+      // 4. Call the server with the *new* history.
       const result = await productBotFlow({
-        history: messages,
-        newMessage: userMessageText
+        history: newHistoryForUI,
+        newMessage: '' // New message is already in the history, so this can be empty.
       });
       
-      // SYNC: Replace local state with the server's authoritative history
+      // 5. SYNC: Replace local state with the server's authoritative history.
       setMessages(result.newHistory);
 
       if (result.isCreated && result.product) {
@@ -96,7 +111,8 @@ export default function BotPage() {
         title: 'Error',
         description: error.message || 'An unexpected error occurred.',
       });
-      // Optionally add a bot error message to the chat
+      // On error, you might want to revert the user's message or show an error state.
+      // For now, just add a bot error message.
       setMessages((prev) => [...prev, { role: 'model', content: [{ text: "Sorry, I'm having some trouble right now." }] }]);
     } finally {
       setIsThinking(false);
@@ -118,7 +134,7 @@ export default function BotPage() {
           <div className="space-y-6">
             {messages.map((msg, index) => {
               const textContent = getMessageText(msg.content);
-              // Don't render messages that have no visible text content
+              // Don't render messages that have no visible text content (e.g., tool calls)
               if (!textContent) return null;
 
               return (
