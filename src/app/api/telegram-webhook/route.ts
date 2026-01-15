@@ -4,15 +4,15 @@ config(); // Load environment variables from .env.local
 import { NextRequest, NextResponse } from 'next/server';
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
 
 if (!TELEGRAM_BOT_TOKEN) {
-    console.warn("TELEGRAM_BOT_TOKEN is not set. The Telegram webhook will not work.");
+    console.warn("NEXT_PUBLIC_TELEGRAM_BOT_TOKEN is not set. The Telegram webhook will not work.");
 }
 
 async function sendTelegramMessage(chatId: number, text: string) {
     if (!TELEGRAM_BOT_TOKEN) {
-        console.error("Cannot send message: TELEGRAM_BOT_TOKEN is not configured.");
+        console.error("Cannot send message: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN is not configured.");
         return;
     }
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -52,10 +52,6 @@ export async function POST(request: NextRequest) {
 
         const chatId = message.chat.id;
         const userMessage = message.text;
-        
-        // ============== TEST MESSAGE =================
-        await sendTelegramMessage(chatId, "This is a test message from the webhook. Connection is successful.");
-        // ============================================
 
         if (userMessage === '/start') {
             await sendTelegramMessage(chatId, "Welcome! I can help you create products. What's the name and price?");
