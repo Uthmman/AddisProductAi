@@ -63,7 +63,7 @@ const createProductTool = ai.defineTool(
             return { success: true, product };
         } catch (error: any) {
             console.error("Tool Error: Failed to create product:", error);
-            // Throw a clear error to stop the flow and provide debug info, instead of returning a value to the AI.
+            // Throw a clear error to stop the flow and provide debug info.
             throw new Error(`Failed to create product in WooCommerce. Reason: ${error.message}`);
         }
     }
@@ -72,16 +72,24 @@ const createProductTool = ai.defineTool(
 
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
   try {
-    const fullHistory = (input.history || []).map(m => ({
+    const history = (input.history || []).map(m => ({
         role: m.role,
-        content: m.content as Part[], // Cast to Genkit's Part[]
+        content: m.content as Part[],
     }));
     
-    const lastUserMessage = fullHistory.pop();
-    if (!lastUserMessage || lastUserMessage.role !== 'user') {
-        throw new Error("Last message in history must be from the user.");
+    if (history.length === 0) {
+        throw new Error("Cannot run bot flow with empty history.");
     }
-    const chatHistory = fullHistory;
+
+    // The entire history EXCEPT the last message is used to initialize the chat.
+    const chatHistory = history.slice(0, -1);
+    const lastMessage = history[history.length - 1];
+
+    if (lastMessage.role !== 'user') {
+        throw new Error("The last message in the history must be from the user.");
+    }
+    
+    const userMessageText = lastMessage.content.find(p => p.text)?.text || '';
 
     // Initialize the chat with the existing history from the client
     const chat = ai.chat({
@@ -97,9 +105,8 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
       history: chatHistory,
     });
 
-    const userMessageText = lastUserMessage?.content.find(p => p.text)?.text || '';
-
-    // Send the new message. Genkit handles the tool-calling loop automatically.
+    // Send the new user message to the initialized chat.
+    // Genkit handles the tool-calling loop automatically.
     const response = await chat.send({
       text: userMessageText,
       tools: [createProductTool],
