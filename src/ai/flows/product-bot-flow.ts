@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -35,7 +36,7 @@ const ProductBotOutputSchema = z.object({
   response: z.string().describe("The bot's next message to the user."),
   isProductCreated: z.boolean().describe('Set to true only when the product has been successfully created.'),
   product: z.any().optional().describe('The created product object, if isProductCreated is true.'),
-  messages: z.array(z.any()).optional().describe("The updated conversation history including the bot's response."),
+  messages: z.array(MessageSchema).optional().describe("The updated conversation history including the bot's response."),
 });
 export type ProductBotOutput = z.infer<typeof ProductBotOutputSchema>;
 
@@ -75,12 +76,13 @@ export const productBotFlow = ai.defineFlow(
     inputSchema: ProductBotInputSchema,
     outputSchema: ProductBotOutputSchema,
   },
-  async (input) => {
+  async (input): Promise<ProductBotOutput> => {
     // 1. Handle initial greeting
     if (!input.messages || input.messages.length === 0) {
         return {
             response: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?",
             isProductCreated: false,
+            messages: [{role: 'bot', content: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?"}]
         };
     }
     
@@ -147,6 +149,7 @@ export const productBotFlow = ai.defineFlow(
         return {
             response: "I encountered an error processing your request. Could you try again?",
             isProductCreated: false,
+            messages: input.messages,
         };
     }
   }

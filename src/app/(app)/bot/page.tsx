@@ -16,7 +16,7 @@ import { Loader2, Send, Bot, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
-import { Message } from '@/ai/flows/product-bot-flow';
+import { Message, ProductBotOutput } from '@/ai/flows/product-bot-flow';
 
 const FormSchema = z.object({
   message: z.string().min(1, 'Message cannot be empty.'),
@@ -47,7 +47,7 @@ export default function BotPage() {
     const getInitialGreeting = async () => {
         setIsThinking(true);
         try {
-            const result = await productBotFlow({ messages: [] });
+            const result: ProductBotOutput = await productBotFlow({ messages: [] });
             if (result && result.response) {
                 setMessages([{ role: 'bot', content: result.response }]);
             }
@@ -76,18 +76,11 @@ export default function BotPage() {
     setIsThinking(true);
 
     try {
-      const result = await productBotFlow({ messages: newMessages });
+      const result: ProductBotOutput = await productBotFlow({ messages: newMessages });
 
       if (result.messages) {
-        setMessages(result.messages.map(m => ({
-          role: m.role,
-          content: m.content,
-        })));
-      } else {
-        const botMessage: Message = { role: 'bot', content: result.response };
-        setMessages((prev) => [...prev, botMessage]);
+        setMessages(result.messages);
       }
-
 
       if (result.isProductCreated && result.product) {
          toast({
