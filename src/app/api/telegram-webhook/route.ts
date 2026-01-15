@@ -1,22 +1,19 @@
 import { config } from 'dotenv';
-config(); // Load environment variables from .env.local
+config(); // Load environment variables from .env or .env.local
 
 import { NextRequest, NextResponse } from 'next/server';
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
-if (!TELEGRAM_BOT_TOKEN) {
-    console.warn("TELEGRAM_BOT_TOKEN is not set. The Telegram webhook will not work.");
-}
-
 async function sendTelegramMessage(chatId: number, text: string) {
     if (!TELEGRAM_BOT_TOKEN) {
-        console.error("Cannot send message: TELEGRAM_BOT_TOKEN is not configured.");
+        console.error("FATAL: TELEGRAM_BOT_TOKEN is not configured.");
         return;
     }
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     try {
+        console.log(`Attempting to send message to chatId: ${chatId}`);
         const response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -27,17 +24,26 @@ async function sendTelegramMessage(chatId: number, text: string) {
                 text: text,
             }),
         });
+
         if (!response.ok) {
-            console.error("Telegram API Error:", await response.json());
+            // Log the detailed error from Telegram
+            const errorBody = await response.json();
+            console.error("Telegram API Error:", {
+                statusCode: response.status,
+                body: errorBody,
+            });
+        } else {
+            console.log("Successfully sent message to Telegram.");
         }
     } catch (error) {
-        console.error("Failed to send message to Telegram:", error);
+        console.error("Failed to send message to Telegram due to a network or fetch error:", error);
     }
 }
 
 
 export async function POST(request: NextRequest) {
     if (!TELEGRAM_BOT_TOKEN) {
+        console.error("Webhook received a request, but TELEGRAM_BOT_TOKEN is not set on the server.");
         return NextResponse.json({ message: "Telegram bot not configured on the server." }, { status: 500 });
     }
     
@@ -45,9 +51,11 @@ export async function POST(request: NextRequest) {
 
     try {
         const body = await request.json();
+        console.log("Received webhook body:", JSON.stringify(body, null, 2));
 
         const message = body.message || body.edited_message;
         if (!message || !message.text) {
+            console.log("Webhook received a message without text content, ignoring.");
             return NextResponse.json({ status: 'ok' }); 
         }
 
@@ -78,12 +86,10 @@ export async function POST(request: NextRequest) {
         */
 
     } catch (error: any) {
-        console.error('Telegram webhook error:', error);
+        console.error('Telegram webhook main try/catch error:', error);
         
-        if (chatId) {
-            await sendTelegramMessage(chatId, `I'm sorry, I encountered an internal error and couldn't process your request.`);
-        }
-
+        // This catch block might not have chatId if parsing the body fails.
+        // It's better to handle the error response generically.
         return NextResponse.json({ message: "An internal error occurred." }, { status: 500 });
     }
 }
