@@ -1,3 +1,6 @@
+import { config } from 'dotenv';
+config(); // Load environment variables from .env.local
+
 import { NextRequest, NextResponse } from 'next/server';
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
 
