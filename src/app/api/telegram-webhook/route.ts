@@ -17,7 +17,7 @@ async function sendTelegramMessage(chatId: number, text: string) {
     }
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     try {
-        await fetch(url, {
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -27,6 +27,9 @@ async function sendTelegramMessage(chatId: number, text: string) {
                 text: text,
             }),
         });
+        if (!response.ok) {
+            console.error("Telegram API Error:", await response.json());
+        }
     } catch (error) {
         console.error("Failed to send message to Telegram:", error);
     }
@@ -50,6 +53,10 @@ export async function POST(request: NextRequest) {
         const chatId = message.chat.id;
         const userMessage = message.text;
         
+        // ============== TEST MESSAGE =================
+        await sendTelegramMessage(chatId, "This is a test message from the webhook. Connection is successful.");
+        // ============================================
+
         if (userMessage === '/start') {
             await sendTelegramMessage(chatId, "Welcome! I can help you create products. What's the name and price?");
             return NextResponse.json({ status: 'ok' });
@@ -71,8 +78,9 @@ export async function POST(request: NextRequest) {
         
         // Attempt to notify the user of an error if possible
         try {
-            const body = await request.json();
-            const chatId = body.message?.chat?.id;
+            // Re-parsing the body is not ideal, but necessary in this catch block.
+            const reqBody = await request.json();
+            const chatId = reqBody.message?.chat?.id;
             if (chatId) {
                 await sendTelegramMessage(chatId, "I'm sorry, I encountered an internal error and couldn't process your request.");
             }
