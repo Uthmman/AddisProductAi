@@ -47,7 +47,7 @@ const createProductTool = ai.defineTool(
         description: 'Use this tool to create a new product when you have all the necessary information (name and price).',
         inputSchema: z.object({
             name: z.string().describe('The name of the product.'),
-            regular_price: z.any().describe('The price of the product (e.g., 5000). This should be a number.'),
+            regular_price: z.string().describe('The price of the product as a string (e.g., "5000").'),
         }),
         outputSchema: z.any(),
     },
@@ -77,7 +77,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     }));
     
     const lastUserMessage = fullHistory.pop();
-    if (lastUserMessage?.role !== 'user') {
+    if (!lastUserMessage || lastUserMessage.role !== 'user') {
         throw new Error("Last message in history must be from the user.");
     }
     const chatHistory = fullHistory;
@@ -90,7 +90,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 - If the user provides a product name but no price, ask for the price.
 - If the user provides a price but no name, ask for the name.
 - Once you have both the name and the price, you MUST confirm with the user before you create the product. For example: "Great! I have the name as 'Product Name' and the price as '100'. Shall I create the product?"
-- Only when the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'.
+- Only when the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'. The 'regular_price' MUST be a string.
 - After the tool runs, your response should be based on its output. If successful, say "I've created the product '[Product Name]' for you as a draft." If it fails, inform the user about the error.
 `,
       history: chatHistory,
