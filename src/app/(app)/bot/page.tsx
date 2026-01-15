@@ -77,8 +77,13 @@ export default function BotPage() {
     try {
       const result = await productBotFlow({ messages: newMessages });
 
-      const botMessage: Message = { role: 'bot', content: result.response };
-      setMessages((prev) => [...prev, botMessage]);
+      if (result.messages) {
+        setMessages(result.messages);
+      } else {
+        const botMessage: Message = { role: 'bot', content: result.response };
+        setMessages((prev) => [...prev, botMessage]);
+      }
+
 
       if (result.isProductCreated && result.product) {
          toast({
@@ -136,7 +141,13 @@ export default function BotPage() {
                     'bg-muted': msg.role === 'bot',
                   })}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  <p className="text-sm whitespace-pre-wrap">
+                    {typeof msg.content === 'string'
+                      ? msg.content
+                      : Array.isArray(msg.content)
+                      ? msg.content.map((part: any) => part.text).join('')
+                      : ''}
+                  </p>
                 </div>
                 {msg.role === 'user' && (
                    <Avatar className="h-8 w-8">

@@ -20,7 +20,7 @@ import { WooProduct } from '@/lib/types';
 // Define the structure for a single message in the conversation
 const MessageSchema = z.object({
   role: z.enum(['user', 'bot']),
-  content: z.string(),
+  content: z.union([z.string(), z.array(z.any())]),
 });
 export type Message = z.infer<typeof MessageSchema>;
 
@@ -35,6 +35,7 @@ const ProductBotOutputSchema = z.object({
   response: z.string().describe("The bot's next message to the user."),
   isProductCreated: z.boolean().describe('Set to true only when the product has been successfully created.'),
   product: z.any().optional().describe('The created product object, if isProductCreated is true.'),
+  messages: z.array(MessageSchema).optional().describe("The updated conversation history including the bot's response."),
 });
 export type ProductBotOutput = z.infer<typeof ProductBotOutputSchema>;
 
@@ -90,7 +91,7 @@ export const productBotFlow = ai.defineFlow(
     // 3. Map history correctly
     const history = historyData.map(m => ({
       role: m.role === 'bot' ? 'model' : 'user' as const,
-      content: [{ text: m.content }]
+      content: typeof m.content === 'string' ? [{ text: m.content }] : m.content
     }));
 
 
@@ -111,7 +112,7 @@ export const productBotFlow = ai.defineFlow(
 
         // 5. Send message with automatic tool execution
         const response = await chat.send({
-            text: latestUserMessage?.content || "",
+            text: (latestUserMessage?.content as string) || "",
             tools: [createProductTool],
         });
 
@@ -135,6 +136,10 @@ export const productBotFlow = ai.defineFlow(
             response: response.text,
             isProductCreated: wasCreated,
             product: createdProduct,
+            messages: response.history.map(m => ({
+                role: m.role === 'model' ? 'bot' : 'user',
+                content: m.content
+              }))
         };
 
     } catch (error) {
