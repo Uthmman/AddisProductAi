@@ -62,8 +62,9 @@ const createProductTool = ai.defineTool(
             });
             return { success: true, product };
         } catch (error: any) {
-            console.error("Failed to create product:", error);
-            return { success: false, error: error.message };
+            console.error("Tool Error: Failed to create product:", error);
+            // Throw a clear error to stop the flow and provide debug info, instead of returning a value to the AI.
+            throw new Error(`Failed to create product in WooCommerce. Reason: ${error.message}`);
         }
     }
 );
@@ -91,8 +92,8 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 - If the user provides a price but no name, ask for the name.
 - Once you have both the name and the price, you MUST confirm with the user before you create the product. For example: "Great! I have the name as 'Product Name' and the price as '100'. Shall I create the product?"
 - Only when the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'. The 'regular_price' MUST be a string.
-- After the tool runs, your response should be based on its output. If successful, say "I've created the product '[Product Name]' for you as a draft." If it fails, inform the user about the error.
-`,
+- After the tool runs, your response should be based on its output. If it was successful, say "I've created the product '[Product Name]' for you as a draft."
+- If the tool fails and throws an error, inform the user clearly that the creation failed and provide the error reason. For example: "I'm sorry, I couldn't create the product. The system reported an error: [error message]".`,
       history: chatHistory,
     });
 
@@ -130,7 +131,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     console.error("Genkit Chat Error:", error);
     // Return an error state that the client can handle
     return {
-      text: "I'm sorry, I encountered an error. Could you please try again?",
+      text: `I'm sorry, I encountered an error and couldn't process your request. The system reported: ${error.message}`,
       newHistory: input.history, // return original history on error
       isCreated: false,
     };
