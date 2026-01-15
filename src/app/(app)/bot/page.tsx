@@ -1,45 +1,75 @@
-'use client';
+'use server';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import Link from 'next/link';
-
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
+import { promises as fs } from 'fs';
+import path from 'path';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Send, Bot, User, MessageSquareWarning } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Bot, MessageSquareText } from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 
 
-export default function BotPage() {
- 
-  return (
-    <div className="container mx-auto py-10 max-w-2xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bot className="h-6 w-6" /> Product Creation Bot
-          </CardTitle>
-          <CardDescription>
-            The web chat has been deactivated. Please use the Telegram bot for product creation.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Alert>
-                <MessageSquareWarning className="h-4 w-4" />
-                <AlertTitle>Functionality Moved</AlertTitle>
-                <AlertDescription>
-                    To interact with the product creation bot, please set up and use the Telegram bot associated with this application.
-                </AlertDescription>
-            </Alert>
-        </CardContent>
-      </Card>
-    </div>
-  );
+async function getLogs() {
+    const logFilePath = path.join(process.cwd(), 'src', 'lib', 'telegram-log.json');
+    try {
+        const fileContent = await fs.readFile(logFilePath, 'utf8');
+        const logs = JSON.parse(fileContent);
+        // Ensure we always have an array, and reverse it to show newest first
+        return Array.isArray(logs) ? logs.reverse() : [];
+    } catch (error) {
+        // If the file doesn't exist or is invalid JSON, return an empty array
+        return [];
+    }
+}
+
+
+export default async function BotPage() {
+    const logs = await getLogs();
+
+    return (
+        <div className="container mx-auto py-10 max-w-4xl">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Bot className="h-6 w-6" /> Telegram Bot Log
+                    </CardTitle>
+                    <CardDescription>
+                        This page displays incoming messages received by the Telegram webhook. Send a message to your bot to see if it appears here.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {logs.length > 0 ? (
+                         <Accordion type="single" collapsible className="w-full">
+                            {logs.map((log, index) => (
+                                <AccordionItem value={`item-${index}`} key={index}>
+                                    <AccordionTrigger>
+                                        <div className="flex items-center gap-3">
+                                            <MessageSquareText className="h-4 w-4" />
+                                            <span className="font-mono text-sm text-muted-foreground">
+                                                {new Date(log.timestamp).toLocaleString()}
+                                            </span>
+                                            <span className="font-semibold">{log.message?.text}</span>
+                                        </div>
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <pre className="p-4 bg-muted rounded-md text-xs overflow-x-auto">
+                                            {JSON.stringify(log, null, 2)}
+                                        </pre>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))}
+                        </Accordion>
+                    ) : (
+                        <div className="text-center text-muted-foreground py-12">
+                            <p>No messages received yet.</p>
+                            <p className="text-sm">Send a message to your bot in Telegram.</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
 }
