@@ -14,7 +14,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { createProduct } from '@/lib/woocommerce-api';
-import { Part } from 'genkit';
+import { Part, GenerationResponse, generate } from 'genkit';
 
 
 // Define the structure for a single message in the conversation
@@ -78,21 +78,15 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     }));
     
     if (fullHistory.length === 0) {
-        throw new Error("Cannot run bot flow with empty history.");
-    }
-    
-    const chatHistory = fullHistory.slice(0, -1);
-    const lastUserMessage = fullHistory[fullHistory.length - 1];
-    
-    if (!lastUserMessage || lastUserMessage.role !== 'user') {
-        throw new Error("Flow logic error: The last message in history must be from the user.");
+      return {
+        text: 'I encountered an error: The conversation history is empty.',
+        newHistory: [],
+        isCreated: false,
+      };
     }
 
-    const userMessageText = (lastUserMessage.content[0] as { text: string }).text;
-
-    // Initialize the chat with the preceding history
-    const chat = ai.chat({
-      system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name and price) and then use the available tool to create the product.
+    const response = await generate({
+        system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name and price) and then use the available tool to create the product.
 
 - Be conversational and friendly.
 - If the user provides a product name but no price, ask for the price.
@@ -101,16 +95,15 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 - Only when the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'. The 'regular_price' MUST be a string.
 - After the tool runs, your response should be based on its output. If it was successful, say "I've created the product '[Product Name]' for you as a draft."
 - If the tool fails and throws an error, inform the user clearly that the creation failed and provide the error reason. For example: "I'm sorry, I couldn't create the product. The system reported an error: [error message]".`,
-      history: chatHistory, 
-      tools: [createProductTool],
+        history: fullHistory,
+        tools: [createProductTool],
+        model: ai.model,
     });
+    
+    const newHistory = response.history.map(m => ({ role: m.role, content: m.content }));
 
-    // Send the user's latest message to the model.
-    const response = await chat.send(userMessageText);
-
-    // Determine if the product was created in this turn
     let createdProduct = null;
-    const wasCreated = response.history.some(m =>
+    const wasCreated = newHistory.some(m =>
       m.content.some(part => {
         if (part.toolResponse?.name === 'createProductTool') {
           const output = part.toolResponse.output as any;
@@ -125,13 +118,13 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 
     return {
       text: response.text,
-      newHistory: response.history.map(m => ({ role: m.role, content: m.content })),
+      newHistory: newHistory,
       isCreated: wasCreated,
       product: createdProduct,
     };
 
   } catch (error: any) {
-    console.error("Genkit Chat Error:", error);
+    console.error("Genkit Flow Error:", error);
     // Return an error state that the client can handle
     return {
       text: `I'm sorry, I encountered an error and couldn't process your request. The system reported: ${error.message}`,
