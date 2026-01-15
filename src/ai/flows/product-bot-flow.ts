@@ -75,17 +75,29 @@ export const productBotFlow = ai.defineFlow(
     outputSchema: ProductBotOutputSchema,
   },
   async (input) => {
-    // Handle initial greeting without calling the LLM to prevent errors
+    // 1. Handle initial greeting
     if (!input.messages || input.messages.length === 0) {
         return {
             response: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?",
             isProductCreated: false,
         };
     }
+    
+    // 2. Separate the NEWEST message from the history
+    const historyData = [...input.messages];
+    const latestUserMessage = historyData.pop();
 
-    // 1. Initialize the Chat with history
-    const chat = ai.chat({
-      system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name and price) and then use the available tool to create the product.
+    // 3. Map history correctly
+    const history = historyData.map(m => ({
+      role: m.role === 'bot' ? 'model' : 'user' as const,
+      content: [{ text: m.content }]
+    }));
+
+
+    try {
+        // 4. Initialize Chat
+        const chat = ai.chat({
+            system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name and price) and then use the available tool to create the product.
 
 - Be conversational and friendly.
 - If the user provides a product name but no price, ask for the price.
@@ -94,41 +106,43 @@ export const productBotFlow = ai.defineFlow(
 - If the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'.
 - After the tool runs, your response should be based on its output. If successful, say "I've created the product '[Product Name]' for you as a draft." If it fails, inform the user about the error.
 `,
-      history: input.messages.map(m => ({
-        role: m.role === 'bot' ? 'model' : 'user',
-        content: [{ text: m.content }]
-      })),
-    });
+            history: history,
+        });
 
-    // 2. Send the latest message (assuming the last message in the array is the new one)
-    const lastMessage = input.messages[input.messages.length - 1]?.content || "Hi";
-    
-    // 3. Generate response with automatic tool execution
-    const response = await chat.send({
-      text: lastMessage,
-      tools: [createProductTool],
-    });
-    
-    // 4. Determine if a product was actually created during this turn
-    const successfulToolCall = response.history.find(m => 
-      m.role === 'model' && m.content.some(c => c.toolResponse?.name === 'createProductTool')
-    );
-    
-    const wasCreated = !!successfulToolCall;
-    
-    let createdProduct;
-    if (wasCreated) {
-        const toolResponseContent = successfulToolCall!.content.find(c => c.toolResponse)!;
-        const toolOutput = toolResponseContent.toolResponse!.output as any;
-        if (toolOutput.success) {
-            createdProduct = toolOutput.product;
+        // 5. Send message with automatic tool execution
+        const response = await chat.send({
+            text: latestUserMessage?.content || "",
+            tools: [createProductTool],
+        });
+
+        // 6. Check for tool execution in the history
+        let createdProduct = null;
+        let wasCreated = false;
+
+        for (const msg of response.history) {
+            for (const part of msg.content) {
+                if (part.toolResponse?.name === 'createProductTool') {
+                    const output = part.toolResponse.output as any;
+                    if (output.success) {
+                        wasCreated = true;
+                        createdProduct = output.product;
+                    }
+                }
+            }
         }
-    }
+        
+        return {
+            response: response.text,
+            isProductCreated: wasCreated,
+            product: createdProduct,
+        };
 
-    return {
-      response: response.text,
-      isProductCreated: wasCreated && !!createdProduct,
-      product: createdProduct,
-    };
+    } catch (error) {
+        console.error("Genkit Chat Error:", error);
+        return {
+            response: "I encountered an error processing your request. Could you try again?",
+            isProductCreated: false,
+        };
+    }
   }
 );
