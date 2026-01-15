@@ -76,17 +76,6 @@ export const productBotFlow = ai.defineFlow(
     outputSchema: ProductBotOutputSchema,
   },
   async (input): Promise<ProductBotOutput> => {
-    // 1. Handle initial greeting - This is now handled on the client,
-    // but we can add a server-side fallback.
-    if (!input.messages || input.messages.length <= 1) {
-        const greeting = "I've received your message. What's the name and price of the product you'd like to add?";
-        const initialMessages = input.messages || [];
-        return {
-            response: greeting,
-            isProductCreated: false,
-            messages: [...initialMessages, {role: 'bot', content: greeting}]
-        };
-    }
     
     // 2. Separate the NEWEST message from the history
     const historyData = [...input.messages];

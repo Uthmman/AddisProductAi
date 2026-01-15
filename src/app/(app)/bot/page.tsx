@@ -79,7 +79,7 @@ export default function BotPage() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Could not get a response from the bot.',
+        description: error.message || 'Could not get a response from the bot.',
       });
       // Optionally add an error message to the chat
       setMessages((prev) => [...prev, { role: 'bot', content: "Sorry, I'm having some trouble right now." }]);
