@@ -46,13 +46,20 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
-        // Extract message from Telegram update
         const message = body.message || body.edited_message;
         if (!message || !message.text) {
-            return NextResponse.json({ status: 'ok' }); // Not a message we can handle
+            return NextResponse.json({ status: 'ok' }); 
         }
 
         chatId = message.chat.id;
+
+        // Immediately send a test message to isolate the issue.
+        await sendTelegramMessage(chatId, "This is a test message.");
+        return NextResponse.json({ status: 'ok' });
+
+
+        // The rest of the logic is temporarily bypassed for this test.
+        /*
         const userMessage = message.text;
 
         if (userMessage === '/start') {
@@ -60,21 +67,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ status: 'ok' });
         }
         
-        // Call the Genkit flow with the chatId and message
         const botResponse = await productBotFlow({
             chatId: String(chatId),
             newMessage: userMessage,
         });
 
-        // Send the bot's response back to the user
         await sendTelegramMessage(chatId, botResponse.text);
 
         return NextResponse.json({ status: 'ok' });
+        */
 
     } catch (error: any) {
         console.error('Telegram webhook error:', error);
         
-        // Attempt to notify the user of an error if possible
         if (chatId) {
             await sendTelegramMessage(chatId, `I'm sorry, I encountered an internal error and couldn't process your request.`);
         }
