@@ -81,13 +81,14 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         throw new Error("Cannot run bot flow with empty history.");
     }
     
-    const lastUserMessage = fullHistory.pop();
+    const chatHistory = fullHistory.slice(0, -1);
+    const lastUserMessage = fullHistory[fullHistory.length - 1];
+    
     if (!lastUserMessage || lastUserMessage.role !== 'user') {
         throw new Error("Flow logic error: The last message in history must be from the user.");
     }
-    
-    const userMessageText = (lastUserMessage.content[0] as {text: string}).text;
-    const chatHistory = fullHistory;
+
+    const userMessageText = (lastUserMessage.content[0] as { text: string }).text;
 
     // Initialize the chat with the preceding history
     const chat = ai.chat({
