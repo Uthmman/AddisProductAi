@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -47,7 +48,9 @@ export default function BotPage() {
         setIsThinking(true);
         try {
             const result = await productBotFlow({ messages: [] });
-            setMessages([{ role: 'bot', content: result.response }]);
+            if (result && result.response) {
+                setMessages([{ role: 'bot', content: result.response }]);
+            }
         } catch (error: any) {
             toast({
                 variant: 'destructive',
@@ -58,8 +61,10 @@ export default function BotPage() {
             setIsThinking(false);
         }
     };
-    getInitialGreeting();
-  }, [toast]);
+    if (messages.length === 0) {
+      getInitialGreeting();
+    }
+  }, [toast, messages.length]);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     const userMessage: Message = { role: 'user', content: data.message };
