@@ -46,7 +46,7 @@ const createProductTool = ai.defineTool(
         description: 'Use this tool to create a new product when you have all the necessary information (name and price).',
         inputSchema: z.object({
             name: z.string().describe('The name of the product.'),
-            regular_price: z.string().describe('The price of the product as a string.'),
+            regular_price: z.any().describe('The price of the product.'),
         }),
         outputSchema: z.any(),
     },
@@ -55,7 +55,7 @@ const createProductTool = ai.defineTool(
             console.log("Creating product with input:", input);
             const product = await createProduct({
                 name: input.name,
-                regular_price: input.regular_price,
+                regular_price: input.regular_price.toString(),
                 type: 'simple',
                 status: 'draft', // Create as draft by default
             });
