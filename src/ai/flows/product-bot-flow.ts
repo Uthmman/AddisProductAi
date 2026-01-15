@@ -27,7 +27,6 @@ export type Message = z.infer<typeof MessageSchema>;
 // Define the input schema for the flow
 const ProductBotInputSchema = z.object({
   history: z.array(MessageSchema).describe('The history of the conversation so far.'),
-  newMessage: z.string().optional().describe('The latest message from the user (can be empty if already in history).'),
 });
 export type ProductBotInput = z.infer<typeof ProductBotInputSchema>;
 
@@ -72,10 +71,14 @@ const createProductTool = ai.defineTool(
 
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
   try {
-    const history = (input.history || []).map(m => ({
+    const fullHistory = (input.history || []).map(m => ({
         role: m.role,
         content: m.content as Part[], // Cast to Genkit's Part[]
     }));
+    
+    // The last message in the history is the new user message.
+    const newMessage = fullHistory.pop();
+    const chatHistory = fullHistory;
 
     // Initialize the chat with the existing history from the client
     const chat = ai.chat({
@@ -88,13 +91,12 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 - Only when the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'.
 - After the tool runs, your response should be based on its output. If successful, say "I've created the product '[Product Name]' for you as a draft." If it fails, inform the user about the error.
 `,
-      history: history,
+      history: chatHistory,
     });
 
     // Send the new message. Genkit handles the tool-calling loop automatically.
-    // The history from the client already contains the latest user message.
     const response = await chat.send({
-      text: input.newMessage || '', // This can be empty as the message is in the history
+      text: newMessage?.content.find(p => p.text)?.text || '', // Extract text from new message
       tools: [createProductTool],
     });
 

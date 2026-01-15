@@ -73,21 +73,20 @@ export default function BotPage() {
     const userMessageText = data.message;
     form.reset();
 
-    // 1. Create a new message object for the user's input.
+    // 1. Create the new user message object.
     const newUserMessage: Message = { role: 'user', content: [{ text: userMessageText }] };
 
-    // 2. Create an optimistic new history for the UI and the API call.
-    const newHistoryForUI = [...messages, newUserMessage];
+    // 2. Create the full history to be sent to the server.
+    const historyForAPI = [...messages, newUserMessage];
 
-    // 3. Update the UI immediately for responsiveness.
-    setMessages(newHistoryForUI);
+    // 3. Update the UI optimistically for responsiveness.
+    setMessages(historyForAPI);
     setIsThinking(true);
 
     try {
-      // 4. Call the server with the *new* history.
+      // 4. Call the server with the *complete* history and the new message text.
       const result = await productBotFlow({
-        history: newHistoryForUI,
-        newMessage: '' // New message is already in the history, so this can be empty.
+        history: historyForAPI,
       });
       
       // 5. SYNC: Replace local state with the server's authoritative history.
@@ -111,9 +110,8 @@ export default function BotPage() {
         title: 'Error',
         description: error.message || 'An unexpected error occurred.',
       });
-      // On error, you might want to revert the user's message or show an error state.
-      // For now, just add a bot error message.
-      setMessages((prev) => [...prev, { role: 'model', content: [{ text: "Sorry, I'm having some trouble right now." }] }]);
+      // On error, revert to the state before the user message was sent
+      setMessages(messages);
     } finally {
       setIsThinking(false);
     }
