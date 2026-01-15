@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,10 +13,10 @@ import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Send, Bot, User } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
-import { Message, ProductBotOutput } from '@/ai/flows/product-bot-flow';
+import { Message } from '@/ai/flows/product-bot-flow';
 
 const FormSchema = z.object({
   message: z.string().min(1, 'Message cannot be empty.'),
@@ -24,11 +24,26 @@ const FormSchema = z.object({
 
 type FormValues = z.infer<typeof FormSchema>;
 
+// Helper to extract visible text from a message's content array
+const getMessageText = (content: any[] | string): string => {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content
+      .filter(part => part.text) // Only include parts that have text
+      .map(part => part.text)
+      .join('');
+  }
+  return '';
+};
+
+
 export default function BotPage() {
   const { toast } = useToast();
-  // Set initial greeting directly to avoid race conditions with useEffect
+  // State now stores the full Genkit history objects
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'bot', content: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?" }
+    { role: 'model', content: [{ text: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add?" }] }
   ]);
   const [isThinking, setIsThinking] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -46,24 +61,24 @@ export default function BotPage() {
   }, [messages]);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
-    const userMessage: Message = { role: 'user', content: data.message };
-    const newMessages: Message[] = [...messages, userMessage];
+    const userMessageText = data.message;
     
-    setMessages(newMessages);
+    // Add user's message to the display immediately for responsiveness
+    setMessages(prev => [...prev, { role: 'user', content: [{ text: userMessageText }] }]);
     form.reset();
     setIsThinking(true);
 
     try {
-      const result: ProductBotOutput = await productBotFlow({ messages: newMessages });
+      // The server action receives the current history and the new message text
+      const result = await productBotFlow({
+        history: messages,
+        newMessage: userMessageText
+      });
+      
+      // SYNC: Replace local state with the server's authoritative history
+      setMessages(result.newHistory);
 
-      if (result && result.messages) {
-        setMessages(result.messages);
-      } else if (result && result.response) {
-         setMessages((prev) => [...prev, { role: 'bot', content: result.response }]);
-      }
-
-
-      if (result.isProductCreated && result.product) {
+      if (result.isCreated && result.product) {
          toast({
             title: "Product Created!",
             description: `Product "${result.product.name}" was created successfully.`,
@@ -79,10 +94,10 @@ export default function BotPage() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Could not get a response from the bot.',
+        description: error.message || 'An unexpected error occurred.',
       });
-      // Optionally add an error message to the chat
-      setMessages((prev) => [...prev, { role: 'bot', content: "Sorry, I'm having some trouble right now." }]);
+      // Optionally add a bot error message to the chat
+      setMessages((prev) => [...prev, { role: 'model', content: [{ text: "Sorry, I'm having some trouble right now." }] }]);
     } finally {
       setIsThinking(false);
     }
@@ -101,39 +116,41 @@ export default function BotPage() {
         </CardHeader>
         <CardContent ref={scrollAreaRef} className="flex-1 overflow-y-auto pr-4">
           <div className="space-y-6">
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={cn('flex items-start gap-4', {
-                  'justify-end': msg.role === 'user',
-                })}
-              >
-                {msg.role === 'bot' && (
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback><Bot size={18} /></AvatarFallback>
-                  </Avatar>
-                )}
+            {messages.map((msg, index) => {
+              const textContent = getMessageText(msg.content);
+              // Don't render messages that have no visible text content
+              if (!textContent) return null;
+
+              return (
                 <div
-                  className={cn('max-w-sm rounded-lg px-4 py-2', {
-                    'bg-primary text-primary-foreground': msg.role === 'user',
-                    'bg-muted': msg.role === 'bot',
+                  key={index}
+                  className={cn('flex items-start gap-4', {
+                    'justify-end': msg.role === 'user',
                   })}
                 >
-                  <p className="text-sm whitespace-pre-wrap">
-                    {typeof msg.content === 'string'
-                      ? msg.content
-                      : Array.isArray(msg.content)
-                      ? msg.content.map((part: any) => part.text).join('')
-                      : ''}
-                  </p>
+                  {msg.role === 'model' && (
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback><Bot size={18} /></AvatarFallback>
+                    </Avatar>
+                  )}
+                  <div
+                    className={cn('max-w-sm rounded-lg px-4 py-2', {
+                      'bg-primary text-primary-foreground': msg.role === 'user',
+                      'bg-muted': msg.role === 'model',
+                    })}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">
+                      {textContent}
+                    </p>
+                  </div>
+                  {msg.role === 'user' && (
+                     <Avatar className="h-8 w-8">
+                      <AvatarFallback><User size={18} /></AvatarFallback>
+                    </Avatar>
+                  )}
                 </div>
-                {msg.role === 'user' && (
-                   <Avatar className="h-8 w-8">
-                    <AvatarFallback><User size={18} /></AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-            ))}
+              );
+            })}
             {isThinking && (
                  <div className="flex items-start gap-4">
                      <Avatar className="h-8 w-8">
