@@ -83,7 +83,7 @@ export default async function ProductViewPage({ params }: ProductPageProps) {
             <CarouselContent>
               {product.images.length > 0 ? (
                 product.images.map((image, index) => (
-                  <CarouselItem key={image.id || index}>
+                  <CarouselItem key={`${image.id || 'img'}-${index}`}>
                     <Card className="overflow-hidden">
                        <div className="aspect-square relative">
                         <Image
