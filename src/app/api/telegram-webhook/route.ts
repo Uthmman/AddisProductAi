@@ -1,3 +1,5 @@
+'use server';
+
 import { config } from 'dotenv';
 config();
 
@@ -13,11 +15,16 @@ async function sendTelegramMessage(chatId: number, text: string) {
     }
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     try {
-        await fetch(url, {
+        const telegramResponse = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chatId, text }),
         });
+
+        if (!telegramResponse.ok) {
+            const errorData = await telegramResponse.json();
+            console.error('Telegram API Error:', telegramResponse.status, errorData.description);
+        }
     } catch (error) {
         console.error('Failed to send Telegram message:', error);
     }
@@ -31,33 +38,34 @@ export async function POST(request: NextRequest) {
         const chatId = body.message?.chat?.id;
         const text = body.message?.text;
 
+        // If it's not a message with text, we can ignore it.
         if (!chatId || !text) {
-             // Respond to Telegram immediately with a 200 OK so it doesn't retry.
-             return NextResponse.json({ status: 'ok' });
+             return NextResponse.json({ status: 'ok, no action' });
         }
 
-        // Immediately respond to Telegram to prevent timeouts and retries
-        // The actual processing will continue after this response is sent.
-        setTimeout(async () => {
-            try {
-                const response = await productBotFlow({
-                    chatId: String(chatId),
-                    newMessage: text,
-                });
-                await sendTelegramMessage(chatId, response.text);
-            } catch (flowError) {
-                console.error('Error in productBotFlow or sending message:', flowError);
-                await sendTelegramMessage(chatId, "I'm sorry, I encountered an internal error.");
-            }
-        }, 0);
+        try {
+            // Process the message using the AI flow
+            const response = await productBotFlow({
+                chatId: String(chatId),
+                newMessage: text,
+            });
+
+            // Send the AI's response back to the user
+            await sendTelegramMessage(chatId, response.text);
+
+        } catch (flowError: any) {
+            // If the AI flow fails, inform the user
+            console.error('Error in productBotFlow:', flowError);
+            await sendTelegramMessage(chatId, `I'm sorry, I encountered an internal error.`);
+        }
         
-        // Return a success status to Telegram right away.
-        return NextResponse.json({ status: 'processing' });
+        // Return a success status to Telegram.
+        return NextResponse.json({ status: 'ok' });
 
     } catch (error: any) {
+        // This catches errors in parsing the initial request from Telegram
         console.error('!!! TELEGRAM WEBHOOK MAIN ERROR !!!:', error);
-        // If the initial request parsing fails, we can't do much,
-        // but we still tell Telegram everything is ok to prevent retries.
-        return NextResponse.json({ status: 'error', message: error.message || 'Internal server error' }, { status: 200 });
+        // It's crucial to still send a 200 OK response to Telegram to prevent it from retrying.
+        return new NextResponse('Error', { status: 200 });
     }
 }
