@@ -37,7 +37,7 @@ export default async function BotPage() {
                         <Bot className="h-6 w-6" /> Telegram Bot Log
                     </CardTitle>
                     <CardDescription>
-                        This page displays incoming messages received by the Telegram webhook. Send a message to your bot to see if it appears here.
+                        This page displays incoming messages received by the Telegram webhook. Send a message to your bot to see if it appears here. The log updates on page refresh.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -51,12 +51,12 @@ export default async function BotPage() {
                                             <span className="font-mono text-sm text-muted-foreground">
                                                 {new Date(log.timestamp).toLocaleString()}
                                             </span>
-                                            <span className="font-semibold">{log.message?.text}</span>
+                                            <span className="font-semibold">{log.received_message?.message?.text || 'Non-text event'}</span>
                                         </div>
                                     </AccordionTrigger>
                                     <AccordionContent>
                                         <pre className="p-4 bg-muted rounded-md text-xs overflow-x-auto">
-                                            {JSON.stringify(log, null, 2)}
+                                            {JSON.stringify(log.received_message, null, 2)}
                                         </pre>
                                     </AccordionContent>
                                 </AccordionItem>
@@ -65,7 +65,7 @@ export default async function BotPage() {
                     ) : (
                         <div className="text-center text-muted-foreground py-12">
                             <p>No messages received yet.</p>
-                            <p className="text-sm">Send a message to your bot in Telegram.</p>
+                            <p className="text-sm">Send a message to your bot in Telegram and refresh this page.</p>
                         </div>
                     )}
                 </CardContent>

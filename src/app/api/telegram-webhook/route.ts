@@ -1,32 +1,41 @@
 'use server';
 
-import { config } from 'dotenv';
-config();
-
 import { NextRequest, NextResponse } from 'next/server';
-// import { productBotFlow } from '@/ai/flows/product-bot-flow'; // Temporarily disabled for testing
+import { promises as fs } from 'fs';
+import path from 'path';
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+// The path to the log file
+const logFilePath = path.join(process.cwd(), 'src', 'lib', 'telegram-log.json');
 
-async function sendTelegramMessage(chatId: number, text: string) {
-    if (!TELEGRAM_BOT_TOKEN) {
-        console.error("TELEGRAM_BOT_TOKEN is not configured.");
-        return;
-    }
-    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+// This function will read, append, and write to the log file.
+async function logTelegramMessage(message: any) {
+    let logs: any[] = [];
+    // Step 1: Try to read the existing log file.
     try {
-        const telegramResponse = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: chatId, text }),
-        });
-
-        if (!telegramResponse.ok) {
-            const errorData = await telegramResponse.json();
-            console.error('Telegram API Error:', telegramResponse.status, errorData.description);
+        const currentLogs = await fs.readFile(logFilePath, 'utf8');
+        logs = JSON.parse(currentLogs);
+        if (!Array.isArray(logs)) {
+           logs = []; // Reset if the file content is not an array
         }
-    } catch (error) {
-        console.error('Failed to send Telegram message:', error);
+    } catch (readError: any) {
+        // If the file doesn't exist (ENOENT), that's okay. We'll create it.
+        // For any other read error, log it.
+        if (readError.code !== 'ENOENT') {
+             console.error('!!! ERROR READING LOG FILE !!!:', readError);
+        }
+    }
+
+    // Step 2: Add the new message to the array.
+    logs.push({
+        timestamp: new Date().toISOString(),
+        received_message: message,
+    });
+
+    // Step 3: Try to write the updated array back to the file.
+    try {
+        await fs.writeFile(logFilePath, JSON.stringify(logs, null, 2), 'utf8');
+    } catch (writeError) {
+        console.error('!!! ERROR WRITING TO LOG FILE !!!:', writeError);
     }
 }
 
@@ -34,24 +43,17 @@ async function sendTelegramMessage(chatId: number, text: string) {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        
-        const chatId = body.message?.chat?.id;
-        const text = body.message?.text;
 
-        if (!chatId || !text) {
-             return NextResponse.json({ status: 'ok, no action' });
-        }
-
-        // ECHO TEST: Send the user's own message back to them.
-        const echoText = `You said: "${text}"`;
-        await sendTelegramMessage(chatId, echoText);
+        // Immediately try to log the message.
+        await logTelegramMessage(body);
         
-        // Always return OK to Telegram.
+        // Immediately return a success response to Telegram to avoid timeouts.
         return NextResponse.json({ status: 'ok' });
 
     } catch (error: any) {
         console.error('!!! TELEGRAM WEBHOOK MAIN ERROR !!!:', error);
-        // It's crucial to still send a 200 OK response to Telegram to prevent it from retrying.
+        // Also log the main error if parsing json fails etc.
+        await logTelegramMessage({ error: `Webhook main error: ${error.message}` });
         return new NextResponse('Error', { status: 200 });
     }
 }
