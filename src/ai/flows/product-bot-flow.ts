@@ -22,7 +22,7 @@ const conversationCache = new NodeCache({ stdTTL: 600 });
 
 // Define the structure for a single message in the conversation
 const MessageSchema = z.object({
-  role: z.enum(['user', 'model']),
+  role: z.enum(['user', 'model', 'tool']),
   content: z.array(z.any()), // Can store text and tool parts
 });
 export type Message = z.infer<typeof MessageSchema>;
@@ -92,7 +92,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
       ? [{ role: 'model' as const, content: [{ text: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add? You can also upload a photo." }] }]
       : cachedHistory;
 
-    const historyForGenkit = initialHistory.map(m => ({
+    const historyForGenkit = initialHistory.filter(Boolean).map(m => ({
         role: m.role,
         content: m.content as Part[],
     }));
@@ -118,12 +118,14 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 - If the tool fails and throws an error, inform the user clearly that the creation failed and provide the error reason. For example: "I'm sorry, I couldn't create the product. The system reported an error: [error message]".`,
         history: historyForGenkit,
         tools: [createProductTool],
-        model: ai.model,
+        model: 'googleai/gemini-2.5-flash',
     });
     
     // Save the full, updated history back to the cache
-    const newHistoryForCache = response.history.map(m => ({ role: m.role, content: m.content }));
-    conversationCache.set(chatId, newHistoryForCache);
+    if (response.history) {
+        const newHistoryForCache = response.history.filter(Boolean).map(m => ({ role: m.role, content: m.content }));
+        conversationCache.set(chatId, newHistoryForCache);
+    }
 
     return {
       text: response.text,
