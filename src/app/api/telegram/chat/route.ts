@@ -4,8 +4,9 @@ import { z } from 'zod';
 
 const InputSchema = z.object({
   chatId: z.string(),
-  newMessage: z.string(),
+  newMessage: z.string().optional(),
   imageId: z.number().optional().nullable(),
+  imageSrc: z.string().optional().nullable(),
 });
 
 export async function POST(request: NextRequest) {

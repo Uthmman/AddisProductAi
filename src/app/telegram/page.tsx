@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Send, Paperclip, User, Bot } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { fileToBase64 } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -29,7 +29,6 @@ export default function TelegramMiniAppPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [pendingImageId, setPendingImageId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +40,6 @@ export default function TelegramMiniAppPage() {
         if (user && user.id) {
           setChatId(String(user.id));
         } else {
-           // Fallback for development outside Telegram
            setChatId('dev_user_123');
         }
       } else {
@@ -53,55 +51,22 @@ export default function TelegramMiniAppPage() {
     }
   }, []);
 
-  useEffect(() => {
-    // Get initial welcome message from the bot
-    if (chatId && messages.length === 0) {
-        setIsLoading(true);
-        fetch('/api/telegram/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId, newMessage: '' }),
-        })
-        .then(async (res) => {
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data.text || 'Could not connect to the bot.');
-            }
-            return data;
-        })
-        .then(data => {
-            setMessages([{ role: 'model', type: 'text', content: data.text }]);
-        })
-        .catch(err => {
-            toast({ variant: 'destructive', title: 'Connection Error', description: err.message });
-        })
-        .finally(() => setIsLoading(false));
+  const sendBackendRequest = async (text?: string, imageId?: number, imageSrc?: string) => {
+    if (!chatId) return;
+    
+    if(text) {
+        const userMessage: Message = { role: 'user', type: 'text', content: text };
+        setMessages(prev => [...prev, userMessage]);
+        setInput('');
     }
-  }, [chatId, messages.length, toast]);
-
- useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('div');
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
-    }
-  }, [messages]);
-
-
-  const handleSendMessage = async (messageText = input) => {
-    if ((!messageText && !pendingImageId) || isLoading || !chatId) return;
-
-    const userMessage: Message = { role: 'user', type: 'text', content: messageText };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    
     setIsLoading(true);
 
     try {
       const response = await fetch('/api/telegram/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId, newMessage: messageText, imageId: pendingImageId }),
+        body: JSON.stringify({ chatId, newMessage: text, imageId, imageSrc }),
       });
 
       const data = await response.json();
@@ -118,10 +83,33 @@ export default function TelegramMiniAppPage() {
         title: 'Error',
         description: error.message || 'Could not communicate with the bot.',
       });
+      // Add user message back to input if it fails
+      if(text) setInput(text);
     } finally {
       setIsLoading(false);
-      setPendingImageId(null); // Clear pending image after sending
     }
+  };
+
+  useEffect(() => {
+    // Get initial welcome message from the bot
+    if (chatId && messages.length === 0) {
+        sendBackendRequest();
+    }
+  }, [chatId]);
+
+ useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollElement = scrollAreaRef.current.querySelector('div');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
+    }
+  }, [messages]);
+
+
+  const handleSendMessage = async () => {
+    if (!input || isLoading) return;
+    await sendBackendRequest(input);
   };
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,9 +118,15 @@ export default function TelegramMiniAppPage() {
 
     setIsLoading(true);
     toast({ description: "Uploading image..." });
+    
+    // Add visual placeholder for the user
+    const tempImageSrc = await fileToBase64(file);
+    const imageMessage: Message = { role: 'user', type: 'image', content: tempImageSrc };
+    setMessages(prev => [...prev, imageMessage]);
+
 
     try {
-      const image_data = await fileToBase64(file);
+      const image_data = tempImageSrc;
       const image_name = file.name;
       
       const uploadResponse = await fetch('/api/products/upload-image', {
@@ -141,15 +135,17 @@ export default function TelegramMiniAppPage() {
         body: JSON.stringify({ image_data, image_name }),
       });
 
-      if (!uploadResponse.ok) throw new Error('Image upload failed.');
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.message || 'Image upload failed.');
+      }
       
       const uploadedImage = await uploadResponse.json();
       
-      setPendingImageId(uploadedImage.id);
-      const imageMessage: Message = { role: 'user', type: 'image', content: uploadedImage.src };
-      setMessages(prev => [...prev, imageMessage]);
-
-      toast({ title: "Success!", description: "Image uploaded. You can now add name and price." });
+      toast({ title: "Success!", description: "Image uploaded." });
+      
+      // Now send the info to the bot flow
+      await sendBackendRequest(undefined, uploadedImage.id, uploadedImage.src);
 
     } catch (error: any) {
       toast({
@@ -157,8 +153,12 @@ export default function TelegramMiniAppPage() {
         title: 'Upload Failed',
         description: error.message,
       });
+      // remove the placeholder on failure
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
+      // Clear file input
+      if(fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -183,24 +183,24 @@ export default function TelegramMiniAppPage() {
                             <div
                                 className={`max-w-xs md:max-w-md rounded-lg p-3 text-sm whitespace-pre-wrap ${
                                 msg.role === 'user'
-                                    ? 'bg-primary text-primary-foreground'
+                                    ? (msg.type === 'image' ? 'p-1 bg-transparent' : 'bg-primary text-primary-foreground')
                                     : 'bg-muted'
                                 }`}
                             >
                                 {msg.type === 'text' ? (
-                                    msg.content
+                                    <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br />').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
                                 ) : (
                                     <Image src={msg.content} alt="Uploaded image" width={200} height={200} className="rounded-md" />
                                 )}
                             </div>
-                            {msg.role === 'user' && (
+                            {msg.role === 'user' && msg.type === 'text' && (
                                 <Avatar className="h-8 w-8">
                                     <AvatarFallback><User size={18} /></AvatarFallback>
                                 </Avatar>
                             )}
                         </div>
                     ))}
-                    {isLoading && messages[messages.length-1]?.role === 'user' && (
+                    {isLoading && (
                          <div className="flex items-end gap-2">
                             <Avatar className="h-8 w-8">
                                 <AvatarFallback><Bot size={18} /></AvatarFallback>
@@ -226,12 +226,12 @@ export default function TelegramMiniAppPage() {
                 <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Type name and price..."
+                    placeholder="Type product details..."
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     disabled={isLoading}
                 />
-                <Button onClick={() => handleSendMessage()} disabled={isLoading || (!input && !pendingImageId)}>
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                <Button onClick={handleSendMessage} disabled={isLoading || !input}>
+                    <Send className="h-4 w-4" />
                 </Button>
             </div>
         </CardContent>
