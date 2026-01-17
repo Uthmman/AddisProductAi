@@ -5,7 +5,7 @@ import { z } from 'zod';
 const InputSchema = z.object({
   chatId: z.string(),
   newMessage: z.string(),
-  imageId: z.number().optional(),
+  imageId: z.number().optional().nullable(),
 });
 
 export async function POST(request: NextRequest) {

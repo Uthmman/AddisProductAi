@@ -31,7 +31,7 @@ export type Message = z.infer<typeof MessageSchema>;
 const ProductBotInputSchema = z.object({
   chatId: z.string().describe('A unique identifier for the conversation, like a Telegram chat ID.'),
   newMessage: z.string().describe('The latest message from the user.'),
-  imageId: z.number().optional().describe('The ID of a recently uploaded image for the product.'),
+  imageId: z.number().optional().nullable().describe('The ID of a recently uploaded image for the product.'),
 });
 export type ProductBotInput = z.infer<typeof ProductBotInputSchema>;
 
