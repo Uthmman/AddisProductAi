@@ -62,12 +62,18 @@ export default function TelegramMiniAppPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chatId, newMessage: '' }),
         })
-        .then(res => res.json())
+        .then(async (res) => {
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.text || 'Could not connect to the bot.');
+            }
+            return data;
+        })
         .then(data => {
             setMessages([{ role: 'model', type: 'text', content: data.text }]);
         })
         .catch(err => {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not connect to the bot.' });
+            toast({ variant: 'destructive', title: 'Connection Error', description: err.message });
         })
         .finally(() => setIsLoading(false));
     }
@@ -84,7 +90,7 @@ export default function TelegramMiniAppPage() {
 
 
   const handleSendMessage = async (messageText = input) => {
-    if (!messageText || isLoading || !chatId) return;
+    if ((!messageText && !pendingImageId) || isLoading || !chatId) return;
 
     const userMessage: Message = { role: 'user', type: 'text', content: messageText };
     setMessages(prev => [...prev, userMessage]);
@@ -98,17 +104,19 @@ export default function TelegramMiniAppPage() {
         body: JSON.stringify({ chatId, newMessage: messageText, imageId: pendingImageId }),
       });
 
-      if (!response.ok) throw new Error('Failed to get response from bot.');
-
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.text || 'Failed to get response from bot.');
+      }
+
       const botMessage: Message = { role: 'model', type: 'text', content: data.text };
       setMessages(prev => [...prev, botMessage]);
 
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Could not communicate with the bot.',
+        description: error.message || 'Could not communicate with the bot.',
       });
     } finally {
       setIsLoading(false);
@@ -222,7 +230,7 @@ export default function TelegramMiniAppPage() {
                     onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                     disabled={isLoading}
                 />
-                <Button onClick={() => handleSendMessage()} disabled={isLoading || !input}>
+                <Button onClick={() => handleSendMessage()} disabled={isLoading || (!input && !pendingImageId)}>
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
             </div>
