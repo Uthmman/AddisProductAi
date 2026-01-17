@@ -1,41 +1,64 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { config } from 'dotenv';
+import { productBotFlow } from '@/ai/flows/product-bot-flow';
 
-// The path to the log file
-const logFilePath = path.join(process.cwd(), 'src', 'lib', 'telegram-log.json');
+// Explicitly load environment variables
+config();
 
-// This function will read, append, and write to the log file.
-async function logTelegramMessage(message: any) {
-    let logs: any[] = [];
-    // Step 1: Try to read the existing log file.
+async function sendTelegramMessage(chatId: number, text: string) {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) {
+        console.error("TELEGRAM_BOT_TOKEN is not defined.");
+        return;
+    }
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+
     try {
-        const currentLogs = await fs.readFile(logFilePath, 'utf8');
-        logs = JSON.parse(currentLogs);
-        if (!Array.isArray(logs)) {
-           logs = []; // Reset if the file content is not an array
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: text,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json();
+            // Log the actual error from Telegram for debugging
+            console.error('Telegram API Error:', errorBody.description || JSON.stringify(errorBody));
         }
-    } catch (readError: any) {
-        // If the file doesn't exist (ENOENT), that's okay. We'll create it.
-        // For any other read error, log it.
-        if (readError.code !== 'ENOENT') {
-             console.error('!!! ERROR READING LOG FILE !!!:', readError);
-        }
+    } catch (error: any) {
+        console.error('Failed to send Telegram message:', error.message);
+    }
+}
+
+async function processMessage(body: any) {
+    const chatId = body.message?.chat?.id;
+    const text = body.message?.text;
+
+    if (!chatId || !text) {
+        console.log("Received a message without a chat ID or text. Ignoring.");
+        return;
     }
 
-    // Step 2: Add the new message to the array.
-    logs.push({
-        timestamp: new Date().toISOString(),
-        received_message: message,
-    });
-
-    // Step 3: Try to write the updated array back to the file.
     try {
-        await fs.writeFile(logFilePath, JSON.stringify(logs, null, 2), 'utf8');
-    } catch (writeError) {
-        console.error('!!! ERROR WRITING TO LOG FILE !!!:', writeError);
+        const botResponse = await productBotFlow({
+            chatId: String(chatId),
+            newMessage: text,
+        });
+
+        if (botResponse?.text) {
+            await sendTelegramMessage(chatId, botResponse.text);
+        }
+    } catch (flowError: any) {
+        console.error('Error in productBotFlow:', flowError);
+        // Inform the user that an error occurred
+        await sendTelegramMessage(chatId, "I'm sorry, I encountered an internal error and couldn't process your request.");
     }
 }
 
@@ -44,16 +67,16 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
-        // Immediately try to log the message.
-        await logTelegramMessage(body);
-        
-        // Immediately return a success response to Telegram to avoid timeouts.
+        // Fire-and-forget the processing so we can respond to Telegram immediately.
+        // Do NOT await this call.
+        processMessage(body);
+
+        // Immediately return a success response to Telegram to prevent timeouts.
         return NextResponse.json({ status: 'ok' });
 
     } catch (error: any) {
-        console.error('!!! TELEGRAM WEBHOOK MAIN ERROR !!!:', error);
-        // Also log the main error if parsing json fails etc.
-        await logTelegramMessage({ error: `Webhook main error: ${error.message}` });
+        console.error('!!! TELEGRAM WEBHOOK MAIN ERROR !!!:', error.message);
+        // If the initial request parsing fails, return a 200 to prevent Telegram from retrying.
         return new NextResponse('Error', { status: 200 });
     }
 }
