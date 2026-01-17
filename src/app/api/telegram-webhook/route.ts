@@ -1,61 +1,27 @@
-'use server';
-
 import { NextRequest, NextResponse } from 'next/server';
-import { config } from 'dotenv';
-
-// Explicitly load environment variables
-config();
-
-async function sendTelegramMessage(chatId: number, text: string) {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) {
-        console.error("TELEGRAM_BOT_TOKEN is not defined.");
-        return;
-    }
-    const url = `https://api.telegram.org/bot${token}/sendMessage`;
-
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                text: text,
-            }),
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.json();
-            // Log the actual error from Telegram for debugging
-            console.error('Telegram API Error:', errorBody.description || JSON.stringify(errorBody));
-        }
-    } catch (error: any) {
-        console.error('Failed to send Telegram message:', error.message);
-    }
-}
-
+import { appCache } from '@/lib/cache';
 
 export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
+  try {
+    const body = await request.json();
+    
+    // Get existing logs or start a new array
+    const logs = appCache.get<any[]>('telegram_logs') || [];
+    
+    // Add new log entry with a timestamp, putting the newest first
+    logs.unshift({
+      timestamp: new Date().toISOString(),
+      received_message: body,
+    });
 
-        const chatId = body.message?.chat?.id;
-        const text = body.message?.text;
+    // Store the updated logs back in the cache, keeping only the last 50
+    appCache.set('telegram_logs', logs.slice(0, 50));
 
-        if (chatId && text) {
-            // Echo the received message back to the user.
-            // We await this to ensure it completes. This is a quick operation.
-            await sendTelegramMessage(chatId, `You said: ${text}`);
-        }
-
-        // Return a success response to Telegram.
-        return NextResponse.json({ status: 'ok' });
-
-    } catch (error: any) {
-        console.error('!!! TELEGRAM WEBHOOK MAIN ERROR !!!:', error);
-        // If the initial request parsing fails, return a 200 to prevent Telegram from retrying.
-        return new NextResponse('Error', { status: 200 });
-    }
+  } catch (error) {
+    // Log any errors to the server console
+    console.error('!!! TELEGRAM WEBHOOK ERROR !!!:', error);
+  } finally {
+    // ALWAYS respond to Telegram immediately to prevent timeouts and retries
+    return NextResponse.json({ status: 'ok' });
+  }
 }
