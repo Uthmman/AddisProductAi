@@ -139,8 +139,8 @@ export default async function ProductViewPage({ params }: ProductPageProps) {
              <div>
                 <h2 className="text-sm font-medium text-muted-foreground mb-2">Attributes</h2>
                 <div className="flex flex-wrap gap-2">
-                    {product.attributes.map(attr => (
-                       <Badge key={attr.id} variant="secondary" className="text-sm">
+                    {product.attributes.map((attr, index) => (
+                       <Badge key={`${attr.id}-${index}`} variant="secondary" className="text-sm">
                         <strong>{attr.name}:</strong>&nbsp;{attr.options.join(', ')}
                        </Badge>
                     ))}
@@ -152,8 +152,8 @@ export default async function ProductViewPage({ params }: ProductPageProps) {
              <div>
                 <h2 className="text-sm font-medium text-muted-foreground mb-2">Tags</h2>
                 <div className="flex flex-wrap gap-2">
-                    {product.tags.map(tag => (
-                       <Badge key={tag.id} variant="outline">{tag.name}</Badge>
+                    {product.tags.map((tag, index) => (
+                       <Badge key={`${tag.id}-${index}`} variant="outline">{tag.name}</Badge>
                     ))}
                 </div>
              </div>
