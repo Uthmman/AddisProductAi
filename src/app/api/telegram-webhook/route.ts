@@ -2,7 +2,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { config } from 'dotenv';
-import { productBotFlow } from '@/ai/flows/product-bot-flow';
 
 // Explicitly load environment variables
 config();
@@ -37,45 +36,25 @@ async function sendTelegramMessage(chatId: number, text: string) {
     }
 }
 
-async function processMessage(body: any) {
-    const chatId = body.message?.chat?.id;
-    const text = body.message?.text;
-
-    if (!chatId || !text) {
-        console.log("Received a message without a chat ID or text. Ignoring.");
-        return;
-    }
-
-    try {
-        const botResponse = await productBotFlow({
-            chatId: String(chatId),
-            newMessage: text,
-        });
-
-        if (botResponse?.text) {
-            await sendTelegramMessage(chatId, botResponse.text);
-        }
-    } catch (flowError: any) {
-        console.error('Error in productBotFlow:', flowError);
-        // Inform the user that an error occurred
-        await sendTelegramMessage(chatId, "I'm sorry, I encountered an internal error and couldn't process your request.");
-    }
-}
-
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
-        // Fire-and-forget the processing so we can respond to Telegram immediately.
-        // Do NOT await this call.
-        processMessage(body);
+        const chatId = body.message?.chat?.id;
+        const text = body.message?.text;
 
-        // Immediately return a success response to Telegram to prevent timeouts.
+        if (chatId && text) {
+            // Echo the received message back to the user.
+            // We await this to ensure it completes. This is a quick operation.
+            await sendTelegramMessage(chatId, `You said: ${text}`);
+        }
+
+        // Return a success response to Telegram.
         return NextResponse.json({ status: 'ok' });
 
     } catch (error: any) {
-        console.error('!!! TELEGRAM WEBHOOK MAIN ERROR !!!:', error.message);
+        console.error('!!! TELEGRAM WEBHOOK MAIN ERROR !!!:', error);
         // If the initial request parsing fails, return a 200 to prevent Telegram from retrying.
         return new NextResponse('Error', { status: 200 });
     }
