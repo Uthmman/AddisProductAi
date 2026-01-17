@@ -2,8 +2,7 @@
 
 /**
  * @fileOverview Defines a Genkit flow that acts as a conversational product creation bot.
- * This version is designed for a stateless environment like a Telegram bot,
- * managing conversation history in a simple in-memory cache.
+ * This is a stateless version that does not retain conversation history to ensure stability.
  *
  * - productBotFlow - The main conversational flow.
  * - ProductBotInput - The input type, containing the chatId and new message.
@@ -13,19 +12,9 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { createProduct } from '@/lib/woocommerce-api';
-import { Part } from 'genkit';
-import NodeCache from 'node-cache';
 
-// Simple in-memory cache to store conversation history.
-// TTL of 10 minutes (600 seconds) to clear old conversations.
-const conversationCache = new NodeCache({ stdTTL: 600 });
-
-// Define the structure for a single message in the conversation
-const MessageSchema = z.object({
-  role: z.enum(['user', 'model', 'tool']),
-  content: z.array(z.any()), // Can store text and tool parts
-});
-export type Message = z.infer<typeof MessageSchema>;
+// NOTE: This is a stateless implementation. Conversation history and caching have been removed
+// to resolve a persistent error with history management.
 
 // Define the input schema for the flow
 const ProductBotInputSchema = z.object({
@@ -77,74 +66,32 @@ const createProductTool = ai.defineTool(
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
   const { chatId, newMessage, imageId } = input;
 
-  // Ultra-defensive sanitization and filtering for conversation history.
-  const sanitizeHistory = (history: Message[] | undefined): Message[] => {
-    if (!history || !Array.isArray(history)) return [];
-    
-    const sanitized: Message[] = [];
-    for (const m of history) {
-      // Ensure the message object and its core properties are valid
-      if (m && m.role && Array.isArray(m.content)) {
-        // Filter out any undefined/null parts within the content array
-        const sanitizedContent = m.content.filter(part => part !== null && part !== undefined);
-        
-        // Only push the message if its content is not empty after sanitizing
-        if (sanitizedContent.length > 0) {
-            sanitized.push({
-                role: m.role,
-                content: sanitizedContent,
-            });
-        }
-      }
-    }
-    return sanitized;
-  };
-  
+  // Handle the initial call to the Mini App to get a welcome message.
   if (!newMessage && !imageId) {
-    // This is the initial call from the frontend to get the welcome message.
     const welcomeMessage = "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add? You can also upload a photo.";
-    const initialHistory: Message[] = [{ role: 'model', content: [{ text: welcomeMessage }] }];
-    conversationCache.set(chatId, initialHistory);
     return { text: welcomeMessage };
   }
 
   try {
-    // Retrieve and sanitize history from cache.
-    const cachedHistory = conversationCache.get<Message[]>(chatId);
-    const initialHistory = sanitizeHistory(cachedHistory);
-    
-    const historyForGenkit = initialHistory.map(m => ({ role: m.role, content: m.content as Part[] }));
-    
-    // Add the new user message to the history for the API call
-    let userMessage = newMessage;
+    // Combine text and image info into a single prompt for the stateless call.
+    let userPrompt = newMessage;
     if (imageId) {
-        userMessage = `${newMessage || ''} [An image with ID ${imageId} has been provided for the product.]`;
-    }
-    if (userMessage) {
-        historyForGenkit.push({ role: 'user', content: [{ text: userMessage }] });
+        userPrompt = `${newMessage || ''} [An image with ID ${imageId} has been provided for the product.]`;
     }
 
     const response = await ai.generate({
-        system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name, price, and optionally an image) and then use the available tool to create the product.
+        prompt: userPrompt,
+        system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name, price, and optionally an image) and then use the available tool to create the product. This is a stateless interaction; you have no memory of past messages.
 
-- Be conversational and friendly.
-- If the user provides a product name but no price, ask for the price.
-- If the user provides a price but no name, ask for the name.
+- If the user's message contains enough information to create a product (like a name and a price), you MUST call the 'createProductTool'.
+- If the user provides only a name, ask for the price.
+- If the user provides only a price, ask for the name.
 - An image is optional. If the user message contains "[An image with ID ... has been provided for the product.]", you must pass this ID to the createProductTool in the 'images' array.
-- Once you have both the name and the price, you MUST confirm with the user before you create the product. For example: "Great! I have the name as 'Product Name' and the price as '100'. Shall I create the product?" If an image was provided, also mention it: "I see you've attached an image as well."
-- Only when the user confirms, call the 'createProductTool' with the collected 'name' and 'regular_price'. The 'regular_price' MUST be a string. If you have an imageId, pass it as \`images: [{ id: YOUR_IMAGE_ID }]\`.
-- After the tool runs, your response should be based on its output. If it was successful, say "I've created the product '[Product Name]' for you as a draft."
+- After the tool runs successfully, your response must be: "I've created the product '[Product Name]' for you as a draft."
 - If the tool fails and throws an error, inform the user clearly that the creation failed and provide the error reason. For example: "I'm sorry, I couldn't create the product. The system reported an error: [error message]".`,
-        history: historyForGenkit,
         tools: [createProductTool],
         model: 'googleai/gemini-2.5-flash',
     });
-    
-    // Sanitize and save the full, updated history back to the cache.
-    const newHistoryForCache = sanitizeHistory(response.history as Message[]);
-    if (newHistoryForCache.length > 0) {
-        conversationCache.set(chatId, newHistoryForCache);
-    }
 
     // Defensive check on the final response text
     const responseText = response.text;
