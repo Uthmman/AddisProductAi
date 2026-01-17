@@ -91,15 +91,16 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
 
 **Key Content Requirements:**
 1.  **Description:** Generate a compelling, SEO-rich product description of approximately 300 words. Format it with HTML tags (e.g., <p>, <strong>, <ul>, <li>).
-2.  **Linking Strategy:**
+2.  **Amharic Keyword Integration:** Weave relevant Amharic words and phrases naturally into the product description to improve local SEO and connect with customers. For example, use terms like 'የቤት ዕቃዎች' (yebēt ‘əqawoch, for furniture), 'ዋጋ' (waga, for price), 'ዘመናዊ' (zemenawi, for modern), or other descriptive local terms.
+3.  **Linking Strategy:**
     *   **Inbound Link:** Naturally weave an inbound link into the description pointing to the product's primary category page. Use the format \`<a href="/product-category/{{{primaryCategory.slug}}}/">Explore more {{{primaryCategory.name}}}</a>\`.
     *   **Outbound Links:** Naturally integrate outbound links to the provided social media pages and a telephone link. For the phone, use the format \`<a href="tel:{{{settings.phoneNumber}}}">call us</a>\`. For social media, link relevant phrases to the URLs provided in the settings.
-3.  **Yoast SEO:**
+4.  **Yoast SEO:**
     *   **Focus Keyphrase:** Generate a primary "Focus Keyphrase" for the \`_yoast_wpseo_focuskw\` field. This keyphrase MUST NOT be more than 4 words.
     *   **Meta Description:** Generate a concise meta description for \`_yoast_wpseo_metadesc\`. This description MUST contain the exact Focus Keyphrase.
     *   **Title and Description Integration:** The exact Focus Keyphrase MUST be present in the generated product \`name\` (SEO Title) and within the first paragraph of the product \`description\`.
-4.  **Image Alt Text:** Create descriptive alt text for each image that includes SEO keywords like 'zenbaba furniture', 'ethiopia', 'addis ababa', and the product's Amharic name ({{{amharic_name}}}).
-5.  **Categories:** Select the most relevant categories from the provided list. Your response for 'categories' should be an array of category NAME strings.
+5.  **Image Alt Text:** Create descriptive alt text for each image that includes SEO keywords like 'zenbaba furniture', 'ethiopia', 'addis ababa', and the product's Amharic name ({{{amharic_name}}}).
+6.  **Categories:** Select the most relevant categories from the provided list. Your response for 'categories' should be an array of category NAME strings.
 
 **Business & Link Information:**
 - Phone Number: {{{settings.phoneNumber}}}
