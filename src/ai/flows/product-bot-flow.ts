@@ -70,7 +70,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     // On a completely new chat with no message, send a welcome message.
     if (!newMessage && !imageId && Object.keys(data).length <= 2) {
         setState(chatId, data); // Save initial empty state
-        return { text: "Hi there! I can help you create a new product. What's the name and price? You can also upload a photo." };
+        return { text: "Hi there! I can help you create a new product. What's the name, price, and Amharic name? You can also upload a photo." };
     }
 
     const [settings, availableCategories] = await Promise.all([
@@ -89,13 +89,14 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 material: z.string().optional().describe("The material of the product."),
                 amharic_name: z.string().optional().describe("The Amharic name for the product."),
             }),
-            outputSchema: z.void(),
+            outputSchema: z.string(),
         },
         async (details) => {
             if (details.raw_name) data.raw_name = details.raw_name;
             if (details.price_etb) data.price_etb = details.price_etb;
             if (details.material) data.material = details.material;
             if (details.amharic_name) data.amharic_name = details.amharic_name;
+            return "Product details updated.";
         }
     );
 
