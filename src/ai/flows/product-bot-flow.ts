@@ -76,40 +76,53 @@ const createProductTool = ai.defineTool(
 
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
   const { chatId, newMessage, imageId } = input;
+
+  // Ultra-defensive sanitization and filtering for conversation history.
+  const sanitizeHistory = (history: Message[] | undefined): Message[] => {
+    if (!history || !Array.isArray(history)) return [];
+    
+    const sanitized: Message[] = [];
+    for (const m of history) {
+      // Ensure the message object and its core properties are valid
+      if (m && m.role && Array.isArray(m.content)) {
+        // Filter out any undefined/null parts within the content array
+        const sanitizedContent = m.content.filter(part => part !== null && part !== undefined);
+        
+        // Only push the message if its content is not empty after sanitizing
+        if (sanitizedContent.length > 0) {
+            sanitized.push({
+                role: m.role,
+                content: sanitizedContent,
+            });
+        }
+      }
+    }
+    return sanitized;
+  };
   
   if (!newMessage && !imageId) {
-    // If it's the very first message, just send the welcome text.
-    return {
-      text: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add? You can also upload a photo.",
-    };
+    // This is the initial call from the frontend to get the welcome message.
+    const welcomeMessage = "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add? You can also upload a photo.";
+    const initialHistory: Message[] = [{ role: 'model', content: [{ text: welcomeMessage }] }];
+    conversationCache.set(chatId, initialHistory);
+    return { text: welcomeMessage };
   }
 
   try {
-    // Retrieve history from cache.
-    const cachedHistory = conversationCache.get<Message[]>(chatId) || [];
-    const initialHistory: Message[] = [];
-    
-    // Ultra-defensive history processing when reading from cache.
-    for (const m of cachedHistory) {
-        if (m && m.role && Array.isArray(m.content)) {
-            initialHistory.push({ role: m.role, content: m.content });
-        }
-    }
-
-    // If history is empty after filtering, it's a new conversation.
-    if (initialHistory.length === 0) {
-      initialHistory.push({ role: 'model', content: [{ text: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add? You can also upload a photo." }] });
-    }
+    // Retrieve and sanitize history from cache.
+    const cachedHistory = conversationCache.get<Message[]>(chatId);
+    const initialHistory = sanitizeHistory(cachedHistory);
     
     const historyForGenkit = initialHistory.map(m => ({ role: m.role, content: m.content as Part[] }));
     
     // Add the new user message to the history for the API call
     let userMessage = newMessage;
     if (imageId) {
-        // If an image ID is provided, add context to the user's message for the AI
         userMessage = `${newMessage || ''} [An image with ID ${imageId} has been provided for the product.]`;
     }
-    historyForGenkit.push({ role: 'user', content: [{ text: userMessage }] });
+    if (userMessage) {
+        historyForGenkit.push({ role: 'user', content: [{ text: userMessage }] });
+    }
 
     const response = await ai.generate({
         system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name, price, and optionally an image) and then use the available tool to create the product.
@@ -127,23 +140,21 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         model: 'googleai/gemini-2.5-flash',
     });
     
-    // Save the full, updated history back to the cache, filtering for validity.
-    if (response.history) {
-        const newHistoryForCache: Message[] = [];
-        for (const m of response.history) {
-            // Ultra-defensive check before pushing to cache.
-            if (m && m.role && m.content && Array.isArray(m.content)) {
-                newHistoryForCache.push({
-                    role: m.role as 'user' | 'model' | 'tool',
-                    content: m.content as any[],
-                });
-            }
-        }
+    // Sanitize and save the full, updated history back to the cache.
+    const newHistoryForCache = sanitizeHistory(response.history as Message[]);
+    if (newHistoryForCache.length > 0) {
         conversationCache.set(chatId, newHistoryForCache);
     }
 
+    // Defensive check on the final response text
+    const responseText = response.text;
+    if (typeof responseText !== 'string') {
+        console.error("Genkit response text is not a string:", responseText);
+        throw new Error("Received an invalid response from the AI model.");
+    }
+
     return {
-      text: response.text,
+      text: responseText,
     };
 
   } catch (error: any) {
