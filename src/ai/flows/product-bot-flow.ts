@@ -85,15 +85,18 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
   }
 
   try {
-    // Retrieve history from cache or start a new one
+    // Retrieve history from cache, filtering out any invalid entries.
     const cachedHistory = conversationCache.get<Message[]>(chatId) || [];
+    const initialHistory: Message[] = cachedHistory.filter((m): m is Message => {
+        return !!(m && m.role && m.content && Array.isArray(m.content));
+    });
     
-    const initialHistory = cachedHistory.length === 0 
-      ? [{ role: 'model' as const, content: [{ text: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add? You can also upload a photo." }] }]
-      : cachedHistory;
+    // If history is empty after filtering, it's a new conversation.
+    if (initialHistory.length === 0) {
+      initialHistory.push({ role: 'model', content: [{ text: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add? You can also upload a photo." }] });
+    }
 
     const historyForGenkit = initialHistory
-        .filter(m => m && m.content) // Ensure message and its content exist
         .map(m => ({
             role: m.role,
             content: m.content as Part[],
@@ -123,10 +126,12 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         model: 'googleai/gemini-2.5-flash',
     });
     
-    // Save the full, updated history back to the cache
+    // Save the full, updated history back to the cache, filtering for validity.
     if (response.history) {
-        const newHistoryForCache = response.history
-            .filter(m => m && m.content) // Ensure message and its content exist
+        const newHistoryForCache: Message[] = response.history
+            .filter((m): m is { role: 'user' | 'model' | 'tool', content: any[] } => {
+                return !!(m && m.role && m.content && Array.isArray(m.content));
+            })
             .map(m => ({
                 role: m.role,
                 content: m.content as any[],
