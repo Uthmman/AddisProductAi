@@ -13,7 +13,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { createProduct } from '@/lib/woocommerce-api';
-import { Part, generate } from 'genkit';
+import * as genkit from 'genkit';
 import NodeCache from 'node-cache';
 
 // Simple in-memory cache to store conversation history.
@@ -94,7 +94,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 
     const historyForGenkit = initialHistory.map(m => ({
         role: m.role,
-        content: m.content as Part[],
+        content: m.content as genkit.Part[],
     }));
     
     // Add the new user message to the history for the API call
@@ -105,7 +105,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     }
     historyForGenkit.push({ role: 'user', content: [{ text: userMessage }] });
 
-    const response = await generate({
+    const response = await genkit.generate({
         system: `You are a helpful assistant for creating products in an e-commerce store. Your goal is to gather the necessary information from the user (product name, price, and optionally an image) and then use the available tool to create the product.
 
 - Be conversational and friendly.
