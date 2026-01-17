@@ -79,6 +79,24 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     ]);
 
     // Define tools for the AI to interact with the system
+    const updateProductDetailsTool = ai.defineTool(
+        {
+            name: 'updateProductDetailsTool',
+            description: "Updates the product details in the current session based on the user's message. Call this if the user provides new information like a name, price, or material.",
+            inputSchema: z.object({
+                raw_name: z.string().optional().describe("The name of the product."),
+                price_etb: z.number().optional().describe("The price of the product."),
+                material: z.string().optional().describe("The material of the product."),
+            }),
+            outputSchema: z.void(),
+        },
+        async (details) => {
+            if (details.raw_name) data.raw_name = details.raw_name;
+            if (details.price_etb) data.price_etb = details.price_etb;
+            if (details.material) data.material = details.material;
+        }
+    );
+
     const aiOptimizeProductTool = ai.defineTool(
         {
             name: 'aiOptimizeProductTool',
@@ -87,28 +105,28 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             outputSchema: z.any(),
         },
         async () => {
-            console.log("Running AI Optimization Tool with data:", data);
-            if (!data.raw_name || !data.price_etb || data.image_srcs.length === 0) {
+            const currentData = getState(chatId); // Get fresh data
+            console.log("Running AI Optimization Tool with data:", currentData);
+            if (!currentData.raw_name || !currentData.price_etb || currentData.image_srcs.length === 0) {
                 return "I still need more information before I can optimize. Please provide the product name, price, and at least one image.";
             }
 
             const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
 
             const aiContent = await generateWooCommerceProductContent({
-                raw_name: data.raw_name,
-                price_etb: data.price_etb,
-                material: data.material || '',
-                amharic_name: data.amharic_name || '',
-                focus_keywords: data.focus_keywords || '',
-                images_data: data.image_srcs,
+                raw_name: currentData.raw_name,
+                price_etb: currentData.price_etb,
+                material: currentData.material || '',
+                amharic_name: currentData.amharic_name || '',
+                focus_keywords: currentData.focus_keywords || '',
+                images_data: currentData.image_srcs,
                 availableCategories,
                 settings,
                 primaryCategory,
                 fieldToGenerate: 'all',
             });
             
-            data.aiContent = aiContent;
-            setState(chatId, data);
+            data.aiContent = aiContent; // Update data in the outer scope
             
             // Return a preview for the AI to relay to the user
             const preview = `
@@ -133,33 +151,34 @@ Do you want me to create the product, or save it as a draft?
             outputSchema: z.any(),
         },
         async ({ status }) => {
+            const currentData = getState(chatId); // Get fresh data
             console.log(`Running Create Product Tool with status: ${status}`);
-            if (!data.aiContent) {
+            if (!currentData.aiContent) {
                 return "I can't create the product because the AI content hasn't been generated yet. Please provide more details first.";
             }
 
             try {
-                 const finalImages = data.image_ids.map((id, index) => ({
+                 const finalImages = currentData.image_ids.map((id, index) => ({
                     id,
-                    alt: data.aiContent?.images?.[index]?.alt || data.aiContent?.name,
+                    alt: currentData.aiContent?.images?.[index]?.alt || currentData.aiContent?.name,
                 }));
 
-                const finalCategories = data.aiContent.categories?.map(c => {
+                const finalCategories = currentData.aiContent.categories?.map(c => {
                     const existing = availableCategories.find(cat => cat.name.toLowerCase() === c.toLowerCase());
                     return existing ? { id: existing.id } : { name: c };
                 }) || [];
 
                 const finalData = {
-                    name: data.aiContent.name,
-                    slug: data.aiContent.slug,
-                    regular_price: (data.aiContent.regular_price || data.price_etb)?.toString(),
-                    description: data.aiContent.description,
-                    short_description: data.aiContent.short_description,
+                    name: currentData.aiContent.name,
+                    slug: currentData.aiContent.slug,
+                    regular_price: (currentData.aiContent.regular_price || currentData.price_etb)?.toString(),
+                    description: currentData.aiContent.description,
+                    short_description: currentData.aiContent.short_description,
                     categories: finalCategories,
-                    tags: data.aiContent.tags?.map(tag => ({ name: tag })),
+                    tags: currentData.aiContent.tags?.map(tag => ({ name: tag })),
                     images: finalImages,
-                    attributes: data.aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
-                    meta_data: data.aiContent.meta_data,
+                    attributes: currentData.aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
+                    meta_data: currentData.aiContent.meta_data,
                     status: status,
                 };
 
@@ -174,14 +193,6 @@ Do you want me to create the product, or save it as a draft?
         }
     );
 
-    // Update the current state based on the user's message
-    data.raw_name = ai.embed("name", data.raw_name);
-    data.price_etb = ai.embed("price", data.price_etb);
-    data.material = ai.embed("material", data.material);
-    // Persist changes from embeddings if any
-    setState(chatId, data);
-
-
     // The AI's main prompt
     const systemPrompt = `
 You are an advanced conversational assistant for creating products. Your goal is to guide the user to create a product by gathering information, running an AI optimization, showing a preview, and then creating the product based on their confirmation.
@@ -191,8 +202,9 @@ ${JSON.stringify(data, null, 2)}
 
 Your task is to respond to the user's latest message based on the current product information.
 
-- If you don't have a 'raw_name', 'price_etb', or any images, your main goal is to ask the user for the missing information. Be conversational and clear.
-- Once you have the name, price, AND at least one image, you MUST call the 'aiOptimizeProductTool' to generate the full product content.
+- First, analyze the user's message. If it contains new product information (like name, price, or material), you MUST call the 'updateProductDetailsTool' to save this new information.
+- After potentially updating details, check if you now have the 'raw_name', 'price_etb', AND at least one image. If you do, you MUST call the 'aiOptimizeProductTool' to generate the full product content.
+- If you are still missing any of those core details (name, price, image), your main goal is to ask the user for the missing information. Be conversational and clear.
 - After 'aiOptimizeProductTool' runs, it will return a preview. Your response to the user MUST be exactly that preview text.
 - If the user's message is a confirmation like "create it", "save as draft", or "yes", you MUST call the 'createProductTool' with the correct status ('publish' for create, 'draft' for save draft).
 - If an image has just been uploaded (the user message will be empty but the data will show a new image), acknowledge it and ask for any other missing details (like name or price).
@@ -203,15 +215,15 @@ Your task is to respond to the user's latest message based on the current produc
         const response = await ai.generate({
             prompt: newMessage || "An image was just uploaded.", // Provide context if message is empty
             system: systemPrompt,
-            tools: [aiOptimizeProductTool, createProductTool],
+            tools: [updateProductDetailsTool, aiOptimizeProductTool, createProductTool],
             model: 'googleai/gemini-2.5-flash',
         });
 
-        const responseText = response.text;
-        
-        // If AI asks a question, update state before returning
+        // After the model runs (and potentially calls tools that update state), save the final state.
         setState(chatId, data);
 
+        const responseText = response.text;
+        
         return { text: responseText };
 
     } catch (error: any) {
