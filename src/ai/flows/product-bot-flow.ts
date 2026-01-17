@@ -92,10 +92,12 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
       ? [{ role: 'model' as const, content: [{ text: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add? You can also upload a photo." }] }]
       : cachedHistory;
 
-    const historyForGenkit = initialHistory.filter(Boolean).map(m => ({
-        role: m.role,
-        content: m.content as Part[],
-    }));
+    const historyForGenkit = initialHistory
+        .filter(m => m && m.content) // Ensure message and its content exist
+        .map(m => ({
+            role: m.role,
+            content: m.content as Part[],
+        }));
     
     // Add the new user message to the history for the API call
     let userMessage = newMessage;
@@ -123,7 +125,12 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     
     // Save the full, updated history back to the cache
     if (response.history) {
-        const newHistoryForCache = response.history.filter(Boolean).map(m => ({ role: m.role, content: m.content }));
+        const newHistoryForCache = response.history
+            .filter(m => m && m.content) // Ensure message and its content exist
+            .map(m => ({
+                role: m.role,
+                content: m.content as any[],
+            }));
         conversationCache.set(chatId, newHistoryForCache);
     }
 
