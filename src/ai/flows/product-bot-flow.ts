@@ -85,22 +85,23 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
   }
 
   try {
-    // Retrieve history from cache, filtering out any invalid entries.
+    // Retrieve history from cache.
     const cachedHistory = conversationCache.get<Message[]>(chatId) || [];
-    const initialHistory: Message[] = cachedHistory.filter((m): m is Message => {
-        return !!(m && m.role && m.content && Array.isArray(m.content));
-    });
+    const initialHistory: Message[] = [];
     
+    // Ultra-defensive history processing when reading from cache.
+    for (const m of cachedHistory) {
+        if (m && m.role && Array.isArray(m.content)) {
+            initialHistory.push({ role: m.role, content: m.content });
+        }
+    }
+
     // If history is empty after filtering, it's a new conversation.
     if (initialHistory.length === 0) {
       initialHistory.push({ role: 'model', content: [{ text: "Hi there! I can help you create a new product. What's the name and price of the product you'd like to add? You can also upload a photo." }] });
     }
-
-    const historyForGenkit = initialHistory
-        .map(m => ({
-            role: m.role,
-            content: m.content as Part[],
-        }));
+    
+    const historyForGenkit = initialHistory.map(m => ({ role: m.role, content: m.content as Part[] }));
     
     // Add the new user message to the history for the API call
     let userMessage = newMessage;
@@ -128,14 +129,16 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     
     // Save the full, updated history back to the cache, filtering for validity.
     if (response.history) {
-        const newHistoryForCache: Message[] = response.history
-            .filter((m): m is { role: 'user' | 'model' | 'tool', content: any[] } => {
-                return !!(m && m.role && m.content && Array.isArray(m.content));
-            })
-            .map(m => ({
-                role: m.role,
-                content: m.content as any[],
-            }));
+        const newHistoryForCache: Message[] = [];
+        for (const m of response.history) {
+            // Ultra-defensive check before pushing to cache.
+            if (m && m.role && m.content && Array.isArray(m.content)) {
+                newHistoryForCache.push({
+                    role: m.role as 'user' | 'model' | 'tool',
+                    content: m.content as any[],
+                });
+            }
+        }
         conversationCache.set(chatId, newHistoryForCache);
     }
 
