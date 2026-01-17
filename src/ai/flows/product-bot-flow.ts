@@ -21,8 +21,10 @@ import { AIProductContent, Settings, WooCategory } from '@/lib/types';
 const ProductBotInputSchema = z.object({
   chatId: z.string(),
   newMessage: z.string().optional(),
-  imageId: z.number().optional().nullable(),
-  imageSrc: z.string().optional().nullable(),
+  images: z.array(z.object({
+      id: z.number(),
+      src: z.string()
+  })).optional(),
 });
 export type ProductBotInput = z.infer<typeof ProductBotInputSchema>;
 
@@ -55,22 +57,24 @@ function setState(chatId: string, data: ProductCreationData) {
 
 // The main flow function
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
-    const { chatId, newMessage, imageId, imageSrc } = input;
+    const { chatId, newMessage, images } = input;
 
     let data = getState(chatId);
 
-    // Handle image upload immediately
-    if (imageId && imageSrc) {
-        if (!data.image_ids.includes(imageId)) {
-            data.image_ids.push(imageId);
-            data.image_srcs.push(imageSrc);
+    // Handle image uploads immediately
+    if (images && images.length > 0) {
+        for (const image of images) {
+            if (!data.image_ids.includes(image.id)) {
+                data.image_ids.push(image.id);
+                data.image_srcs.push(image.src);
+            }
         }
     }
     
     // On a completely new chat with no message, send a welcome message.
-    if (!newMessage && !imageId && Object.keys(data).length <= 2) {
+    if (!newMessage && (!images || images.length === 0) && Object.keys(data).length <= 2) {
         setState(chatId, data); // Save initial empty state
-        return { text: "Hi there! I can help you create a new product. What's the name, price, and Amharic name? You can also upload a photo." };
+        return { text: "Hi there! I can help you create a new product. What's the name, price, and Amharic name? You can also upload photos." };
     }
 
     const [settings, availableCategories] = await Promise.all([
@@ -103,7 +107,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     const aiOptimizeProductTool = ai.defineTool(
         {
             name: 'aiOptimizeProductTool',
-            description: 'MUST be called ONLY when the user confirms to proceed with AI optimization after you have shown them the data summary. This tool runs AI optimization to generate all product fields.',
+            description: 'MUST be called ONLY when the user confirms to proceed with AI optimization by sending the message "AI Optimize Now". This tool runs the AI optimization to generate all product fields.',
             inputSchema: z.object({}),
             outputSchema: z.any(),
         },
@@ -147,9 +151,9 @@ Do you want me to create the product, or save it as a draft?
     const createProductTool = ai.defineTool(
         {
             name: 'createProductTool',
-            description: 'Creates the product in WooCommerce. MUST be called after the user confirms the preview.',
+            description: 'Creates the product in WooCommerce. MUST be called after the user confirms the preview from aiOptimizeProductTool. The user will confirm by sending "Create Product" or "Save as Draft".',
             inputSchema: z.object({
-                status: z.enum(['publish', 'draft']),
+                status: z.enum(['publish', 'draft']).describe('Use "publish" if the user says "Create Product". Use "draft" if the user says "Save as Draft".'),
             }),
             outputSchema: z.any(),
         },
@@ -220,23 +224,22 @@ Your process is as follows:
       Should I go ahead and AI-optimize this content?"
     - Refer to the JSON data at the top of this prompt to get the values for your summary.
 
-3.  **AI Optimize**: Only when the user replies "yes" or gives a positive confirmation to your summary question, you MUST then call the 'aiOptimizeProductTool'.
+3.  **AI Optimize**: Only when the user's message is exactly "AI Optimize Now", you MUST then call the 'aiOptimizeProductTool'.
 
-4.  **Show Preview**: After 'aiOptimizeProductTool' runs, it will return a preview of the AI content. Your response to the user MUST be exactly that preview text.
+4.  **Show Preview**: After 'aiOptimizeProductTool' runs, it will return a preview of the AI content. Your response to the user MUST be exactly that preview text. The preview text ends with the question: 'Do you want me to create the product, or save it as a draft?'
 
-5.  **Create Product**: If the user's message is a confirmation to the preview, like "create it", "save as draft", or "yes", you MUST call the 'createProductTool' with the correct status ('publish' for create, 'draft' for save draft).
+5.  **Create Product**: If the user's message is "Create Product" or "Save as Draft", you MUST call the 'createProductTool' with the correct status ('publish' for "Create Product", and 'draft' for "Save as Draft").
 
 **Important:**
-- If an image is uploaded (user message is empty), just acknowledge it and ask for any other missing details.
+- If images are uploaded (user message is empty), just acknowledge it and ask for any other missing details.
 - Be concise.
     `;
     
     try {
         const response = await ai.generate({
-            prompt: newMessage || "An image was just uploaded.", // Provide context if message is empty
+            prompt: newMessage || "Images were just uploaded.", // Provide context if message is empty
             system: systemPrompt,
             tools: [updateProductDetailsTool, aiOptimizeProductTool, createProductTool],
-            model: 'googleai/gemini-2.5-flash',
         });
 
         // After the model runs (and potentially calls tools that update state), save the final state.

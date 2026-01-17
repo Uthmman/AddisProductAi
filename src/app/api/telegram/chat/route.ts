@@ -5,8 +5,10 @@ import { z } from 'zod';
 const InputSchema = z.object({
   chatId: z.string(),
   newMessage: z.string().optional(),
-  imageId: z.number().optional().nullable(),
-  imageSrc: z.string().optional().nullable(),
+  images: z.array(z.object({
+      id: z.number(),
+      src: z.string()
+  })).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -24,6 +26,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Telegram chat API failed:', error);
-    return NextResponse.json({ text: `Sorry, an internal error occurred: ${error.message}` }, { status: 500 });
+    return NextResponse.json({ text: `I'm sorry, an internal error occurred: ${error.message}` }, { status: 500 });
   }
 }
