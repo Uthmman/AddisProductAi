@@ -1,3 +1,4 @@
+import Header from '@/components/header';
 
 export default function AppLayout({
   children,
@@ -5,8 +6,11 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen">
-      {children}
-    </main>
+    <>
+      <Header />
+      <main>
+        {children}
+      </main>
+    </>
   );
 }
