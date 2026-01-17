@@ -82,11 +82,12 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     const updateProductDetailsTool = ai.defineTool(
         {
             name: 'updateProductDetailsTool',
-            description: "Updates the product details in the current session based on the user's message. Call this if the user provides new information like a name, price, or material.",
+            description: "Updates the product details in the current session based on the user's message. Call this if the user provides new information like a name, price, material, or Amharic name.",
             inputSchema: z.object({
                 raw_name: z.string().optional().describe("The name of the product."),
                 price_etb: z.number().optional().describe("The price of the product."),
                 material: z.string().optional().describe("The material of the product."),
+                amharic_name: z.string().optional().describe("The Amharic name for the product."),
             }),
             outputSchema: z.void(),
         },
@@ -94,21 +95,22 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             if (details.raw_name) data.raw_name = details.raw_name;
             if (details.price_etb) data.price_etb = details.price_etb;
             if (details.material) data.material = details.material;
+            if (details.amharic_name) data.amharic_name = details.amharic_name;
         }
     );
 
     const aiOptimizeProductTool = ai.defineTool(
         {
             name: 'aiOptimizeProductTool',
-            description: 'MUST be called when enough details (name, price, at least one image) are gathered. This tool runs AI optimization to generate all product fields.',
+            description: 'MUST be called ONLY when the user confirms to proceed with AI optimization after you have shown them the data summary. This tool runs AI optimization to generate all product fields.',
             inputSchema: z.object({}),
             outputSchema: z.any(),
         },
         async () => {
-            const currentData = getState(chatId); // Get fresh data
+            const currentData = data; // Use local data from closure
             console.log("Running AI Optimization Tool with data:", currentData);
             if (!currentData.raw_name || !currentData.price_etb || currentData.image_srcs.length === 0) {
-                return "I still need more information before I can optimize. Please provide the product name, price, and at least one image.";
+                return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
             }
 
             const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
@@ -151,7 +153,7 @@ Do you want me to create the product, or save it as a draft?
             outputSchema: z.any(),
         },
         async ({ status }) => {
-            const currentData = getState(chatId); // Get fresh data
+            const currentData = data; // Use local data from closure
             console.log(`Running Create Product Tool with status: ${status}`);
             if (!currentData.aiContent) {
                 return "I can't create the product because the AI content hasn't been generated yet. Please provide more details first.";
@@ -195,20 +197,37 @@ Do you want me to create the product, or save it as a draft?
 
     // The AI's main prompt
     const systemPrompt = `
-You are an advanced conversational assistant for creating products. Your goal is to guide the user to create a product by gathering information, running an AI optimization, showing a preview, and then creating the product based on their confirmation.
+You are an advanced conversational assistant for creating products. Your goal is to guide the user through a clear, step-by-step process.
 
 This is the current information you have for the product being created:
 ${JSON.stringify(data, null, 2)}
 
-Your task is to respond to the user's latest message based on the current product information.
+Your process is as follows:
+1.  **Gather Information**: Your primary goal is to collect the product's **Name**, **Price**, **Amharic Name**, and at least one **Image**.
+    - When the user provides any of these details, you MUST call 'updateProductDetailsTool' to save them.
+    - If any of these core details are missing, ask the user for them clearly. (e.g., "What is the price?", "Please provide the Amharic name.").
 
-- First, analyze the user's message. If it contains new product information (like name, price, or material), you MUST call the 'updateProductDetailsTool' to save this new information.
-- After potentially updating details, check if you now have the 'raw_name', 'price_etb', AND at least one image. If you do, you MUST call the 'aiOptimizeProductTool' to generate the full product content.
-- If you are still missing any of those core details (name, price, image), your main goal is to ask the user for the missing information. Be conversational and clear.
-- After 'aiOptimizeProductTool' runs, it will return a preview. Your response to the user MUST be exactly that preview text.
-- If the user's message is a confirmation like "create it", "save as draft", or "yes", you MUST call the 'createProductTool' with the correct status ('publish' for create, 'draft' for save draft).
-- If an image has just been uploaded (the user message will be empty but the data will show a new image), acknowledge it and ask for any other missing details (like name or price).
-- Keep your questions short and to the point.
+2.  **Confirm and Summarize**: Once you have gathered at least the Name, Price, and one Image, your response MUST STOP asking for information. Instead, you MUST present a summary of the collected data and ask the user if you should proceed with AI optimization.
+    - **Your response MUST follow this structure:**
+      "Great! I have the following details:
+      - Name: [The name you have]
+      - Price: [The price you have] ETB
+      - Amharic Name: [The Amharic name you have, or 'Not set']
+      - Material: [The material you have, or 'Not set']
+      - Images: [Number of images] uploaded
+
+      Should I go ahead and AI-optimize this content?"
+    - Refer to the JSON data at the top of this prompt to get the values for your summary.
+
+3.  **AI Optimize**: Only when the user replies "yes" or gives a positive confirmation to your summary question, you MUST then call the 'aiOptimizeProductTool'.
+
+4.  **Show Preview**: After 'aiOptimizeProductTool' runs, it will return a preview of the AI content. Your response to the user MUST be exactly that preview text.
+
+5.  **Create Product**: If the user's message is a confirmation to the preview, like "create it", "save as draft", or "yes", you MUST call the 'createProductTool' with the correct status ('publish' for create, 'draft' for save draft).
+
+**Important:**
+- If an image is uploaded (user message is empty), just acknowledge it and ask for any other missing details.
+- Be concise.
     `;
     
     try {
