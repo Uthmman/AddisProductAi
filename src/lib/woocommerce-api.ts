@@ -244,3 +244,20 @@ export async function getSettings(): Promise<Partial<Settings>> {
         return {};
     }
 }
+
+export async function updateProductBatch(updates: { update: any[] }): Promise<any> {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/batch`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(updates)
+    });
+    
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error(`Failed to batch update products:`, response.status, errorBody);
+        throw new Error(errorBody.message || 'Failed to batch update products');
+    }
+
+    return await response.json();
+}

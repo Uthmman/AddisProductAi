@@ -332,6 +332,95 @@ function GeneratedContentPreview({ isGenerating, post }: { isGenerating: boolean
   );
 }
 
+function BulkActionBot() {
+  const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [request, setRequest] = useState('');
+  const [response, setResponse] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!request) return;
+
+    setIsProcessing(true);
+    setResponse('');
+    try {
+      const res = await fetch('/api/content/bulk-edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request }),
+      });
+
+      if (!res.ok) {
+        throw new Error((await res.json()).response || 'Failed to process bulk action.');
+      }
+      
+      const data = await res.json();
+      setResponse(data.response);
+      toast({ title: 'Success!', description: 'The bulk action has been processed.' });
+
+    } catch (error: any) {
+      setResponse(`Error: ${error.message}`);
+      toast({ variant: 'destructive', title: 'Action Failed', description: error.message });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+      <Card>
+        <CardHeader>
+          <CardTitle>Bulk Product Actions</CardTitle>
+          <CardDescription>Use natural language to perform bulk edits on your products.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-request">Your Request</Label>
+              <Textarea
+                id="bulk-request"
+                placeholder="e.g., Put all products in the 'Bunk Bed' category on a 15% sale."
+                rows={4}
+                value={request}
+                onChange={(e) => setRequest(e.target.value)}
+                disabled={isProcessing}
+              />
+              <p className="text-xs text-muted-foreground">
+                Examples: "Add the tag 'new-arrival' to all products in the 'Office Table' category." or "Remove all sales from products in 'Sofa Table'."
+              </p>
+            </div>
+            <Button type="submit" disabled={isProcessing || !request} className="w-full">
+              {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+              Run Bulk Action
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+      { (isProcessing || response) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bot Response</CardTitle>
+            <CardDescription>The result of your bulk action request.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isProcessing ? (
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <p>Processing your request...</p>
+              </div>
+            ) : (
+              <div className="p-4 bg-muted rounded-md text-sm whitespace-pre-wrap">
+                {response}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 
 export default function ContentPage() {
   return (
@@ -341,12 +430,16 @@ export default function ContentPage() {
         <TabsList className="mb-4">
           <TabsTrigger value="blog">Blog Post</TabsTrigger>
           <TabsTrigger value="social">Social Media Post</TabsTrigger>
+          <TabsTrigger value="bulk-action">Bulk Actions</TabsTrigger>
         </TabsList>
         <TabsContent value="blog">
           <BlogGenerator />
         </TabsContent>
         <TabsContent value="social">
           <SocialPostGenerator />
+        </TabsContent>
+        <TabsContent value="bulk-action">
+          <BulkActionBot />
         </TabsContent>
       </Tabs>
     </div>
