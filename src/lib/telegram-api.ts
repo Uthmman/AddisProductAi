@@ -1,5 +1,10 @@
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
 import { uploadImage } from '@/lib/woocommerce-api';
+import { promises as fs } from 'fs';
+import path from 'path';
+import Jimp from 'jimp';
+import type { Settings } from './types';
+
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
@@ -46,6 +51,71 @@ async function downloadFile(filePath: string): Promise<string> {
     return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }
 
+async function getSettingsFromFile(): Promise<Partial<Settings>> {
+    const settingsFilePath = path.join(process.cwd(), 'src', 'lib', 'settings.json');
+    try {
+        const fileContent = await fs.readFile(settingsFilePath, 'utf8');
+        return JSON.parse(fileContent);
+    } catch (error) {
+        console.warn('Could not read settings.json for watermarking, returning default empty object.', error);
+        return {};
+    }
+}
+
+async function applyWatermarkServerSide(originalImageDataUri: string, watermarkImageDataUri: string, options: Partial<Settings> = {}): Promise<string> {
+    const {
+        watermarkPlacement = 'bottom-right',
+        watermarkScale = 40,
+        watermarkOpacity = 0.7,
+        watermarkPadding = 5
+    } = options;
+
+    const originalImageBuffer = Buffer.from(originalImageDataUri.split(';base64,').pop()!, 'base64');
+    const originalImage = await Jimp.read(originalImageBuffer);
+
+    const watermarkImageBuffer = Buffer.from(watermarkImageDataUri.split(';base64,').pop()!, 'base64');
+    const watermarkImage = await Jimp.read(watermarkImageBuffer);
+
+    const scale = watermarkScale / 100;
+    const padding = watermarkPadding / 100;
+
+    watermarkImage.resize(originalImage.getWidth() * scale, Jimp.AUTO);
+    watermarkImage.opacity(watermarkOpacity);
+
+    const paddingX = originalImage.getWidth() * padding;
+    const paddingY = originalImage.getHeight() * padding;
+
+    let x = 0, y = 0;
+
+    switch (watermarkPlacement) {
+        case 'bottom-right':
+            x = originalImage.getWidth() - watermarkImage.getWidth() - paddingX;
+            y = originalImage.getHeight() - watermarkImage.getHeight() - paddingY;
+            break;
+        case 'bottom-left':
+            x = paddingX;
+            y = originalImage.getHeight() - watermarkImage.getHeight() - paddingY;
+            break;
+        case 'top-right':
+            x = originalImage.getWidth() - watermarkImage.getWidth() - paddingX;
+            y = paddingY;
+            break;
+        case 'top-left':
+            x = paddingX;
+            y = paddingY;
+            break;
+        case 'center':
+            x = (originalImage.getWidth() - watermarkImage.getWidth()) / 2;
+            y = (originalImage.getHeight() - watermarkImage.getHeight()) / 2;
+            break;
+    }
+
+    originalImage.composite(watermarkImage, x, y);
+
+    return await originalImage.getBase64Async(Jimp.MIME_JPEG);
+}
+
+
 // Main processing function for incoming Telegram updates
 export async function processTelegramUpdate(update: any) {
     const message = update.message;
@@ -75,7 +145,22 @@ export async function processTelegramUpdate(update: any) {
             if (!fileInfo.ok) throw new Error(fileInfo.description || "Could not get file info.");
 
             // Download the file and convert to data URI
-            const dataUri = await downloadFile(fileInfo.result.file_path);
+            let dataUri = await downloadFile(fileInfo.result.file_path);
+
+            // Apply watermark if configured
+            const settings = await getSettingsFromFile();
+            if (settings.watermarkImageUrl && settings.watermarkImageUrl.startsWith('data:image')) {
+                 try {
+                    console.log("Applying watermark to Telegram upload...");
+                    dataUri = await applyWatermarkServerSide(dataUri, settings.watermarkImageUrl, settings);
+                    console.log("Watermark applied successfully.");
+                } catch (watermarkError) {
+                    console.error("Failed to apply watermark to Telegram upload:", watermarkError);
+                    // Non-fatal, just inform the user and proceed
+                    await sendMessage(chatId, "I couldn't apply the watermark due to an error, but I'll proceed with the original image.");
+                }
+            }
+
 
             // Upload to WooCommerce
             const imageName = `telegram_upload_${chatId}_${Date.now()}.jpg`;
