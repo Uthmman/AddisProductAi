@@ -5,7 +5,7 @@ export default function TelegramLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen bg-muted/30">
+    <main className="h-screen overflow-hidden bg-background">
       {children}
     </main>
   );
