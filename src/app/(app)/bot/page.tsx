@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare } from 'lucide-react';
+import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { fileToBase64, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,6 +21,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useGooglePicker } from '@/hooks/use-google-picker';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+
 
 interface Message {
   role: 'user' | 'model';
@@ -44,6 +46,8 @@ export default function BotPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -246,7 +250,6 @@ export default function BotPage() {
     handleImageUpload(imageFiles);
   };
 
-
   const handleNewChat = (makeActive = true) => {
     const newSession: ChatSession = {
       id: `session_web_${Date.now()}`,
@@ -271,7 +274,57 @@ export default function BotPage() {
     setSessionToDelete(null);
   };
   
-  if (!isClient || isLoading) {
+  const handleNewChatAndClose = () => {
+    handleNewChat(true);
+    setIsSheetOpen(false);
+  };
+
+  const handleSelectAndClose = (sessionId: string) => {
+      setActiveSessionId(sessionId);
+      setIsSheetOpen(false);
+  };
+
+  const renderSidebar = () => (
+    <Card className="flex flex-col h-full border-0 md:border shadow-none md:shadow-sm rounded-none md:rounded-lg">
+        <CardHeader>
+            <Button variant="outline" className="w-full" onClick={handleNewChatAndClose}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                New Chat
+            </Button>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-hidden p-2">
+            <ScrollArea className="h-full">
+                <div className="space-y-1">
+                    {sessions.sort((a, b) => b.createdAt - a.createdAt).map(session => (
+                        <div
+                            key={session.id}
+                            onClick={() => handleSelectAndClose(session.id)}
+                            className={cn(
+                                "group flex items-center justify-between p-2 rounded-md cursor-pointer text-sm",
+                                activeSessionId === session.id ? "bg-muted font-semibold" : "hover:bg-muted/50"
+                            )}
+                        >
+                            <div className="flex items-center gap-2 truncate">
+                            <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{session.title}</span>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                                onClick={(e) => { e.stopPropagation(); setSessionToDelete(session.id); }}
+                            >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            </ScrollArea>
+        </CardContent>
+    </Card>
+  );
+
+  if (!isClient || (isLoading && sessions.length === 0)) {
     return <div className="container mx-auto py-10 max-w-6xl flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
@@ -280,52 +333,30 @@ export default function BotPage() {
         <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-4 flex items-center gap-2">
             <Bot className="h-8 w-8" /> Product Creation Bot
         </h1>
-        <div className="grid grid-cols-[280px_1fr] gap-6 flex-1 overflow-hidden">
-            {/* Sidebar */}
-            <Card className="flex flex-col h-full">
-                <CardHeader>
-                    <Button variant="outline" className="w-full" onClick={() => handleNewChat()}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        New Chat
-                    </Button>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-hidden p-2">
-                    <ScrollArea className="h-full">
-                        <div className="space-y-1">
-                            {sessions.sort((a, b) => b.createdAt - a.createdAt).map(session => (
-                                <div
-                                    key={session.id}
-                                    onClick={() => setActiveSessionId(session.id)}
-                                    className={cn(
-                                        "group flex items-center justify-between p-2 rounded-md cursor-pointer text-sm",
-                                        activeSessionId === session.id ? "bg-muted font-semibold" : "hover:bg-muted/50"
-                                    )}
-                                >
-                                    <div className="flex items-center gap-2 truncate">
-                                    <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                                    <span className="truncate">{session.title}</span>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                                        onClick={(e) => { e.stopPropagation(); setSessionToDelete(session.id); }}
-                                    >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    </ScrollArea>
-                </CardContent>
-            </Card>
+        <div className="grid md:grid-cols-[280px_1fr] gap-6 flex-1 overflow-hidden">
+             {/* Sidebar for Desktop */}
+             <div className="hidden md:block h-full">
+                {renderSidebar()}
+            </div>
 
             {/* Main Chat Window */}
             <Card className="flex flex-col h-full">
             {activeSession ? (
                 <>
-                <CardHeader className="border-b">
-                    <CardTitle className="flex items-center gap-2 text-base truncate">
+                <CardHeader className="border-b flex flex-row items-center justify-between">
+                     <CardTitle className="flex items-center gap-2 text-base truncate">
+                        <div className="md:hidden mr-2">
+                             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                        <PanelLeft className="h-5 w-5" />
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent side="left" className="w-[300px] p-0">
+                                    {renderSidebar()}
+                                </SheetContent>
+                            </Sheet>
+                        </div>
                         <Bot /> <span className="truncate">{activeSession.title}</span>
                     </CardTitle>
                 </CardHeader>
@@ -443,5 +474,3 @@ export default function BotPage() {
     </div>
   );
 }
-
-    

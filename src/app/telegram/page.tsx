@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare } from 'lucide-react';
+import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { fileToBase64, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 declare global {
   interface Window {
@@ -49,6 +50,7 @@ export default function TelegramMiniAppPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -265,16 +267,24 @@ export default function TelegramMiniAppPage() {
     setSessionToDelete(null);
   };
   
+  const handleNewChatAndClose = () => {
+    handleNewChat(true);
+    setIsSheetOpen(false);
+  };
+
+  const handleSelectAndClose = (sessionId: string) => {
+      setActiveSessionId(sessionId);
+      setIsSheetOpen(false);
+  };
+  
   if (!isClient) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
-  return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div className="w-64 flex-shrink-0 border-r bg-muted/20 flex flex-col h-full">
+  const renderSidebar = () => (
+    <div className="w-full md:w-64 flex-shrink-0 border-r-0 md:border-r bg-muted/20 flex flex-col h-full">
         <div className="p-2">
-            <Button variant="outline" className="w-full" onClick={() => handleNewChat()}>
+            <Button variant="outline" className="w-full" onClick={handleNewChatAndClose}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 New Chat
             </Button>
@@ -284,7 +294,7 @@ export default function TelegramMiniAppPage() {
                 {sessions.sort((a, b) => b.createdAt - a.createdAt).map(session => (
                     <div
                         key={session.id}
-                        onClick={() => setActiveSessionId(session.id)}
+                        onClick={() => handleSelectAndClose(session.id)}
                         className={cn(
                             "group flex items-center justify-between p-2 rounded-md cursor-pointer text-sm",
                             activeSessionId === session.id ? "bg-primary/10 text-primary font-semibold" : "hover:bg-muted"
@@ -307,13 +317,33 @@ export default function TelegramMiniAppPage() {
             </div>
         </ScrollArea>
       </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <div className="hidden md:flex h-full">
+        {renderSidebar()}
+      </div>
 
       {/* Main Chat Window */}
       <div className="flex-1 flex flex-col h-full">
         {activeSession ? (
           <Card className="flex-1 flex flex-col shadow-none border-0 rounded-none">
-            <CardHeader className="border-b">
+            <CardHeader className="border-b flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base truncate">
+                <div className="md:hidden mr-2">
+                    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                      <SheetTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                              <PanelLeft className="h-5 w-5" />
+                          </Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="w-[300px] p-0 bg-muted/20">
+                          {renderSidebar()}
+                      </SheetContent>
+                  </Sheet>
+                </div>
                 <Bot /> <span className="truncate">{activeSession.title}</span>
               </CardTitle>
             </CardHeader>
