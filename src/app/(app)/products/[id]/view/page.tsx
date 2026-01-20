@@ -2,7 +2,7 @@ import { getProduct } from "@/lib/woocommerce-api";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Edit, ExternalLink, Image as ImageIcon } from "lucide-react";
+import { Edit, ExternalLink, Image as ImageIcon, FileText } from "lucide-react";
 import { WooProduct } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -60,7 +60,7 @@ export default async function ProductViewPage({ params }: ProductPageProps) {
           <h1 className="text-2xl sm:text-3xl font-bold font-headline">{product.name}</h1>
           <p className="text-muted-foreground mt-1">{product.categories.map(c => c.name).join(', ')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
             <Button asChild variant="outline">
               <Link href={product.permalink} target="_blank">
                 <ExternalLink className="mr-2 h-4 w-4" />
@@ -71,6 +71,12 @@ export default async function ProductViewPage({ params }: ProductPageProps) {
               <Link href={`/products/${product.id}`}>
                 <Edit className="mr-2 h-4 w-4" />
                 Edit Product
+              </Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href={`/content?tab=social&productId=${product.id}`}>
+                <FileText className="mr-2 h-4 w-4" />
+                Generate Social Post
               </Link>
             </Button>
         </div>

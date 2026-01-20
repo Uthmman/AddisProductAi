@@ -6,6 +6,7 @@ import { useForm, useForm as useSocialForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -110,7 +111,7 @@ function BlogGenerator() {
   );
 }
 
-function SocialPostGenerator() {
+function SocialPostGenerator({ productId: defaultProductId }: { productId: string | null }) {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPost, setGeneratedPost] = useState<SocialPost | null>(null);
@@ -119,8 +120,15 @@ function SocialPostGenerator() {
 
   const form = useSocialForm<SocialPostFormValues>({
     resolver: zodResolver(SocialPostSchema),
-    defaultValues: { productId: '', platform: 'telegram', topic: '', tone: 'descriptive' },
+    defaultValues: { productId: defaultProductId || '', platform: 'telegram', topic: '', tone: 'descriptive' },
   });
+  
+  useEffect(() => {
+    if (defaultProductId) {
+      form.setValue('productId', defaultProductId);
+    }
+  }, [defaultProductId, form]);
+
 
   useEffect(() => {
     async function fetchProducts() {
@@ -185,7 +193,7 @@ function SocialPostGenerator() {
                 <FormItem>
                   <FormLabel>Product</FormLabel>
                   {isLoadingProducts ? <Skeleton className="h-10 w-full" /> : (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                             <SelectTrigger><SelectValue placeholder="Select a product" /></SelectTrigger>
                         </FormControl>
@@ -423,10 +431,14 @@ function BulkActionBot() {
 
 
 export default function ContentPage() {
+  const searchParams = useSearchParams();
+  const tab = searchParams.get('tab');
+  const productId = searchParams.get('productId');
+
   return (
     <div className="container mx-auto py-10 max-w-6xl">
       <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-6">Content Generator</h1>
-      <Tabs defaultValue="blog" className="w-full">
+      <Tabs defaultValue={tab || 'blog'} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="blog">Blog Post</TabsTrigger>
           <TabsTrigger value="social">Social Media Post</TabsTrigger>
@@ -436,7 +448,7 @@ export default function ContentPage() {
           <BlogGenerator />
         </TabsContent>
         <TabsContent value="social">
-          <SocialPostGenerator />
+          <SocialPostGenerator productId={productId} />
         </TabsContent>
         <TabsContent value="bulk-action">
           <BulkActionBot />
