@@ -347,7 +347,7 @@ export default function TelegramMiniAppPage() {
                 <Bot /> <span className="truncate">{activeSession.title}</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden p-4">
+            <CardContent className="flex-1 flex flex-col gap-4 p-4">
               <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
                 <div className="space-y-4">
                   {messages.map((msg, index) => {
@@ -464,3 +464,5 @@ export default function TelegramMiniAppPage() {
     </div>
   );
 }
+
+    
