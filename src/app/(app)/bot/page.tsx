@@ -111,7 +111,10 @@ export default function BotPage() {
   // Scroll to bottom of chat
   useEffect(() => {
     if (scrollAreaRef.current) {
-        scrollAreaRef.current.scrollTo(0, scrollAreaRef.current.scrollHeight);
+        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+        if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
+        }
     }
   }, [messages]);
 
@@ -474,5 +477,3 @@ export default function BotPage() {
     </div>
   );
 }
-
-    

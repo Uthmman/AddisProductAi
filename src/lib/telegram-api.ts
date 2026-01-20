@@ -174,6 +174,11 @@ export async function processTelegramUpdate(update: any) {
         }
     }
 
+    // If there's text and no photo, send a thinking message
+    if (text && !photos) {
+        await sendMessage(chatId, "Thinking...");
+    }
+
     // 2. Call the Product Bot Flow
     try {
         const botResponse = await productBotFlow({

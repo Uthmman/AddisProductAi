@@ -320,7 +320,7 @@ export default function TelegramMiniAppPage() {
   );
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex flex-1 overflow-hidden">
       {/* Sidebar */}
       <div className="hidden md:flex h-full">
         {renderSidebar()}
@@ -464,5 +464,3 @@ export default function TelegramMiniAppPage() {
     </div>
   );
 }
-
-    
