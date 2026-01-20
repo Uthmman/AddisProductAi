@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useGooglePicker } from '@/hooks/use-google-picker';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 
 interface Message {
@@ -356,6 +356,8 @@ export default function BotPage() {
                                     </Button>
                                 </SheetTrigger>
                                 <SheetContent side="left" className="w-[300px] p-0">
+                                    <SheetTitle className="sr-only">Chat Sessions</SheetTitle>
+                                    <SheetDescription className="sr-only">Select a chat or start a new one.</SheetDescription>
                                     {renderSidebar()}
                                 </SheetContent>
                             </Sheet>

@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 declare global {
   interface Window {
@@ -340,6 +340,8 @@ export default function TelegramMiniAppPage() {
                           </Button>
                       </SheetTrigger>
                       <SheetContent side="left" className="w-[300px] p-0 bg-muted/20">
+                          <SheetTitle className="sr-only">Chat Sessions</SheetTitle>
+                          <SheetDescription className="sr-only">Select a chat or start a new one.</SheetDescription>
                           {renderSidebar()}
                       </SheetContent>
                   </Sheet>
