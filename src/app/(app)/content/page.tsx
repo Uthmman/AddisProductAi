@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useForm, useForm as useSocialForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -430,7 +430,7 @@ function BulkActionBot() {
 }
 
 
-export default function ContentPage() {
+function ContentPageInner() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab');
   const productId = searchParams.get('productId');
@@ -456,4 +456,12 @@ export default function ContentPage() {
       </Tabs>
     </div>
   );
+}
+
+export default function ContentPage() {
+    return (
+        <Suspense>
+            <ContentPageInner />
+        </Suspense>
+    )
 }
