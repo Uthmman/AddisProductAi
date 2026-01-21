@@ -1,7 +1,4 @@
 import { WooProduct, WooCategory, Settings } from './types';
-import * as dotenv from 'dotenv';
-
-dotenv.config({ path: ['.env.local', '.env'] });
 
 
 // In a real app, you would fetch from your WooCommerce API.
