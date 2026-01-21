@@ -1,7 +1,4 @@
 'use server';
-import { config } from 'dotenv';
-config({ path: ['.env.local', '.env'] });
-
 import '@/ai/flows/generate-woocommerce-product-content.ts';
 import '@/ai/flows/generate-blog-post.ts';
 import '@/ai/flows/generate-social-media-post.ts';

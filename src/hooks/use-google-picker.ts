@@ -22,7 +22,7 @@ export function useGooglePicker({ onSelect }: UseGooglePickerProps) {
   const [isPickerLoading, setIsPickerLoading] = useState(false);
   const [oauthToken, setOauthToken] = useState<string | null>(null);
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY || '';
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const scope = ['https://www.googleapis.com/auth/photoslibrary.readonly'];
 
@@ -80,7 +80,7 @@ export function useGooglePicker({ onSelect }: UseGooglePickerProps) {
       toast({
         variant: 'destructive',
         title: 'Configuration Error',
-        description: 'Google API Key or Client ID is missing.',
+        description: 'Google Picker API Key or Client ID is missing. Please check your .env.local file.',
       });
       return;
     }
