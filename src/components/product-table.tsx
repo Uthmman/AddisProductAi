@@ -62,19 +62,21 @@ export default function ProductTable() {
     try {
       const categoryQuery = selectedCategory !== 'all' ? `&category=${selectedCategory}` : '';
       const response = await fetch(`/api/products?page=${page}&per_page=${perPage}${categoryQuery}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch products');
-      }
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch products');
+      }
+
       setProducts(data.products || []);
       setTotalPages(data.totalPages || 1);
       setTotalProducts(data.totalProducts || 0);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch products:", error);
       setProducts([]); // Set to empty array on error
       toast({
         title: "Error",
-        description: "Could not load products.",
+        description: error.message || "Could not load products.",
         variant: "destructive",
       });
     } finally {

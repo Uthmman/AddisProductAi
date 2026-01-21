@@ -10,9 +10,9 @@ export async function GET(request: NextRequest) {
   try {
     const { products, totalPages, totalProducts } = await wooCommerceApi.getProducts(page, perPage, category);
     return NextResponse.json({ products, totalPages, totalProducts });
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
-    return NextResponse.json({ message: 'Failed to fetch products' }, { status: 500 });
+    return NextResponse.json({ message: error.message || 'Failed to fetch products' }, { status: 500 });
   }
 }
 
