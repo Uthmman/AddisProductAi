@@ -5,8 +5,9 @@ import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Lightbulb, PlusCircle, RefreshCw } from "lucide-react";
+import { Lightbulb, PlusCircle, RefreshCw, Terminal } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 type Suggestion = {
   name: string;
@@ -104,13 +105,19 @@ export default function ProductSuggestions() {
         </Button>
       </div>
 
-      {error && <p className="text-destructive text-center p-4 bg-destructive/10 rounded-md">{error}</p>}
+      {error && (
+        <Alert variant="destructive">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Suggestion Failed</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {!error && !isLoading && suggestions.length === 0 && hasFetched && (
         <p className="text-muted-foreground text-center p-4">No new product suggestions found based on your current search data.</p>
       )}
 
-      {suggestions.length > 0 && (
+      {!error && suggestions.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {suggestions.map((suggestion, index) => (
             <Card key={index} className="flex flex-col">

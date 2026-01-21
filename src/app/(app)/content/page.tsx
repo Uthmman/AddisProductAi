@@ -13,13 +13,14 @@ import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw } from 'lucide-react';
+import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WooProduct } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const PostGeneratorSchema = z.object({
   topic: z.string().min(5, 'Please enter a topic with at least 5 characters.'),
@@ -120,9 +121,15 @@ function BlogTopicSuggestions({ onSelectTopic }: { onSelectTopic: (topic: string
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+            <Alert variant="destructive">
+              <Terminal className="h-4 w-4" />
+              <AlertTitle>Suggestion Failed</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+        )}
         {!error && topics.length === 0 && <p className="text-sm text-muted-foreground">No topic suggestions found based on your current search data.</p>}
-        {topics.map((topic, index) => (
+        {!error && topics.map((topic, index) => (
           <Button key={index} variant="outline" className="text-left justify-start h-auto py-2" onClick={() => onSelectTopic(topic)}>
             {topic}
           </Button>
