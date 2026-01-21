@@ -10,7 +10,7 @@
  * - GenerateBlogPostOutput - The output type for the function.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, runPrompt } from '@/ai/genkit';
 import { z } from 'genkit';
 
 // Define the input schema for the flow
@@ -63,7 +63,7 @@ const generateBlogPostFlow = ai.defineFlow(
     outputSchema: GenerateBlogPostOutputSchema,
   },
   async (input) => {
-    const { output } = await generateBlogPostPrompt(input);
+    const { output } = await runPrompt(generateBlogPostPrompt, input);
     return output!;
   }
 );

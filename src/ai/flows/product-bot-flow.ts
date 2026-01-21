@@ -9,7 +9,7 @@
  * - ProductBotOutput - The output type, containing the bot's response.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, generate } from '@/ai/genkit';
 import { z } from 'zod';
 import { appCache } from '@/lib/cache';
 import { generateWooCommerceProductContent } from './generate-woocommerce-product-content';
@@ -236,7 +236,7 @@ Your process is as follows:
     `;
     
     try {
-        const response = await ai.generate({
+        const response = await generate({
             prompt: newMessage || "Images were just uploaded.", // Provide context if message is empty
             system: systemPrompt,
             tools: [updateProductDetailsTool, aiOptimizeProductTool, createProductTool],

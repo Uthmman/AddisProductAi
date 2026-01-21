@@ -11,7 +11,7 @@
  * - GenerateSocialMediaPostOutput - The output type.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai, runPrompt } from '@/ai/genkit';
 import { WooProduct, Settings } from '@/lib/types';
 import { z } from 'genkit';
 
@@ -128,7 +128,7 @@ const generateSocialMediaPostFlow = ai.defineFlow(
     outputSchema: GenerateSocialMediaPostOutputSchema,
   },
   async (input) => {
-    const { output } = await generateSocialMediaPostPrompt(input);
+    const { output } = await runPrompt(generateSocialMediaPostPrompt, input);
     return output!;
   }
 );

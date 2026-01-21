@@ -1,5 +1,5 @@
 'use server';
-import { ai } from '@/ai/genkit';
+import { ai, runPrompt } from '@/ai/genkit';
 import { z } from 'zod';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 
@@ -35,7 +35,7 @@ const actionPrompt = ai.definePrompt({
 export async function bulkProductActionFlow(request: string) {
   const allCategories = await wooCommerceApi.getAllProductCategories();
   
-  const { output: plan } = await actionPrompt({ request, categories: allCategories });
+  const { output: plan } = await runPrompt(actionPrompt, { request, categories: allCategories });
 
   if (!plan) {
     throw new Error("I could not understand your request. Please try phrasing it differently.");

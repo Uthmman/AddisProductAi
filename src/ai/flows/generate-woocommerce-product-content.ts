@@ -11,7 +11,7 @@
  * - GenerateWooCommerceProductContentOutput - The output type for the function.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, runPrompt} from '@/ai/genkit';
 import {z} from 'genkit';
 
 // Define the input schema for the flow
@@ -152,7 +152,7 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
         contextInput.images_data = [contextInput.images_data[0]];
     }
 
-    const {output} = await generateWooCommerceProductContentPrompt(contextInput);
+    const {output} = await runPrompt(generateWooCommerceProductContentPrompt, contextInput);
     return output!;
   }
 );
