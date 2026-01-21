@@ -23,7 +23,17 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
   if (!response.ok) {
     const errorBody = await response.text();
     console.error("Failed to fetch products:", response.status, errorBody);
-    throw new Error('Failed to fetch products');
+    
+    let message = `Failed to fetch products. Status: ${response.status}`;
+    try {
+        const errorJson = JSON.parse(errorBody);
+        if (errorJson.message) {
+            message = errorJson.message;
+        }
+    } catch(e) {
+        // Not a JSON response, maybe it's html. The console log above will have it.
+    }
+    throw new Error(message);
   }
 
   const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '1', 10);
