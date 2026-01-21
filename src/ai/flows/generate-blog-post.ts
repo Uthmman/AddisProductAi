@@ -16,6 +16,7 @@ import { z } from 'genkit';
 // Define the input schema for the flow
 const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The main topic or title for the blog post.'),
+  gscData: z.array(z.any()).optional().describe('An array of top search queries from Google Search Console.'),
 });
 export type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
 
@@ -43,9 +44,16 @@ const generateBlogPostPrompt = ai.definePrompt({
 
 Topic: {{{topic}}}
 
+{{#if gscData}}
+**Google Search Console Insights (Top User Queries):**
+Use this data as your primary source of inspiration. Analyze what users are searching for and write a blog post that directly addresses one of their problems or provides information they would find valuable. The user-provided "Topic" above should be considered a secondary suggestion if the GSC data isn't relevant.
+
+{{{json gscData}}}
+{{/if}}
+
 Instructions:
-1.  **Title:** Write a catchy, SEO-friendly title for the blog post based on the given topic.
-2.  **Content:** Write an engaging and informative blog post of about 400-500 words.
+1.  **Title:** Write a catchy, SEO-friendly title for the blog post based on the topic and any relevant GSC queries.
+2.  **Content:** Write an engaging and informative blog post of about 400-500 words. If GSC data is present, make sure the content is highly relevant to those user searches.
 3.  **Formatting:** Structure the content using HTML tags like <p>, <h2>, <h3>, <ul>, and <li> for readability.
 4.  **Local SEO:** Naturally incorporate keywords relevant to the Ethiopian and Addis Ababa market. Mention places, local customs, or trends if applicable. Use Amharic words where it feels natural (e.g., 'Habesha home', 'injera table').
 5.  **Call to Action:** End the post with a compelling call to action, encouraging readers to visit the website, check out products, or contact the company.
