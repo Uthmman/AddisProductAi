@@ -16,6 +16,7 @@ import { generateWooCommerceProductContent } from './generate-woocommerce-produc
 import { createProduct, getSettings, getAllProductCategories } from '@/lib/woocommerce-api';
 import { AIProductContent, Settings, WooCategory } from '@/lib/types';
 import { suggestProductsTool } from '../tools/suggest-products-tool';
+import { getGscTopQueries } from '@/lib/gsc-api';
 
 
 // Define the input schema for the flow
@@ -121,6 +122,8 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 }
 
                 const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
+                
+                const gscData = await getGscTopQueries();
 
                 const aiContent = await generateWooCommerceProductContent({
                     raw_name: currentData.raw_name,
@@ -133,6 +136,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                     settings,
                     primaryCategory,
                     fieldToGenerate: 'all',
+                    gscData: gscData ?? undefined,
                 });
                 
                 data.aiContent = aiContent; // Update data in the outer scope
