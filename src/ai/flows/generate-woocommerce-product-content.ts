@@ -13,6 +13,7 @@
 
 import {ai, runPrompt} from '@/ai/genkit';
 import {z} from 'genkit';
+import { suggestSeoKeywordsTool } from '../tools/suggest-seo-keywords-tool';
 
 // Define the input schema for the flow
 const GenerateWooCommerceProductContentInputSchema = z.object({
@@ -87,20 +88,26 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
   name: 'generateWooCommerceProductContentPrompt',
   input: {schema: GenerateWooCommerceProductContentInputSchema},
   output: {schema: GenerateWooCommerceProductContentOutputSchema},
-  prompt: `You are a specialized e-commerce content optimizer, focused on high conversion and excellent SEO performance in the **Addis Ababa, Ethiopia** market. Analyze the product images and data to generate a complete, SEO-optimized JSON object for a WooCommerce product update. The name must be refined for specificity, and Amharic input must be leveraged for local search optimization (Amharic keywords are high-value). The output MUST be a single, valid JSON object with NO external text.
+  tools: [suggestSeoKeywordsTool],
+  prompt: `You are a specialized e-commerce content optimizer for the **Addis Ababa, Ethiopia** market. Your task is to generate a complete, SEO-optimized JSON object for a WooCommerce product.
 
-**Key Content Requirements:**
+**Your process is as follows:**
+1.  **Analyze SEO**: First, call the \`suggestSeoKeywordsTool\`. Use the provided 'raw_name' and 'focus_keywords' from the user input to get a strategic list of SEO tags and a primary "Focus Keyphrase".
+2.  **Generate Content**: After you have the SEO strategy from the tool, generate all the product fields in the JSON output. All content you create MUST be based on the "Focus Keyphrase" and "Tags" returned by the tool.
+
+**Key Content Requirements (Apply these AFTER using the tool):**
 1.  **Description:** Generate a compelling, SEO-rich product description of approximately 300 words. Format it with HTML tags (e.g., <p>, <strong>, <ul>, <li>).
 2.  **Amharic Keyword Integration:** Weave relevant Amharic words and phrases naturally into the product description to improve local SEO and connect with customers. For example, use terms like 'የቤት ዕቃዎች' (yebēt ‘əqawoch, for furniture), 'ዋጋ' (waga, for price), 'ዘመናዊ' (zemenawi, for modern), or other descriptive local terms.
 3.  **Linking Strategy:**
     *   **Inbound Link:** Naturally weave an inbound link into the description pointing to the product's primary category page. Use the format \`<a href="/product-category/{{{primaryCategory.slug}}}/">Explore more {{{primaryCategory.name}}}</a>\`.
     *   **Outbound Links:** Naturally integrate outbound links to the provided social media pages and a telephone link. For the phone, use the format \`<a href="tel:{{{settings.phoneNumber}}}">call us</a>\`. For social media, link relevant phrases to the URLs provided in the settings.
 4.  **Yoast SEO:**
-    *   **Focus Keyphrase:** Generate a primary "Focus Keyphrase" for the \`_yoast_wpseo_focuskw\` field. This keyphrase MUST NOT be more than 4 words.
+    *   **Focus Keyphrase:** The \`_yoast_wpseo_focuskw\` field MUST be the **exact** "Focus Keyphrase" you received from the tool.
     *   **Meta Description:** Generate a concise meta description for \`_yoast_wpseo_metadesc\`. This description MUST contain the exact Focus Keyphrase.
-    *   **Title and Description Integration:** The exact Focus Keyphrase MUST be present in the generated product \`name\` (SEO Title) and within the first paragraph of the product \`description\`.
-5.  **Image Alt Text:** Create descriptive alt text for each image that includes SEO keywords like 'zenbaba furniture', 'ethiopia', 'addis ababa', and the product's Amharic name ({{{amharic_name}}}).
+    *   **Title and Description Integration:** The generated product \`name\` (SEO Title) and the first paragraph of the \`description\` MUST include the exact Focus Keyphrase.
+5.  **Image Alt Text:** Create descriptive alt text for each image that includes the Focus Keyphrase, 'zenbaba furniture', 'ethiopia', 'addis ababa', and the product's Amharic name ({{{amharic_name}}}).
 6.  **Categories:** Select the most relevant categories from the provided list. Your response for 'categories' should be an array of category NAME strings.
+7.  **Tags**: The tags you generate in the output JSON MUST be the list of "Tags" you received from the tool.
 
 **Business & Link Information:**
 - Phone Number: {{{settings.phoneNumber}}}
