@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition, useCallback, useMemo } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -62,6 +62,7 @@ type SaveAction = 'publish' | 'draft';
 
 export default function ProductForm({ product }: ProductFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [generatingField, setGeneratingField] = useState<GeneratingField>(null);
@@ -96,6 +97,16 @@ export default function ProductForm({ product }: ProductFormProps) {
       amharic_name: product?.meta_data.find(m => m.key === 'amharic_name')?.value || "",
     },
   });
+
+  // Pre-fill name from URL query param for new products
+  useEffect(() => {
+    if (!product) { // Only run for new products
+      const suggestedName = searchParams.get('name');
+      if (suggestedName) {
+        form.setValue('raw_name', suggestedName);
+      }
+    }
+  }, [searchParams, product, form]);
 
   // Load from local storage on mount
   useEffect(() => {

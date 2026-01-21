@@ -46,6 +46,67 @@ type SocialPost = {
     productName?: string;
 };
 
+function BlogTopicSuggestions({ onSelectTopic }: { onSelectTopic: (topic: string) => void }) {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [topics, setTopics] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function fetchTopics() {
+      setIsLoading(true);
+      try {
+        const res = await fetch('/api/content/suggest-blog-topics');
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to fetch topic suggestions.');
+        }
+        setTopics(data.topics || []);
+      } catch (err: any) {
+        // This is not a critical error, so just log it. Don't show a toast.
+        console.error("Could not load topic suggestions:", err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchTopics();
+  }, [toast]);
+
+  if (isLoading && topics.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Suggested Topics</CardTitle>
+          <CardDescription>AI-powered suggestions based on your top search queries.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (topics.length === 0) {
+    return null; // Don't show the card if there are no topics or if it failed
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Suggested Topics</CardTitle>
+        <CardDescription>AI-powered suggestions based on your top search queries.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        {topics.map((topic, index) => (
+          <Button key={index} variant="outline" className="text-left justify-start h-auto py-2" onClick={() => onSelectTopic(topic)}>
+            {topic}
+          </Button>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
+
 function BlogGenerator() {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -80,33 +141,43 @@ function BlogGenerator() {
     }
   };
 
+  const handleSelectTopic = (topic: string) => {
+    form.setValue('topic', topic);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-      <Card>
-        <CardHeader>
-          <CardTitle>Generate a Blog Post</CardTitle>
-          <CardDescription>Enter a topic to generate a blog post optimized for SEO.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField control={form.control} name="topic" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Topic</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="e.g., 'Top 5 modern furniture trends in Ethiopia'" {...field} rows={3} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <Button type="submit" disabled={isGenerating} className="w-full">
-                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Generate Post
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+        <div>
+            <Card>
+                <CardHeader>
+                <CardTitle>Generate a Blog Post</CardTitle>
+                <CardDescription>Enter a topic, or choose a suggestion to generate a blog post optimized for SEO.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="topic" render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Topic</FormLabel>
+                        <FormControl>
+                            <Textarea placeholder="e.g., 'Top 5 modern furniture trends in Ethiopia'" {...field} rows={3} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )} />
+                    <Button type="submit" disabled={isGenerating} className="w-full">
+                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        Generate Post
+                    </Button>
+                    </form>
+                </Form>
+                </CardContent>
+            </Card>
+             <div className="mt-8">
+                <BlogTopicSuggestions onSelectTopic={handleSelectTopic} />
+            </div>
+        </div>
       <GeneratedContentPreview isGenerating={isGenerating} post={generatedPost} />
     </div>
   );
@@ -279,7 +350,7 @@ function GeneratedContentPreview({ isGenerating, post }: { isGenerating: boolean
     };
 
   return (
-    <Card className={!post && !isGenerating ? 'hidden' : ''}>
+    <Card className={!post && !isGenerating ? 'hidden md:block' : ''}>
       <CardHeader>
         <CardTitle>Generated Content</CardTitle>
         <CardDescription>Review the AI-generated content. You can copy it to your clipboard.</CardDescription>

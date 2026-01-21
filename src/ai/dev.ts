@@ -1,3 +1,4 @@
+'use server';
 import { config } from 'dotenv';
 config({ path: ['.env.local', '.env'] });
 
@@ -6,3 +7,5 @@ import '@/ai/flows/generate-blog-post.ts';
 import '@/ai/flows/generate-social-media-post.ts';
 import '@/ai/flows/product-bot-flow.ts';
 import '@/ai/flows/bulk-product-action-flow.ts';
+import '@/ai/flows/suggest-blog-topics-flow.ts';
+import '@/ai/flows/suggest-products-flow.ts';

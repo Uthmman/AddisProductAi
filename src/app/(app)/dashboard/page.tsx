@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import ProductTable from "@/components/product-table";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import ProductSuggestions from "@/components/product-suggestions";
 
 export const metadata = {
   title: "Dashboard | Addis Product AI",
@@ -12,6 +13,10 @@ export const metadata = {
 export default function DashboardPage() {
   return (
     <div className="container mx-auto py-6 sm:py-10">
+      <Suspense fallback={<ProductSuggestions.Skeleton />}>
+        <ProductSuggestions />
+      </Suspense>
+
       <div className="flex flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-2xl sm:text-3xl font-bold font-headline">Products</h1>
         <Button asChild>
