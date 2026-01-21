@@ -1,22 +1,23 @@
-import {genkit, type GenerateRequest, type Prompt} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
-import {z} from 'zod';
+import { genkit, type GenerateRequest, type Prompt } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
+import { z } from 'zod';
 
-// Configure the Gemini plugin.
+// Configure Genkit plugins
 export const ai = genkit({
   plugins: [
     googleAI({
       apiKey: process.env.GOOGLE_API_KEY,
-      apiVersion: 'v1', // Use v1 for stable models
+      apiVersion: ['v1beta', 'v1'], // Prioritize v1beta for newer features
     }),
   ],
 });
 
-const model = 'googleai/gemini-pro';
+
+const model = 'googleai/gemini-1.5-flash-latest';
 
 // Wrapper for direct `ai.generate` calls.
-export async function generate(request: GenerateRequest) {
-  const newRequest = {...request, model };
+export async function generate(request: Omit<GenerateRequest, 'model'>) {
+  const newRequest = { ...request, model };
   return ai.generate(newRequest);
 }
 

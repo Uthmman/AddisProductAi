@@ -18,6 +18,7 @@ import { fileToBase64 } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { appCache } from '@/lib/cache';
 
 const SettingsSchema = z.object({
   phoneNumber: z.string().optional(),
@@ -128,6 +129,9 @@ export default function SettingsPage() {
       if (!response.ok) {
         throw new Error('Failed to save settings');
       }
+      
+      // Clear the cache so the AI flow picks up the new setting
+      appCache.del('app_settings');
 
       toast({
         title: 'Success!',

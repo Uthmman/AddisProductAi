@@ -66,5 +66,4 @@ export interface Settings {
     watermarkScale?: number;
     watermarkOpacity?: number;
     watermarkPadding?: number;
-    aiProvider?: 'gemini' | 'groq';
 }
