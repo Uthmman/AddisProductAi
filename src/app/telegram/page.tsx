@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { fileToBase64, cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 declare global {
   interface Window {
@@ -105,10 +105,7 @@ export default function TelegramMiniAppPage() {
   // Scroll to bottom of chat
   useEffect(() => {
     if (scrollAreaRef.current) {
-      const scrollElement = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
+        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -330,7 +327,7 @@ export default function TelegramMiniAppPage() {
       {/* Main Chat Window */}
       <div className="flex-1 flex flex-col h-full">
         {activeSession ? (
-          <Card className="flex-1 flex flex-col shadow-none border-0 rounded-none">
+          <Card className="flex-1 flex flex-col shadow-none border-0 rounded-none overflow-hidden">
             <CardHeader className="border-b flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base truncate">
                 <div className="md:hidden mr-2">
@@ -350,8 +347,7 @@ export default function TelegramMiniAppPage() {
                 <Bot /> <span className="truncate">{activeSession.title}</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
-              <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
+            <CardContent className="flex-1 p-4 overflow-y-auto" ref={scrollAreaRef}>
                 <div className="space-y-4">
                   {messages.map((msg, index) => {
                       const isBot = msg.role === 'model';
@@ -413,8 +409,9 @@ export default function TelegramMiniAppPage() {
                       </div>
                   )}
                 </div>
-              </ScrollArea>
-              <div className="pt-4 flex items-center gap-2">
+            </CardContent>
+            <div className="border-t p-4 bg-background">
+              <div className="flex items-center gap-2">
                   <Input
                       type="file"
                       accept="image/*"
@@ -437,7 +434,7 @@ export default function TelegramMiniAppPage() {
                       <Send className="h-4 w-4" />
                   </Button>
               </div>
-            </CardContent>
+            </div>
           </Card>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
@@ -467,5 +464,3 @@ export default function TelegramMiniAppPage() {
     </div>
   );
 }
-
-    

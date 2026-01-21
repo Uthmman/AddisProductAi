@@ -112,10 +112,7 @@ export default function BotPage() {
   // Scroll to bottom of chat
   useEffect(() => {
     if (scrollAreaRef.current) {
-        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-        if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
-        }
+        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
 
@@ -333,10 +330,7 @@ export default function BotPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 sm:py-10 max-w-6xl h-[calc(100vh-120px)] flex flex-col">
-        <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-4 flex items-center gap-2">
-            <Bot className="h-8 w-8" /> Product Creation Bot
-        </h1>
+    <div className="container mx-auto max-w-6xl h-[calc(100vh-57px)] flex flex-col pt-6">
         <div className="grid md:grid-cols-[280px_1fr] gap-6 flex-1 overflow-hidden">
              {/* Sidebar for Desktop */}
              <div className="hidden md:block h-full">
@@ -344,7 +338,7 @@ export default function BotPage() {
             </div>
 
             {/* Main Chat Window */}
-            <Card className="flex flex-col h-full">
+            <Card className="flex flex-col h-full overflow-hidden">
             {activeSession ? (
                 <>
                 <CardHeader className="border-b flex flex-row items-center justify-between">
@@ -366,71 +360,71 @@ export default function BotPage() {
                         <Bot /> <span className="truncate">{activeSession.title}</span>
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
-                    <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
-                        <div className="space-y-4">
-                        {messages.map((msg, index) => {
-                            const isBot = msg.role === 'model';
-                            const showOptimizeButton = isBot && msg.content.includes("Should I go ahead and AI-optimize this content?");
-                            const showCreateButtons = isBot && msg.content.includes("create the product, or save it as a draft?");
+                <CardContent className="flex-1 p-4 overflow-y-auto" ref={scrollAreaRef}>
+                    <div className="space-y-4">
+                    {messages.map((msg, index) => {
+                        const isBot = msg.role === 'model';
+                        const showOptimizeButton = isBot && msg.content.includes("Should I go ahead and AI-optimize this content?");
+                        const showCreateButtons = isBot && msg.content.includes("create the product, or save it as a draft?");
 
-                            return (
-                                <div key={index} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                                    {isBot && (
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarFallback><Bot size={18} /></AvatarFallback>
-                                        </Avatar>
-                                    )}
-                                    <div
-                                        className={`max-w-xs md:max-w-md rounded-lg p-3 text-sm whitespace-pre-wrap ${
-                                        msg.role === 'user'
-                                            ? (msg.type === 'image' ? 'p-1 bg-transparent' : 'bg-primary text-primary-foreground')
-                                            : 'bg-muted'
-                                        }`}
-                                    >
-                                        {msg.type === 'text' ? (
-                                            <div>
-                                                <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br />').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-                                                {showOptimizeButton && !isLoading && (
-                                                    <div className="mt-2">
-                                                        <Button size="sm" onClick={() => handleActionClick('AI Optimize Now')}>
-                                                            <Sparkles className="mr-2 h-4 w-4" />
-                                                            AI Optimize Now
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                                {showCreateButtons && !isLoading && (
-                                                    <div className="mt-2 flex flex-wrap gap-2">
-                                                        <Button size="sm" onClick={() => handleActionClick('Create Product')}>Create Product</Button>
-                                                        <Button size="sm" variant="outline" onClick={() => handleActionClick('Save as Draft')}>Save as Draft</Button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <Image src={msg.content} alt="Uploaded image" width={200} height={200} className="rounded-md" />
-                                        )}
-                                    </div>
-                                    {msg.role === 'user' && msg.type === 'text' && (
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarFallback><User size={18} /></AvatarFallback>
-                                        </Avatar>
+                        return (
+                            <div key={index} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                                {isBot && (
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarFallback><Bot size={18} /></AvatarFallback>
+                                    </Avatar>
+                                )}
+                                <div
+                                    className={`max-w-xs md:max-w-md rounded-lg p-3 text-sm whitespace-pre-wrap ${
+                                    msg.role === 'user'
+                                        ? (msg.type === 'image' ? 'p-1 bg-transparent' : 'bg-primary text-primary-foreground')
+                                        : 'bg-muted'
+                                    }`}
+                                >
+                                    {msg.type === 'text' ? (
+                                        <div>
+                                            <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br />').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                                            {showOptimizeButton && !isLoading && (
+                                                <div className="mt-2">
+                                                    <Button size="sm" onClick={() => handleActionClick('AI Optimize Now')}>
+                                                        <Sparkles className="mr-2 h-4 w-4" />
+                                                        AI Optimize Now
+                                                    </Button>
+                                                </div>
+                                            )}
+                                            {showCreateButtons && !isLoading && (
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    <Button size="sm" onClick={() => handleActionClick('Create Product')}>Create Product</Button>
+                                                    <Button size="sm" variant="outline" onClick={() => handleActionClick('Save as Draft')}>Save as Draft</Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <Image src={msg.content} alt="Uploaded image" width={200} height={200} className="rounded-md" />
                                     )}
                                 </div>
-                            )
-                        })}
-                        {isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === 'user') && (
-                            <div className="flex items-end gap-2">
-                                <Avatar className="h-8 w-8">
-                                    <AvatarFallback><Bot size={18} /></AvatarFallback>
-                                </Avatar>
-                                <div className="max-w-xs md:max-w-md rounded-lg p-3 bg-muted flex items-center">
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                </div>
+                                {msg.role === 'user' && msg.type === 'text' && (
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarFallback><User size={18} /></AvatarFallback>
+                                    </Avatar>
+                                )}
                             </div>
-                        )}
+                        )
+                    })}
+                    {isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === 'user') && (
+                        <div className="flex items-end gap-2">
+                            <Avatar className="h-8 w-8">
+                                <AvatarFallback><Bot size={18} /></AvatarFallback>
+                            </Avatar>
+                            <div className="max-w-xs md:max-w-md rounded-lg p-3 bg-muted flex items-center">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                            </div>
                         </div>
-                    </ScrollArea>
-                    <div className="pt-4 flex items-center gap-2">
+                    )}
+                    </div>
+                </CardContent>
+                <div className="border-t p-4">
+                    <div className="flex items-center gap-2">
                         <Input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" multiple />
                         <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
                             <Paperclip className="h-4 w-4" />
@@ -449,7 +443,7 @@ export default function BotPage() {
                             <Send className="h-4 w-4" />
                         </Button>
                     </div>
-                </CardContent>
+                </div>
                 </>
             ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-6">
