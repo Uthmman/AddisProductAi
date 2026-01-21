@@ -6,7 +6,11 @@ export async function GET(request: NextRequest) {
   try {
     const gscData = await getGscTopQueries();
     
-    if (!gscData || gscData.length === 0) {
+    if (gscData === null) {
+      return NextResponse.json({ message: "Could not fetch suggestions because Google Search Console integration is not configured correctly on the server." }, { status: 500 });
+    }
+    
+    if (gscData.length === 0) {
       return NextResponse.json({ suggestions: [] });
     }
     
@@ -16,6 +20,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Product suggestion failed:', error);
-    return NextResponse.json({ suggestions: [] });
+    return NextResponse.json({ message: error.message || "An unexpected error occurred while generating suggestions." }, { status: 500 });
   }
 }

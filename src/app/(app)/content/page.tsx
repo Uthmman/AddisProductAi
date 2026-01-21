@@ -56,6 +56,7 @@ function BlogTopicSuggestions({ onSelectTopic }: { onSelectTopic: (topic: string
   async function fetchTopics() {
     setIsLoading(true);
     setError(null);
+    setTopics([]);
     if (!hasFetched) {
         setHasFetched(true);
     }
@@ -66,9 +67,6 @@ function BlogTopicSuggestions({ onSelectTopic }: { onSelectTopic: (topic: string
         throw new Error(data.message || 'Failed to fetch topic suggestions.');
       }
       setTopics(data.topics || []);
-      if ((data.topics || []).length === 0) {
-          setError("No suggestions found. Is your GSC data available?");
-      }
     } catch (err: any) {
       setError(err.message);
       console.error("Could not load topic suggestions:", err.message);
@@ -123,7 +121,7 @@ function BlogTopicSuggestions({ onSelectTopic }: { onSelectTopic: (topic: string
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {!error && topics.length === 0 && <p className="text-sm text-muted-foreground">No topic suggestions found.</p>}
+        {!error && topics.length === 0 && <p className="text-sm text-muted-foreground">No topic suggestions found based on your current search data.</p>}
         {topics.map((topic, index) => (
           <Button key={index} variant="outline" className="text-left justify-start h-auto py-2" onClick={() => onSelectTopic(topic)}>
             {topic}

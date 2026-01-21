@@ -6,8 +6,11 @@ export async function GET(request: NextRequest) {
   try {
     const gscData = await getGscTopQueries();
     
-    // Don't throw an error if GSC data is unavailable, just return empty.
-    if (!gscData || gscData.length === 0) {
+    if (gscData === null) {
+      return NextResponse.json({ message: "Could not fetch suggestions because Google Search Console integration is not configured correctly on the server." }, { status: 500 });
+    }
+    
+    if (gscData.length === 0) {
       return NextResponse.json({ topics: [] });
     }
     
@@ -17,8 +20,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Blog topic suggestion failed:', error);
-    // This API is non-critical, so we return an empty array on failure
-    // to prevent the UI from showing an error.
-    return NextResponse.json({ topics: [] });
+    return NextResponse.json({ message: error.message || "An unexpected error occurred while generating suggestions." }, { status: 500 });
   }
 }

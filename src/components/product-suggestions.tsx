@@ -51,6 +51,7 @@ export default function ProductSuggestions() {
   async function fetchSuggestions() {
     setIsLoading(true);
     setError(null);
+    setSuggestions([]);
     if (!hasFetched) {
         setHasFetched(true);
     }
@@ -63,7 +64,7 @@ export default function ProductSuggestions() {
       setSuggestions(data.suggestions || []);
     } catch (err: any) {
       console.error(err.message);
-      setError("Could not fetch suggestions. Please ensure GSC is set up.");
+      setError(err.message);
       setSuggestions([]);
     } finally {
       setIsLoading(false);
@@ -105,7 +106,7 @@ export default function ProductSuggestions() {
 
       {error && <p className="text-destructive text-center p-4 bg-destructive/10 rounded-md">{error}</p>}
 
-      {!error && suggestions.length === 0 && (
+      {!error && !isLoading && suggestions.length === 0 && hasFetched && (
         <p className="text-muted-foreground text-center p-4">No new product suggestions found based on your current search data.</p>
       )}
 
