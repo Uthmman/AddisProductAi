@@ -3,7 +3,7 @@ import { ai, runPrompt } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const SuggestProductsInputSchema = z.object({
-  gscData: z.array(z.any()).optional().describe('An array of top search queries from Google Search Console.'),
+  gscData: z.array(z.object({}).passthrough()).optional().describe('An array of top search queries from Google Search Console.'),
 });
 
 const SuggestProductsOutputSchema = z.object({

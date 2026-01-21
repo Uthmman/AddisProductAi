@@ -8,7 +8,7 @@ const SuggestSeoKeywordsInputSchema = z.object({
   productName: z.string().describe('The name of the product.'),
   productDescription: z.string().optional().describe('A brief description of the product.'),
   existingKeywords: z.string().optional().describe('Any existing keywords the user has already provided.'),
-  gscData: z.array(z.any()).optional().describe('An array of top search queries from Google Search Console, including keys, clicks, and impressions.'),
+  gscData: z.array(z.object({}).passthrough()).optional().describe('An array of top search queries from Google Search Console, including keys, clicks, and impressions.'),
 });
 
 const SuggestSeoKeywordsOutputSchema = z.object({

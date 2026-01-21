@@ -53,7 +53,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
       name: z.string(),
       slug: z.string(),
   }).optional().describe('The primary category of the product, used for creating inbound links.'),
-  gscData: z.array(z.any()).optional().describe('An array of top search queries from Google Search Console.'),
+  gscData: z.array(z.object({}).passthrough()).optional().describe('An array of top search queries from Google Search Console.'),
 });
 export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooCommerceProductContentInputSchema>;
 

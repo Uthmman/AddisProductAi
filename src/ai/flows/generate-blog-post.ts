@@ -16,7 +16,7 @@ import { z } from 'genkit';
 // Define the input schema for the flow
 const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The main topic or title for the blog post.'),
-  gscData: z.array(z.any()).optional().describe('An array of top search queries from Google Search Console.'),
+  gscData: z.array(z.object({}).passthrough()).optional().describe('An array of top search queries from Google Search Console.'),
 });
 export type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
 
