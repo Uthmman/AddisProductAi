@@ -13,12 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Copy } from 'lucide-react';
+import { Loader2, Sparkles, Copy, TrendingUp } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WooProduct } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const PostGeneratorSchema = z.object({
   topic: z.string().min(5, 'Please enter a topic with at least 5 characters.'),
@@ -429,6 +430,94 @@ function BulkActionBot() {
   );
 }
 
+type SearchQuery = {
+    keys: string[];
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+};
+
+function SearchInsights() {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
+    const [queries, setQueries] = useState<SearchQuery[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        async function fetchSearchData() {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const res = await fetch('/api/search-console');
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Failed to fetch Search Console data.');
+                }
+                setQueries(data);
+            } catch (err: any) {
+                setError(err.message);
+                toast({
+                    variant: 'destructive',
+                    title: 'Loading Failed',
+                    description: err.message,
+                });
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchSearchData();
+    }, [toast]);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center">
+                    <TrendingUp className="mr-2 h-5 w-5" />
+                    Search Insights
+                </CardTitle>
+                <CardDescription>Top search queries from Google Search Console for the last 30 days. Use these insights to create new products or blog posts.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-48">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                ) : error ? (
+                    <div className="flex flex-col items-center justify-center h-48 text-destructive bg-destructive/10 rounded-md">
+                        <p className="font-semibold">Error loading data.</p>
+                        <p className="text-sm px-4 text-center">{error}</p>
+                    </div>
+                ) : (
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Query</TableHead>
+                                    <TableHead className="text-right">Clicks</TableHead>
+                                    <TableHead className="text-right">Impressions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {queries.length > 0 ? queries.map((query) => (
+                                    <TableRow key={query.keys[0]}>
+                                        <TableCell className="font-medium">{query.keys[0]}</TableCell>
+                                        <TableCell className="text-right">{query.clicks.toLocaleString()}</TableCell>
+                                        <TableCell className="text-right">{query.impressions.toLocaleString()}</TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="h-24 text-center">No query data available.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 function ContentPageInner() {
   const searchParams = useSearchParams();
@@ -437,12 +526,13 @@ function ContentPageInner() {
 
   return (
     <div className="container mx-auto py-10 max-w-6xl">
-      <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-6">Content Generator</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-6">Content Tools</h1>
       <Tabs defaultValue={tab || 'blog'} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="blog">Blog Post</TabsTrigger>
           <TabsTrigger value="social">Social Media Post</TabsTrigger>
           <TabsTrigger value="bulk-action">Bulk Actions</TabsTrigger>
+           <TabsTrigger value="search-insights">Search Insights</TabsTrigger>
         </TabsList>
         <TabsContent value="blog">
           <BlogGenerator />
@@ -452,6 +542,9 @@ function ContentPageInner() {
         </TabsContent>
         <TabsContent value="bulk-action">
           <BulkActionBot />
+        </TabsContent>
+         <TabsContent value="search-insights">
+          <SearchInsights />
         </TabsContent>
       </Tabs>
     </div>
