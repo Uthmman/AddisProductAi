@@ -1,5 +1,5 @@
 import { config } from 'dotenv';
-config();
+config({ path: ['.env.local', '.env'] });
 
 import '@/ai/flows/generate-woocommerce-product-content.ts';
 import '@/ai/flows/generate-blog-post.ts';
