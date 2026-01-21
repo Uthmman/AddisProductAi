@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Copy, TrendingUp } from 'lucide-react';
+import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -48,30 +48,53 @@ type SocialPost = {
 
 function BlogTopicSuggestions({ onSelectTopic }: { onSelectTopic: (topic: string) => void }) {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [topics, setTopics] = useState<string[]>([]);
+  const [hasFetched, setHasFetched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchTopics() {
-      setIsLoading(true);
-      try {
-        const res = await fetch('/api/content/suggest-blog-topics');
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.message || 'Failed to fetch topic suggestions.');
-        }
-        setTopics(data.topics || []);
-      } catch (err: any) {
-        // This is not a critical error, so just log it. Don't show a toast.
-        console.error("Could not load topic suggestions:", err.message);
-      } finally {
-        setIsLoading(false);
-      }
+  async function fetchTopics() {
+    setIsLoading(true);
+    setError(null);
+    if (!hasFetched) {
+        setHasFetched(true);
     }
-    fetchTopics();
-  }, [toast]);
+    try {
+      const res = await fetch('/api/content/suggest-blog-topics');
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to fetch topic suggestions.');
+      }
+      setTopics(data.topics || []);
+      if ((data.topics || []).length === 0) {
+          setError("No suggestions found. Is your GSC data available?");
+      }
+    } catch (err: any) {
+      setError(err.message);
+      console.error("Could not load topic suggestions:", err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
-  if (isLoading && topics.length === 0) {
+  if (!hasFetched) {
+      return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Get Topic Ideas</CardTitle>
+                <CardDescription>Let AI suggest blog topics from your search data.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button className="w-full" onClick={fetchTopics} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Lightbulb className="mr-2 h-4 w-4" />}
+                    Suggest Topics
+                </Button>
+            </CardContent>
+        </Card>
+      )
+  }
+
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
@@ -85,17 +108,22 @@ function BlogTopicSuggestions({ onSelectTopic }: { onSelectTopic: (topic: string
     )
   }
 
-  if (topics.length === 0) {
-    return null; // Don't show the card if there are no topics or if it failed
-  }
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Suggested Topics</CardTitle>
-        <CardDescription>AI-powered suggestions based on your top search queries.</CardDescription>
+        <div className="flex justify-between items-center">
+            <div>
+                <CardTitle>Suggested Topics</CardTitle>
+                <CardDescription>AI suggestions from your search queries.</CardDescription>
+            </div>
+            <Button variant="ghost" size="icon" onClick={fetchTopics} disabled={isLoading}>
+                <RefreshCw className="h-4 w-4" />
+            </Button>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {!error && topics.length === 0 && <p className="text-sm text-muted-foreground">No topic suggestions found.</p>}
         {topics.map((topic, index) => (
           <Button key={index} variant="outline" className="text-left justify-start h-auto py-2" onClick={() => onSelectTopic(topic)}>
             {topic}
