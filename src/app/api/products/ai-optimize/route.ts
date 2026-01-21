@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWooCommerceProductContent, GenerateWooCommerceProductContentInput } from '@/ai/flows/generate-woocommerce-product-content';
 import { z } from 'zod';
+import { getGscTopQueries } from '@/lib/gsc-api';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120; // Extend timeout to 120 seconds
@@ -74,9 +75,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Could not process any of the product images." }, { status: 400 });
     }
 
+    // Fetch GSC data and pass it to the flow
+    const gscData = await getGscTopQueries();
+
     const aiInput: GenerateWooCommerceProductContentInput = {
         ...inputData,
         images_data: validImagesData,
+        gscData: gscData ?? undefined, // Pass GSC data to the flow, ensuring it's undefined if null
     };
     
     const aiContent = await generateWooCommerceProductContent(aiInput);

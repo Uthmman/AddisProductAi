@@ -5,6 +5,7 @@
  *
  * The flow takes raw product details as input and uses the Gemini API to generate
  * SEO-optimized product names, descriptions, meta-data, and tags, incorporating Amharic keywords for local SEO.
+ * It can also leverage Google Search Console data for more effective keyword strategies.
  *
  * - generateWooCommerceProductContent - The main function that triggers the content generation flow.
  * - GenerateWooCommerceProductContentInput - The input type for the function.
@@ -52,6 +53,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
       name: z.string(),
       slug: z.string(),
   }).optional().describe('The primary category of the product, used for creating inbound links.'),
+  gscData: z.array(z.any()).optional().describe('An array of top search queries from Google Search Console.'),
 });
 export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooCommerceProductContentInputSchema>;
 
@@ -92,7 +94,7 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
   prompt: `You are a specialized e-commerce content optimizer for the **Addis Ababa, Ethiopia** market. Your task is to generate a complete, SEO-optimized JSON object for a WooCommerce product.
 
 **Your process is as follows:**
-1.  **Analyze SEO**: First, call the \`suggestSeoKeywordsTool\`. Use the provided 'raw_name' and 'focus_keywords' from the user input to get a strategic list of SEO tags and a primary "Focus Keyphrase".
+1.  **Analyze SEO**: First, call the \`suggestSeoKeywordsTool\`. Use the provided 'raw_name' and 'focus_keywords' from the user input to get a strategic list of SEO tags and a primary "Focus Keyphrase". **If available, you MUST also pass the \`gscData\` from your input to the tool to get data-driven SEO insights.**
 2.  **Generate Content**: After you have the SEO strategy from the tool, generate all the product fields in the JSON output. All content you create MUST be based on the "Focus Keyphrase" and "Tags" returned by the tool.
 
 **Key Content Requirements (Apply these AFTER using the tool):**
@@ -136,6 +138,9 @@ Material: {{{material}}}
 Amharic Name: {{{amharic_name}}}
 Focus Keywords: {{{focus_keywords}}}
 Price (ETB): {{{price_etb}}}
+{{#if gscData}}
+GSC Data: [Data is available and will be passed to the SEO tool]
+{{/if}}
 
 Images:
 {{#each images_data}}
