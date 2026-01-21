@@ -58,20 +58,29 @@ export default function ProductTable() {
   const { toast } = useToast();
 
   const fetchProducts = async () => {
-      setIsLoading(true);
-      try {
-        const categoryQuery = selectedCategory !== 'all' ? `&category=${selectedCategory}` : '';
-        const response = await fetch(`/api/products?page=${page}&per_page=${perPage}${categoryQuery}`);
-        const data = await response.json();
-        setProducts(data.products);
-        setTotalPages(data.totalPages);
-        setTotalProducts(data.totalProducts);
-      } catch (error) {
-        console.error("Failed to fetch products:", error);
-      } finally {
-        setIsLoading(false);
+    setIsLoading(true);
+    try {
+      const categoryQuery = selectedCategory !== 'all' ? `&category=${selectedCategory}` : '';
+      const response = await fetch(`/api/products?page=${page}&per_page=${perPage}${categoryQuery}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
       }
-    };
+      const data = await response.json();
+      setProducts(data.products || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalProducts(data.totalProducts || 0);
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      setProducts([]); // Set to empty array on error
+      toast({
+        title: "Error",
+        description: "Could not load products.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchCategories = async () => {
