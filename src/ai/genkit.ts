@@ -7,7 +7,7 @@ export const ai = genkit({
   plugins: [
     googleAI({
       apiKey: process.env.GOOGLE_API_KEY,
-      apiVersion: ['v1beta', 'v1'], // Prioritize v1beta for newer features
+      apiVersion: 'v1beta', // Use v1beta for newer features and models
     }),
   ],
 });
