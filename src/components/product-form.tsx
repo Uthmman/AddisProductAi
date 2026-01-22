@@ -55,7 +55,7 @@ type DisplayCategory = {
     name: string;
 };
 
-type GeneratingField = 'all' | 'name' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | 'regular_price' | null;
+type GeneratingField = 'all' | 'name' | 'sku' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | 'regular_price' | null;
 
 type SaveAction = 'publish' | 'draft';
 
@@ -122,6 +122,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         setSelectedCategories(product.categories.map(cat => ({ id: cat.id, name: cat.name })));
         setAiContent({
             name: product.name,
+            sku: product.sku,
             description: product.description,
             short_description: product.short_description,
             slug: product.slug,
@@ -370,6 +371,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
         const finalData = {
             name: aiContent.name || form.getValues('raw_name'),
+            sku: aiContent.sku,
             slug: aiContent.slug,
             regular_price: (aiContent.regular_price || form.getValues('price_etb')).toString(),
             description: aiContent.description,
@@ -591,6 +593,10 @@ export default function ProductForm({ product }: ProductFormProps) {
                        <div className="flex justify-between items-center"><Label>Product Name</Label>{renderGenButton('name')}</div>
                        <Input value={aiContent.name || ''} onChange={(e) => setAiContent(p => ({...p, name: e.target.value}))} placeholder="AI generated name will appear here..."/>
                    </div>
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center"><Label>SKU</Label>{renderGenButton('sku')}</div>
+                        <Input value={aiContent.sku || ''} onChange={(e) => setAiContent(p => ({ ...p, sku: e.target.value }))} placeholder="AI generated SKU..." />
+                    </div>
                     <div className="space-y-2">
                         <div className="flex justify-between items-center"><Label>Slug</Label>{renderGenButton('slug')}</div>
                         <Input value={aiContent.slug || ''} onChange={(e) => setAiContent(p => ({ ...p, slug: e.target.value }))} placeholder="AI generated slug..." />

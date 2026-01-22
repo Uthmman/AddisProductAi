@@ -22,6 +22,7 @@ const GenerateSocialMediaPostInputSchema = z.object({
   topic: z.string().optional().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
   settings: z.any().describe('The application settings object.'),
   tone: z.enum(['descriptive', 'playful']).describe('The desired tone for the post.'),
+  showPrice: z.boolean().optional().describe('Whether to show the price or hide it in a spoiler. Defaults to hidden.'),
 });
 export type GenerateSocialMediaPostInput = z.infer<typeof GenerateSocialMediaPostInputSchema>;
 
@@ -62,6 +63,7 @@ const generateSocialMediaPostPrompt = ai.definePrompt({
 **Post Details:**
 - Topic/Angle: {{{topic}}}
 - Desired Tone: {{{tone}}}
+- Show Price: {{showPrice}}
 
 **Instructions for {{platform}}:**
 
@@ -70,7 +72,7 @@ Your output MUST be a single string containing only the post content, formatted 
 - Use <code> for item codes (e.g., <code>ZF0512</code>).
 - Use <blockquote> to wrap the main list of features.
 - Use a separate <blockquote> to wrap the hashtags at the end of the post.
-- Use <tg-spoiler> to hide the price (e.g., <tg-spoiler>9999</tg-spoiler>).
+- If 'showPrice' is true, display the price clearly (e.g., '💰 <b>Price</b>: 12,000 ETB'). If it is false or not provided, you MUST hide the price inside a <tg-spoiler> tag (e.g., '💰 <b>Price</b>: <tg-spoiler>12000</tg-spoiler> ETB').
 - Use \n for new lines to ensure proper alignment.
 - Use <a href="...">link text</a> for hyperlinks. DO NOT paste raw URLs.
 - Mix English and Amharic where it feels natural to connect with the local audience.

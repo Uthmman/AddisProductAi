@@ -30,6 +30,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
   fieldToGenerate: z.enum([
       'all',
       'name',
+      'sku',
       'slug',
       'description',
       'short_description',
@@ -60,6 +61,7 @@ export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooC
 // Define the output schema for the flow
 const GenerateWooCommerceProductContentOutputSchema = z.object({
   name: z.string().optional().describe('Refined, SEO-Optimized English Product Title.'),
+  sku: z.string().optional().describe("A unique product SKU, e.g., 'ZF' + 2 category digits + 2 random digits."),
   slug: z.string().optional().describe('URL-friendly, English slug based on the new name.'),
   description: z.string().optional().describe('SEO-rich description of about 300 words, formatted with HTML tags. It must include inbound and outbound links.'),
   short_description: z.string().optional().describe('Concise bullet-pointed summary.'),
@@ -98,18 +100,19 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
 2.  **Generate Content**: After you have the SEO strategy from the tool, generate all the product fields in the JSON output. All content you create MUST be based on the "Focus Keyphrase" and "Tags" returned by the tool.
 
 **Key Content Requirements (Apply these AFTER using the tool):**
-1.  **Description:** Generate a compelling, SEO-rich product description of approximately 300 words. Format it with HTML tags (e.g., <p>, <strong>, <ul>, <li>).
-2.  **Amharic Keyword Integration:** Weave relevant Amharic words and phrases naturally into the product description to improve local SEO and connect with customers. For example, use terms like 'የቤት ዕቃዎች' (yebēt ‘əqawoch, for furniture), 'ዋጋ' (waga, for price), 'ዘመናዊ' (zemenawi, for modern), or other descriptive local terms.
-3.  **Linking Strategy:**
+1.  **SKU:** Generate a unique SKU. It MUST start with 'ZF' followed by 4 digits (e.g., ZF0101, ZF1502). The first two digits should be loosely based on the product category, and the last two should be random-like to ensure uniqueness.
+2.  **Description:** Generate a compelling, SEO-rich product description of approximately 300 words. Format it with HTML tags (e.g., <p>, <strong>, <ul>, <li>).
+3.  **Amharic Keyword Integration:** Weave relevant Amharic words and phrases naturally into the product description to improve local SEO and connect with customers. For example, use terms like 'የቤት ዕቃዎች' (yebēt ‘əqawoch, for furniture), 'ዋጋ' (waga, for price), 'ዘመናዊ' (zemenawi, for modern), or other descriptive local terms.
+4.  **Linking Strategy:**
     *   **Inbound Link:** Naturally weave an inbound link into the description pointing to the product's primary category page. Use the format \`<a href="/product-category/{{{primaryCategory.slug}}}/">Explore more {{{primaryCategory.name}}}</a>\`.
     *   **Outbound Links:** Naturally integrate outbound links to the provided social media pages and a telephone link. For the phone, use the format \`<a href="tel:{{{settings.phoneNumber}}}">call us</a>\`. For social media, link relevant phrases to the URLs provided in the settings.
-4.  **Yoast SEO:**
+5.  **Yoast SEO:**
     *   **Focus Keyphrase:** The \`_yoast_wpseo_focuskw\` field MUST be the **exact** "Focus Keyphrase" you received from the tool.
     *   **Meta Description:** Generate a concise meta description for \`_yoast_wpseo_metadesc\`. This description MUST contain the exact Focus Keyphrase.
     *   **Title and Description Integration:** The generated product \`name\` (SEO Title) and the first paragraph of the \`description\` MUST include the exact Focus Keyphrase.
-5.  **Image Alt Text:** Create descriptive alt text for each image that includes the Focus Keyphrase, 'zenbaba furniture', 'ethiopia', 'addis ababa', and the product's Amharic name ({{{amharic_name}}}).
-6.  **Categories:** Select the most relevant categories from the provided list. Your response for 'categories' should be an array of category NAME strings.
-7.  **Tags**: The tags you generate in the output JSON MUST be the list of "Tags" you received from the tool.
+6.  **Image Alt Text:** Create descriptive alt text for each image that includes the Focus Keyphrase, 'zenbaba furniture', 'ethiopia', 'addis ababa', and the product's Amharic name ({{{amharic_name}}}).
+7.  **Categories:** Select the most relevant categories from the provided list. Your response for 'categories' should be an array of category NAME strings.
+8.  **Tags**: The tags you generate in the output JSON MUST be the list of "Tags" you received from the tool.
 
 **Business & Link Information:**
 - Phone Number: {{{settings.phoneNumber}}}

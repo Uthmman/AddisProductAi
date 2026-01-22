@@ -10,7 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send } from 'lucide-react';
@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
 
 const PostGeneratorSchema = z.object({
   topic: z.string().min(5, 'Please enter a topic with at least 5 characters.'),
@@ -32,6 +33,7 @@ const SocialPostSchema = z.object({
   platform: z.string().min(1, 'Please select a platform.'),
   topic: z.string().optional(),
   tone: z.enum(['descriptive', 'playful']),
+  showPrice: z.boolean().default(true),
 });
 
 type PostFormValues = z.infer<typeof PostGeneratorSchema>;
@@ -227,7 +229,7 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
 
   const form = useSocialForm<SocialPostFormValues>({
     resolver: zodResolver(SocialPostSchema),
-    defaultValues: { productId: defaultProductId || '', platform: 'telegram', topic: '', tone: 'descriptive' },
+    defaultValues: { productId: defaultProductId || '', platform: 'telegram', topic: '', tone: 'playful', showPrice: true },
   });
   
   useEffect(() => {
@@ -364,6 +366,26 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
                   <FormMessage />
                 </FormItem>
               )} />
+              <FormField
+                control={form.control}
+                name="showPrice"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Show Price</FormLabel>
+                      <FormDescription>
+                        Display the price in the post, otherwise it will be hidden.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
               <Button type="submit" disabled={isGenerating || isLoadingProducts} className="w-full">
                 {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 Generate Post

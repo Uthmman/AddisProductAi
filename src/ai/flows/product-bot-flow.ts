@@ -71,6 +71,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 image_srcs: product.images.map(img => img.src),
                 aiContent: {
                     name: product.name,
+                    sku: product.sku,
                     slug: product.slug,
                     regular_price: parseFloat(product.regular_price),
                     description: product.description,
@@ -174,10 +175,10 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         const postProductToTelegramTool = ai.defineTool(
             {
                 name: 'postProductToTelegramTool',
-                description: "Generates and posts a social media update for the current product to the public Telegram channel. Call this when the user asks to post, share, or publish the product to Telegram. You must ask for the topic and tone if they are not provided.",
+                description: "Generates and posts a social media update for the current product to the public Telegram channel. Call this when the user asks to post, share, or publish the product to Telegram.",
                 inputSchema: z.object({
                     topic: z.string().optional().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
-                    tone: z.enum(['descriptive', 'playful']).describe("The desired tone for the post."),
+                    tone: z.enum(['descriptive', 'playful']).default('playful').describe("The desired tone for the post."),
                 }),
                 outputSchema: z.string(),
             },
@@ -185,8 +186,8 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 if (!data.editProductId) {
                     return "Please load a product to edit before you can post it to Telegram.";
                 }
-                if (!topic || !tone) {
-                    return "What should be the topic for the post (like 'New Arrival' or 'Special Offer'), and should the tone be 'descriptive' or 'playful'?";
+                if (!topic) {
+                    return "What should be the topic for the post (like 'New Arrival' or 'Special Offer')?";
                 }
                 
                 try {
@@ -249,6 +250,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 
                     const finalData = {
                         name: finalAiContent.name || currentData.raw_name,
+                        sku: finalAiContent.sku,
                         slug: finalAiContent.slug,
                         regular_price: (finalAiContent.regular_price || currentData.price_etb)?.toString(),
                         description: finalAiContent.description,
@@ -298,7 +300,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     **IF EDITING AN EXISTING PRODUCT (has 'editProductId'):**
     1.  **Assist with Changes**: You have already loaded the product. Your goal is to help the user modify it. They can provide new details (e.g., "change the price to 2000 birr"), and you must use 'updateProductDetailsTool' to update the state.
     2.  **Run Optimization**: If the user asks to optimize, or says "AI Optimize Now", you MUST call 'aiOptimizeProductTool'.
-    3.  **Post to Telegram**: If the user asks to "post to Telegram", "share on Telegram", or similar, you MUST use the 'postProductToTelegramTool'. If the tool needs more information (like topic or tone), it will ask for it.
+    3.  **Post to Telegram**: If the user asks to "post to Telegram", "share on Telegram", or similar, you MUST use the 'postProductToTelegramTool'. The tool will default to a 'playful' tone, but it will ask for a topic if one is not provided.
     4.  **Confirm Save**: After 'aiOptimizeProductTool' runs, it will return a confirmation. Your response MUST be that text. It will ask the user to "Save Changes" or "Save as Draft".
     5.  **Save Changes**: If the user says "Save Changes" or "Save as Draft", you MUST call 'saveOrUpdateProductTool' with the correct status.
 

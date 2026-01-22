@@ -141,6 +141,16 @@ export default async function ProductViewPage({ params }: ProductPageProps) {
             </div>
           )}
           
+          {product.description && (
+             <div>
+                <h2 className="text-sm font-medium text-muted-foreground mb-2">Description</h2>
+                <div
+                    className="prose prose-base dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: product.description }}
+                />
+            </div>
+          )}
+          
           {product.attributes.length > 0 && (
              <div>
                 <h2 className="text-sm font-medium text-muted-foreground mb-2">Attributes</h2>
@@ -168,39 +178,25 @@ export default async function ProductViewPage({ params }: ProductPageProps) {
         </div>
       </div>
       
-      {/* Full-width Description Section */}
+      {/* SEO Details Section */}
       <div className="mt-10">
          <Separator />
-         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="md:col-span-2">
-                <h2 className="text-xl font-bold font-headline mb-4">Product Description</h2>
-                {product.description ? (
-                    <div
-                        className="prose prose-base dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: product.description }}
-                    />
-                ) : (
-                    <p className="text-muted-foreground">No description available.</p>
-                )}
-            </div>
-            <div>
-                 <h2 className="text-xl font-bold font-headline mb-4">SEO Details</h2>
-                 <Card>
-                    <CardContent className="pt-6 space-y-4">
-                        <div>
-                            <h3 className="text-sm font-medium text-muted-foreground">Focus Keyphrase</h3>
-                            <p className="font-semibold">{product.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value || 'Not set'}</p>
+         <div className="mt-8">
+            <h2 className="text-xl font-bold font-headline mb-4">SEO Details</h2>
+            <Card>
+                <CardContent className="pt-6 space-y-4">
+                    <div>
+                        <h3 className="text-sm font-medium text-muted-foreground">Focus Keyphrase</h3>
+                        <p className="font-semibold">{product.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value || 'Not set'}</p>
+                    </div>
+                    {yoastMetaDesc && (
+                          <div>
+                            <h3 className="text-sm font-medium text-muted-foreground">Meta Description</h3>
+                            <p className="text-sm">{yoastMetaDesc}</p>
                         </div>
-                        {yoastMetaDesc && (
-                             <div>
-                                <h3 className="text-sm font-medium text-muted-foreground">Meta Description</h3>
-                                <p className="text-sm">{yoastMetaDesc}</p>
-                            </div>
-                        )}
-                        
-                    </CardContent>
-                 </Card>
-            </div>
+                    )}
+                </CardContent>
+            </Card>
          </div>
       </div>
 

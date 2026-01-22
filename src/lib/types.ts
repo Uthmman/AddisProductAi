@@ -27,6 +27,7 @@ export interface WooProduct {
 
 export type AIProductContent = {
   name?: string;
+  sku?: string;
   slug?: string;
   description?: string;
   short_description?: string;
