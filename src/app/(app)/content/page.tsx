@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal } from 'lucide-react';
+import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +21,7 @@ import { WooProduct } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const PostGeneratorSchema = z.object({
   topic: z.string().min(5, 'Please enter a topic with at least 5 characters.'),
@@ -45,6 +46,7 @@ type SocialPost = {
     content: string;
     productImage?: string;
     productName?: string;
+    productId: string;
 };
 
 function BlogTopicSuggestions({ onSelectTopic }: { onSelectTopic: (topic: string) => void }) {
@@ -273,6 +275,7 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
         ...postContent,
         productImage: selectedProduct?.images?.[0]?.src,
         productName: selectedProduct?.name,
+        productId: data.productId,
       };
 
       setGeneratedPost(postWithImage);
@@ -376,17 +379,46 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
 
 function GeneratedContentPreview({ isGenerating, post }: { isGenerating: boolean; post: BlogPost | SocialPost | null }) {
     const { toast } = useToast();
+    const [isPosting, setIsPosting] = useState(false);
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
         toast({ description: "Content copied to clipboard!" });
     };
 
+    const handlePostToTelegram = async () => {
+        if (!post || !('productId' in post)) return;
+        
+        setIsPosting(true);
+        try {
+            const response = await fetch('/api/content/post-to-telegram', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    productId: post.productId,
+                    content: post.content,
+                }),
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to post to Telegram.');
+            }
+            
+            toast({ title: 'Success!', description: 'Post sent to Telegram channel.' });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Post Failed', description: error.message });
+        } finally {
+            setIsPosting(false);
+        }
+    };
+
+
   return (
     <Card className={!post && !isGenerating ? 'hidden md:block' : ''}>
       <CardHeader>
         <CardTitle>Generated Content</CardTitle>
-        <CardDescription>Review the AI-generated content. You can copy it to your clipboard.</CardDescription>
+        <CardDescription>Review the AI-generated content. You can copy it or post it directly.</CardDescription>
       </CardHeader>
       <CardContent>
         {isGenerating && (
@@ -433,9 +465,30 @@ function GeneratedContentPreview({ isGenerating, post }: { isGenerating: boolean
                 )}
                 <div className="space-y-2">
                     <Label>Post Content</Label>
-                    <div className="relative">
-                        <Textarea readOnly value={post.content} className="h-96 whitespace-pre-wrap" />
-                        <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(post.content)}><Copy className="h-4 w-4" /></Button>
+                     <div className="relative">
+                        <Textarea readOnly value={post.content} className="h-96 whitespace-pre-wrap pr-12" />
+                        <div className="absolute top-2 right-2 flex flex-col gap-2">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" onClick={() => handleCopy(post.content)} disabled={isPosting}>
+                                            <Copy className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Copy Content</p></TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button size="icon" onClick={handlePostToTelegram} disabled={isPosting}>
+                                            {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Post to Telegram</p></TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
                     </div>
                 </div>
             </div>

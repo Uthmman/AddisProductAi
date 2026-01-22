@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -43,7 +44,7 @@ const generateSocialMediaPostPrompt = ai.definePrompt({
   name: 'generateSocialMediaPostPrompt',
   input: { schema: GenerateSocialMediaPostInputSchema },
   output: { schema: GenerateSocialMediaPostOutputSchema },
-  prompt: `You are a social media marketing expert for Zenbaba Furniture, a furniture company in Addis Ababa, Ethiopia. Your task is to create an engaging post for {{platform}}.
+  prompt: `You are a social media marketing expert for Zenbaba Furniture, a furniture company in Addis Ababa, Ethiopia. Your task is to create an engaging post for {{platform}}. You are aware of the style of past posts, and you should aim to create content that feels fresh while being consistent with the brand's voice. Analyze the examples provided to understand the desired format and tone.
 
 **Product Information:**
 - Name: {{{product.name}}}
