@@ -60,10 +60,9 @@ function setState(chatId: string, data: ProductCreationData) {
 // The main flow function
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
     const { chatId, newMessage, images } = input;
+    let data = getState(chatId);
 
     try {
-        let data = getState(chatId);
-
         // Handle image uploads immediately
         if (images && images.length > 0) {
             for (const image of images) {
@@ -76,7 +75,6 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         
         // On a completely new chat with no message, send a welcome message.
         if (!newMessage && (!images || images.length === 0) && Object.keys(data).length <= 2) {
-            setState(chatId, data); // Save initial empty state
             return { text: "Hi there! I can help you create a new product. What's the name, price, and Amharic name? You can also upload photos or ask me for product suggestions based on search data." };
         }
 
@@ -248,9 +246,6 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             tools: [updateProductDetailsTool, aiOptimizeProductTool, createProductTool, suggestProductsTool],
         });
 
-        // After the model runs (and potentially calls tools that update state), save the final state.
-        setState(chatId, data);
-
         const responseText = response.text;
         
         return { text: responseText };
@@ -258,5 +253,8 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     } catch (error: any) {
         console.error("Genkit Flow Error:", error);
         return { text: `I'm sorry, an internal error occurred: ${error.message}` };
+    } finally {
+        // After the model runs (and potentially calls tools that update state), save the final state, even if there was an error.
+        setState(chatId, data);
     }
 }
