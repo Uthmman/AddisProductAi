@@ -212,12 +212,15 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     const mimeType = mimeTypeMatch[1];
     const imageBuffer = Buffer.from(imageData.split(';base64,').pop()!, 'base64');
     
+    // Sanitize the file name to prevent errors with non-ASCII characters in headers.
+    const sanitizedImageName = imageName.replace(/[^a-zA-Z0-9._-]/g, '_');
+
     const response = await fetch(`${wpApiUrl}/media`, {
       method: 'POST',
       headers: {
         'Authorization': `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`,
         'Content-Type': mimeType,
-        'Content-Disposition': `attachment; filename="${imageName}"`
+        'Content-Disposition': `attachment; filename="${sanitizedImageName}"`
       },
       body: imageBuffer
     });
