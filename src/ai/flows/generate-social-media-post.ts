@@ -20,7 +20,7 @@ const GenerateSocialMediaPostInputSchema = z.object({
   product: z.any().describe('The full WooCommerce product object.'),
   platform: z.enum(['telegram']).describe('The target social media platform.'),
   topic: z.string().optional().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
-  settings: z.any().describe('The application settings object.'),
+  settings: z.any().describe('The application settings object, which includes phoneNumber, telegramUrl, and telegramUsername.'),
   tone: z.enum(['descriptive', 'playful']).describe('The desired tone for the post.'),
   showPrice: z.boolean().optional().describe('Whether to show the price in the post. If false, the price line is omitted entirely. Defaults to false.'),
 });
@@ -57,7 +57,8 @@ const generateSocialMediaPostPrompt = ai.definePrompt({
 
 **Business Information:**
 - Phone Number: {{{settings.phoneNumber}}}
-- Telegram: {{{settings.telegramUrl}}}
+- Telegram URL: {{{settings.telegramUrl}}}
+- Telegram Username: @{{{settings.telegramUsername}}}
 - Product Website Link: {{{product.permalink}}}
 
 **Post Details:**
@@ -100,7 +101,7 @@ Use a clear, structured format. Use blockquotes for the main details and hashtag
 💰 <b>Price</b>: <tg-spoiler>{{{product.price}}}</tg-spoiler> ETB
 
 CALL: {{{settings.phoneNumber}}}
-📱 <a href="{{{settings.telegramUrl}}}">Telegram</a>
+📱 <a href="{{{settings.telegramUrl}}}">Telegram</a> or contact @{{{settings.telegramUsername}}}
 
 <blockquote>#BedroomFurniture #singlebed #bed #sidetable #drawer #ZF0512 #tapeseri</blockquote>
 
@@ -118,7 +119,7 @@ Use an engaging, emoji-rich format. Focus on lifestyle and appeal. This example 
 
 📞 <b>አሁኑኑ ይደውሉ!</b>
 📱 {{{settings.phoneNumber}}}
-💬 <a href="{{{settings.telegramUrl}}}">Telegram</a>
+💬 <a href="{{{settings.telegramUrl}}}">Telegram</a> or contact @{{{settings.telegramUsername}}}
 
 🛍 <b>More products</b> 👇
 🔗 <a href="{{{settings.telegramUrl}}}">Telegram Channel</a>

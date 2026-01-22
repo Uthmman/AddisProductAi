@@ -61,6 +61,7 @@ export interface Settings {
     instagramUrl: string;
     telegramUrl: string;
     tiktokUrl: string;
+    telegramUsername?: string;
     commonKeywords?: string;
     watermarkImageUrl?: string;
     watermarkPlacement?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center';

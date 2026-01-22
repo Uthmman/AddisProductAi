@@ -47,6 +47,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
     facebookUrl: z.string().optional(),
     instagramUrl: z.string().optional(),
     telegramUrl: z.string().optional(),
+    telegramUsername: z.string().optional(),
     tiktokUrl: z.string().optional(),
   }).optional().describe('General business settings like contact info and social media links.'),
   primaryCategory: z.object({
@@ -100,7 +101,29 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
 2.  **Generate Content**: After you have the SEO strategy from the tool, generate all the product fields in the JSON output. All content you create MUST be based on the "Focus Keyphrase" and "Tags" returned by the tool.
 
 **Key Content Requirements (Apply these AFTER using the tool):**
-1.  **SKU:** Generate a unique SKU. It MUST start with 'ZF' followed by 4 digits (e.g., ZF0101, ZF1502). The first two digits should be loosely based on the product category, and the last two should be random-like to ensure uniqueness.
+1.  **SKU:** Generate a unique SKU. It MUST start with 'ZF' followed by 4 digits. The first two digits MUST be based on the product's primary category, using the mapping below. The last two digits should be random-like to ensure uniqueness.
+    *   ZF01: bookshelf
+    *   ZF02: Shoe shelf, shoerack
+    *   ZF03: sofa table
+    *   ZF04: baby bed
+    *   ZF05: 1.50 bed
+    *   ZF06: bunk bed
+    *   ZF07: single bed
+    *   ZF08: coffee table
+    *   ZF09: Drawer, chestdrawer
+    *   ZF10: tv stand
+    *   ZF11: dressing table
+    *   ZF12: bedside table
+    *   ZF13: office furniture
+    *   ZF14: sofa side table
+    *   ZF15: coat hanger
+    *   ZF16: study table
+    *   ZF17: Wardrobe
+    *   ZF18: carpet
+    *   ZF19: reception
+    *   ZF20: home office table
+    *   ZF21: kitchen furniture
+    *   ZF22: door
 2.  **Description:** Generate a compelling, SEO-rich product description of approximately 300 words. Format it with HTML tags (e.g., <p>, <strong>, <ul>, <li>).
 3.  **Amharic Keyword Integration:** Weave relevant Amharic words and phrases naturally into the product description to improve local SEO and connect with customers. For example, use terms like 'የቤት ዕቃዎች' (yebēt ‘əqawoch, for furniture), 'ዋጋ' (waga, for price), 'ዘመናዊ' (zemenawi, for modern), or other descriptive local terms.
 4.  **Linking Strategy:**

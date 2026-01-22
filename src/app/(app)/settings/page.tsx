@@ -26,6 +26,7 @@ const SettingsSchema = z.object({
   instagramUrl: z.string().url().or(z.literal('')).optional(),
   telegramUrl: z.string().url().or(z.literal('')).optional(),
   tiktokUrl: z.string().url().or(z.literal('')).optional(),
+  telegramUsername: z.string().optional(),
   commonKeywords: z.string().optional(),
   watermarkImageUrl: z.string().optional(),
   watermarkPlacement: z.enum(['bottom-right', 'bottom-left', 'top-right', 'top-left', 'center']).default('bottom-right'),
@@ -50,6 +51,7 @@ export default function SettingsPage() {
       instagramUrl: '',
       telegramUrl: '',
       tiktokUrl: '',
+      telegramUsername: '',
       commonKeywords: '',
       watermarkImageUrl: '',
       watermarkPlacement: 'bottom-right',
@@ -238,6 +240,9 @@ export default function SettingsPage() {
                     )} />
                     <FormField control={form.control} name="telegramUrl" render={({ field }) => (
                         <FormItem><FormLabel>Telegram URL</FormLabel><FormControl><Input placeholder="https://t.me/your-channel" {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name="telegramUsername" render={({ field }) => (
+                        <FormItem><FormLabel>Telegram Username</FormLabel><FormControl><Input placeholder="@your_username" {...field} /></FormControl><FormDescription>Used for mentions in generated content.</FormDescription><FormMessage /></FormItem>
                     )} />
                      <FormField control={form.control} name="tiktokUrl" render={({ field }) => (
                         <FormItem><FormLabel>TikTok URL</FormLabel><FormControl><Input placeholder="https://tiktok.com/@your-profile" {...field} /></FormControl><FormMessage /></FormItem>
