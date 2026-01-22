@@ -89,11 +89,11 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         const updateProductDetailsTool = ai.defineTool(
             {
                 name: 'updateProductDetailsTool',
-                description: "Updates the product details in the current session based on the user's message. Call this if the user provides new information like a name, price, material, or Amharic name.",
+                description: "Parses the user's message to extract and update product details like name, price, material, or Amharic name. Call this whenever the user provides new product information.",
                 inputSchema: z.object({
-                    raw_name: z.string().optional().describe("The name of the product."),
-                    price_etb: z.number().optional().describe("The price of the product."),
-                    material: z.string().optional().describe("The material of the product."),
+                    raw_name: z.string().optional().describe("The core name of the product. If the user provides a long description, extract the essential product name from it (e.g., from 'a beautiful handmade cotton dress for kids', extract 'handmade cotton dress for kids')."),
+                    price_etb: z.number().optional().describe("The price of the product in Ethiopian Birr."),
+                    material: z.string().optional().describe("The material of the product (e.g., 'Cotton', 'Wood')."),
                     amharic_name: z.string().optional().describe("The Amharic name for the product."),
                 }),
                 outputSchema: z.string(),
@@ -215,7 +215,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 
     Your process is as follows:
     1.  **Gather Information / Suggest Products**: Your primary goal is to collect the product's **Name**, **Price**, **Amharic Name**, and at least one **Image**.
-        - When the user provides any of these details, you MUST call 'updateProductDetailsTool' to save them.
+        - The user might provide multiple details in one message (e.g., 'a beautiful handmade cotton dress for kids, price is 1500 birr'). You must analyze the message and call 'updateProductDetailsTool' with all the information you can extract. Be intelligent about parsing the product name from a descriptive sentence.
         - If any of these core details are missing, ask the user for them clearly.
         - **Product Suggestions**: If the user asks for new product ideas, what to sell, or for suggestions based on search data, you MUST call the 'suggestProductsTool'. After providing suggestions, return to the product creation flow.
 
