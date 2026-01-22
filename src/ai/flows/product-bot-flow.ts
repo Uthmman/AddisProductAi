@@ -9,7 +9,7 @@ import { AIProductContent, Settings, WooCategory } from '@/lib/types';
 import { suggestProductsTool } from '../tools/suggest-products-tool';
 import { getGscTopQueries } from '@/lib/gsc-api';
 import { generateSocialMediaPost } from './generate-social-media-post';
-import { sendPhotoToChannel } from '@/lib/telegram-api';
+import { sendAlbumToChannel } from '@/lib/telegram-api';
 
 
 const ProductBotInputSchema = z.object({
@@ -206,9 +206,9 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                         settings,
                     });
 
-                    const imageUrl = product.images[0].src;
+                    const imageUrls = product.images.map(img => img.src);
 
-                    await sendPhotoToChannel(imageUrl, postContent.content);
+                    await sendAlbumToChannel(imageUrls, postContent.content);
                     
                     return `Successfully posted "${product.name}" to the Telegram channel.`;
 

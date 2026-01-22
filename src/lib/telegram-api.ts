@@ -65,6 +65,53 @@ export async function sendPhotoToChannel(photoUrl: string, caption: string) {
     }
 }
 
+export async function sendAlbumToChannel(photoUrls: string[], caption: string) {
+    const channelId = process.env.TELEGRAM_CHANNEL_ID;
+    if (!BOT_TOKEN || !channelId) {
+        console.error("TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID is not configured.");
+        throw new Error("Bot or channel is not configured for posting.");
+    }
+    
+    if (photoUrls.length === 0) {
+        throw new Error("No photos provided to send to the channel.");
+    }
+    
+    // If there's only one photo, use sendPhoto to ensure the caption is displayed correctly under the image.
+    if (photoUrls.length === 1) {
+        return sendPhotoToChannel(photoUrls[0], caption);
+    }
+
+    try {
+        const media = photoUrls.map((url, index) => ({
+            type: 'photo',
+            media: url,
+            // The caption is only sent with the first photo in a media group.
+            caption: index === 0 ? caption : '',
+            parse_mode: index === 0 ? 'HTML' : undefined,
+        }));
+        
+        const response = await fetch(`${TELEGRAM_API_URL}/sendMediaGroup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: channelId,
+                media: media.slice(0, 10), // Telegram allows a max of 10 media items per group
+            }),
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Telegram API Error sending media group:", errorData);
+            throw new Error(errorData.description || "Failed to send media group to Telegram channel.");
+        }
+        return await response.json();
+
+    } catch (error: any) {
+        console.error("Failed to send album to channel:", error);
+        throw error;
+    }
+}
+
 
 // Function to get file details from Telegram
 async function getFile(fileId: string): Promise<any> {

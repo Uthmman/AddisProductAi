@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getProduct } from '@/lib/woocommerce-api';
-import { sendPhotoToChannel } from '@/lib/telegram-api';
+import { sendAlbumToChannel } from '@/lib/telegram-api';
 
 const InputSchema = z.object({
   productId: z.string(),
@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Product has no image to post' }, { status: 400 });
     }
 
-    const imageUrl = product.images[0].src;
+    const imageUrls = product.images.map(img => img.src);
 
-    await sendPhotoToChannel(imageUrl, content);
+    await sendAlbumToChannel(imageUrls, content);
 
     return NextResponse.json({ message: 'Successfully posted to Telegram.' });
 
