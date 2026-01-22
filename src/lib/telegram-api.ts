@@ -41,6 +41,9 @@ export async function sendPhotoToChannel(photoUrl: string, caption: string) {
         throw new Error("Bot or channel is not configured for posting.");
     }
 
+    // Telegram's HTML parser doesn't support <br>. Use newlines instead.
+    const cleanCaption = caption.replace(/<br\s*\/?>/gi, '\n');
+
     try {
         const response = await fetch(`${TELEGRAM_API_URL}/sendPhoto`, {
             method: 'POST',
@@ -48,7 +51,7 @@ export async function sendPhotoToChannel(photoUrl: string, caption: string) {
             body: JSON.stringify({
                 chat_id: channelId,
                 photo: photoUrl,
-                caption: caption,
+                caption: cleanCaption,
                 parse_mode: 'HTML',
             }),
         });
@@ -77,16 +80,20 @@ export async function sendAlbumToChannel(photoUrls: string[], caption: string) {
     }
     
     // If there's only one photo, use sendPhoto to ensure the caption is displayed correctly under the image.
+    // The sendPhotoToChannel function will handle cleaning the caption.
     if (photoUrls.length === 1) {
         return sendPhotoToChannel(photoUrls[0], caption);
     }
+
+    // Telegram's HTML parser doesn't support <br>. Use newlines instead.
+    const cleanCaption = caption.replace(/<br\s*\/?>/gi, '\n');
 
     try {
         const media = photoUrls.map((url, index) => ({
             type: 'photo',
             media: url,
             // The caption is only sent with the first photo in a media group.
-            caption: index === 0 ? caption : '',
+            caption: index === 0 ? cleanCaption : '',
             parse_mode: index === 0 ? 'HTML' : undefined,
         }));
         
