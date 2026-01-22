@@ -5,12 +5,9 @@ import { getGscTopQueries } from '@/lib/gsc-api';
 export async function GET(request: NextRequest) {
   try {
     const gscData = await getGscTopQueries();
-    
-    if (gscData === null) {
-      return NextResponse.json({ message: "Could not fetch suggestions because Google Search Console integration is not configured correctly on the server." }, { status: 500 });
-    }
-    
-    if (gscData.length === 0) {
+
+    // If GSC isn't configured or returns no data, return empty suggestions.
+    if (gscData === null || gscData.length === 0) {
       return NextResponse.json({ suggestions: [] });
     }
     

@@ -7,8 +7,8 @@ export async function GET(req: NextRequest) {
         const queries = await getGscTopQueries();
         
         if (queries === null) {
-            // This case now specifically means credentials are not set, based on the lib function.
-            return NextResponse.json({ error: 'Missing Google Search Console credentials in environment variables.' }, { status: 500 });
+            // If GSC isn't configured, return an empty array instead of an error.
+            return NextResponse.json([]);
         }
         
         return NextResponse.json(queries);
