@@ -49,6 +49,7 @@ export async function sendPhotoToChannel(photoUrl: string, caption: string) {
                 chat_id: channelId,
                 photo: photoUrl,
                 caption: caption,
+                parse_mode: 'HTML',
             }),
         });
 

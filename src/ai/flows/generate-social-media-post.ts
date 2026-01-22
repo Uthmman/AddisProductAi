@@ -44,7 +44,7 @@ const generateSocialMediaPostPrompt = ai.definePrompt({
   name: 'generateSocialMediaPostPrompt',
   input: { schema: GenerateSocialMediaPostInputSchema },
   output: { schema: GenerateSocialMediaPostOutputSchema },
-  prompt: `You are a social media marketing expert for Zenbaba Furniture, a furniture company in Addis Ababa, Ethiopia. Your task is to create an engaging post for {{platform}}. You are aware of the style of past posts, and you should aim to create content that feels fresh while being consistent with the brand's voice. Analyze the examples provided to understand the desired format and tone.
+  prompt: `You are a social media marketing expert for Zenbaba Furniture, a furniture company in Addis Ababa, Ethiopia. Your task is to create an engaging post for {{platform}} using HTML formatting. You are aware of the style of past posts, and you should aim to create content that feels fresh while being consistent with the brand's voice. Analyze the examples provided to understand the desired format and tone.
 
 **Product Information:**
 - Name: {{{product.name}}}
@@ -66,35 +66,39 @@ const generateSocialMediaPostPrompt = ai.definePrompt({
 
 **Instructions for {{platform}}:**
 
-Your output MUST be a single string containing only the post content. Follow the format that matches the desired tone.
-Hashtags should be based on the product's categories, features, and item code. DO NOT use generic hashtags like #zenbabafurniture, #addisababa, or #ethiopia.
+Your output MUST be a single string containing only the post content, formatted with **HTML tags**. This is for the Telegram API which will parse the HTML.
+- Use <b> for bold text.
+- Use \n for new lines.
+- Use <a href="...">link text</a> for hyperlinks.
+- Mix English and Amharic where it feels natural to connect with the local audience.
+- Hashtags should be based on the product's categories, features, and item code. DO NOT use generic hashtags like #zenbabafurniture, #addisababa, or #ethiopia.
 
 ---
 **IF TONE IS 'descriptive':**
-Use a clear, structured format with arrows. Mix English and Amharic for labels.
+Use a clear, structured format. Mix English and Amharic for labels.
 
-**Descriptive Example:**
+<b>Descriptive Example (HTML):</b>
 #139
-→ Item code: ZF0512
-→ Overall Dimension: አልጋው ሚወስደው 200 cm (L) x 130 cm (W)
-→ Side Table ኮሞዲኖ: 50 cm (H) x 45 cm (W)
-→ mattresses measuring: የፍራሽ ልኬት 120 cm x 190 cm
+→ <b>Item code:</b> ZF0512
+→ <b>Overall Dimension:</b> አልጋው ሚወስደው 200 cm (L) x 130 cm (W)
+→ <b>Side Table ኮሞዲኖ:</b> 50 cm (H) x 45 cm (W)
+→ <b>Mattresses measuring:</b> የፍራሽ ልኬት 120 cm x 190 cm
 → Comfortable and Stylish Design
 → Includes a matching side table
 → Includes metal leg and chipboard
-→ Color: Available in different colors
+→ <b>Color:</b> Available in different colors
 → Ideal for Home or Apartment Use
 
-    CALL: 0996994690
-    📱  telegram: {{{settings.telegramUrl}}}
+CALL: 0996994690
+📱 <a href="{{{settings.telegramUrl}}}">Telegram</a>
 
 #BedroomFurniture #singlebed #bed #sidetable #drawer #ZF0512 #tapeseri
 
 ---
 **IF TONE IS 'playful':**
-Use an engaging, emoji-rich format. Focus on lifestyle and appeal. When you include a website link, it must be the product's specific link from the product information.
+Use an engaging, emoji-rich format. Focus on lifestyle and appeal.
 
-**Playful Example:**
+<b>Playful Example (HTML):</b>
 #Item code: ZF0406
 🌟የልጆን ክፍል ውብ እና ማራኪ በሆኑ የዘንባባ ፈርኒቸር አልጋዎች ያሳምሩ!🛏️✨
 
@@ -102,13 +106,13 @@ Use an engaging, emoji-rich format. Focus on lifestyle and appeal. When you incl
 🗄️የጎን እና የስር መሳቢያ ያለው
 🚚ለአዲስ አበባ ነዋሪዎች FREE delivery
 
-📞 አሁኑኑ ይደውሉ!
+📞 <b>አሁኑኑ ይደውሉ!</b>
 📱 0996994690
-💬 Telegram: {{{settings.telegramUrl}}}
+💬 <a href="{{{settings.telegramUrl}}}">Telegram</a>
 
-🛍 More products 👇
-🔗 Telegram Channel: {{{settings.telegramUrl}}}
-🌐 Website: {{{product.permalink}}}
+🛍 <b>More products</b> 👇
+🔗 <a href="{{{settings.telegramUrl}}}">Telegram Channel</a>
+🌐 <a href="{{{product.permalink}}}">Website</a>
 
 ✨ Make your kids' room beautiful and fun with Zenbaba Furniture! 🎉🛏️
 
