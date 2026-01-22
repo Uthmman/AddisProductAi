@@ -9,6 +9,7 @@ const InputSchema = z.object({
       id: z.number(),
       src: z.string()
   })).optional(),
+  editProductId: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {

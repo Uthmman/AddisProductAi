@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -40,6 +41,8 @@ interface ChatSession {
 
 export default function BotPage() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -49,6 +52,7 @@ export default function BotPage() {
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [stagedImages, setStagedImages] = useState<Array<{ src: string; file: File }>>([]);
+  const [isInitializingEdit, setIsInitializingEdit] = useState(false);
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,7 +72,6 @@ export default function BotPage() {
 
   useEffect(() => {
     setIsClient(true);
-    // In a web context, we'll use a generic user ID.
     setUserId('webapp_user_123');
   }, []);
 
@@ -96,6 +99,58 @@ export default function BotPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, storageKey]);
+
+  // Handle initializing an edit session from URL param
+  useEffect(() => {
+    if (!isClient || !storageKey) return;
+    
+    const editProductId = searchParams.get('editProductId');
+
+    if (editProductId && !isInitializingEdit) {
+      setIsInitializingEdit(true);
+
+      const newSession: ChatSession = {
+        id: `session_edit_${editProductId}_${Date.now()}`,
+        title: 'Loading Product...',
+        messages: [],
+        createdAt: Date.now(),
+      };
+      
+      setSessions(prev => [newSession, ...prev]);
+      setActiveSessionId(newSession.id);
+      setIsLoading(true);
+
+      fetch('/api/telegram/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chatId: newSession.id, editProductId: editProductId }),
+      })
+      .then(res => {
+          if (!res.ok) {
+            return res.json().then(err => { throw new Error(err.text || "Failed to initialize edit session.")});
+          }
+          return res.json();
+      })
+      .then(data => {
+          const botMessage: Message = { role: 'model', type: 'text', content: data.text };
+          updateSessionTitle(newSession.id, `Edit: ${data.productName}`);
+          appendToSessionMessages(newSession.id, [botMessage]);
+      })
+      .catch(error => {
+          toast({
+              variant: 'destructive',
+              title: 'Error Initializing Edit',
+              description: error.message,
+          });
+      })
+      .finally(() => {
+          setIsLoading(false);
+          setIsInitializingEdit(false);
+          router.replace('/bot', {scroll: false}); 
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClient, storageKey, searchParams]);
 
   // Save sessions to localStorage
   useEffect(() => {
@@ -143,7 +198,8 @@ export default function BotPage() {
 
   // Fetch initial welcome message for a new chat
   useEffect(() => {
-    if (activeSession && activeSession.messages.length === 0 && !isLoading && activeSessionId) {
+    // Only fetch for new, non-edit chats
+    if (activeSession && activeSession.messages.length === 0 && !isLoading && activeSessionId && !activeSession.id.startsWith('session_edit_')) {
         setIsLoading(true);
         fetch('/api/telegram/chat', {
             method: 'POST',
@@ -176,7 +232,6 @@ export default function BotPage() {
   const handleSendMessage = async () => {
     if ((!input && stagedImages.length === 0) || isLoading || !activeSessionId) return;
 
-    // 1. Optimistic UI update
     const userMessages: Message[] = [];
     if (input) {
         userMessages.push({ role: 'user', type: 'text', content: input });
@@ -188,7 +243,7 @@ export default function BotPage() {
     appendToSessionMessages(activeSessionId, userMessages);
 
     const firstUserMessage = !messages.some(m => m.role === 'user');
-    if (firstUserMessage && input) {
+    if (firstUserMessage && input && !activeSessionId.startsWith('session_edit_')) {
         updateSessionTitle(activeSessionId, input.substring(0, 30));
     }
 
@@ -200,7 +255,6 @@ export default function BotPage() {
     setIsLoading(true);
 
     try {
-        // 2. Upload images
         let uploadedImageInfo: Array<{ id: number; src: string }> | undefined = undefined;
         if (imagesToUpload.length > 0) {
             toast({ description: `Uploading ${imagesToUpload.length} image(s)...` });
@@ -219,7 +273,6 @@ export default function BotPage() {
             uploadedImageInfo = uploadedImages.map(img => ({ id: img.id, src: img.src }));
         }
 
-        // 3. Send to bot backend
         const response = await fetch('/api/telegram/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -369,12 +422,10 @@ export default function BotPage() {
   return (
     <div className="container mx-auto max-w-6xl h-[calc(100vh-57px)] flex flex-col pt-6">
         <div className="grid md:grid-cols-[280px_1fr] gap-6 flex-1 overflow-hidden">
-             {/* Sidebar for Desktop */}
              <div className="hidden md:block h-full">
                 {renderSidebar()}
             </div>
 
-            {/* Main Chat Window */}
             <Card className="flex flex-col h-full overflow-hidden">
             {activeSession ? (
                 <>
@@ -402,7 +453,7 @@ export default function BotPage() {
                     {messages.map((msg, index) => {
                         const isBot = msg.role === 'model';
                         const showOptimizeButton = isBot && msg.content.includes("Should I go ahead and AI-optimize this content?");
-                        const showCreateButtons = isBot && msg.content.includes("create the product, or save it as a draft?");
+                        const showCreateButtons = isBot && (msg.content.includes("create the product, or save it as a draft?") || msg.content.includes("save the changes, or save it as a draft?"));
 
                         return (
                             <div key={index} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
@@ -431,7 +482,9 @@ export default function BotPage() {
                                             )}
                                             {showCreateButtons && !isLoading && (
                                                 <div className="mt-2 flex flex-wrap gap-2">
-                                                    <Button size="sm" onClick={() => handleActionClick('Create Product')}>Create Product</Button>
+                                                    <Button size="sm" onClick={() => handleActionClick(activeSession.id.startsWith('session_edit_') ? 'Save Changes' : 'Create Product')}>
+                                                      {activeSession.id.startsWith('session_edit_') ? 'Save Changes' : 'Create Product'}
+                                                    </Button>
                                                     <Button size="sm" variant="outline" onClick={() => handleActionClick('Save as Draft')}>Save as Draft</Button>
                                                 </div>
                                             )}

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { WooProduct } from "@/lib/types";
@@ -50,6 +50,19 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
               </TooltipTrigger>
               <TooltipContent>
                 <p>Edit Product</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" asChild>
+                  <Link href={`/bot?editProductId=${product.id}`}>
+                    <MessageSquare className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit with Chatbot</p>
               </TooltipContent>
             </Tooltip>
 

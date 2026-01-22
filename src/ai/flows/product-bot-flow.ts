@@ -1,25 +1,15 @@
 'use server';
 
-/**
- * @fileOverview Defines a Genkit flow that acts as a conversational product creation bot.
- * This version is stateful, using a cache to manage the conversation state for each user.
- *
- * - productBotFlow - The main conversational flow.
- * - ProductBotInput - The input type, containing the chatId, message, and image data.
- * - ProductBotOutput - The output type, containing the bot's response.
- */
-
 import { ai, generate } from '@/ai/genkit';
 import { z } from 'zod';
 import { appCache } from '@/lib/cache';
 import { generateWooCommerceProductContent } from './generate-woocommerce-product-content';
-import { createProduct, getSettings, getAllProductCategories } from '@/lib/woocommerce-api';
+import { createProduct, getProduct, updateProduct, getSettings, getAllProductCategories } from '@/lib/woocommerce-api';
 import { AIProductContent, Settings, WooCategory } from '@/lib/types';
 import { suggestProductsTool } from '../tools/suggest-products-tool';
 import { getGscTopQueries } from '@/lib/gsc-api';
 
 
-// Define the input schema for the flow
 const ProductBotInputSchema = z.object({
   chatId: z.string(),
   newMessage: z.string().optional(),
@@ -27,18 +17,19 @@ const ProductBotInputSchema = z.object({
       id: z.number(),
       src: z.string()
   })).optional(),
+  editProductId: z.string().optional(),
 });
 export type ProductBotInput = z.infer<typeof ProductBotInputSchema>;
 
-// Define the output schema for the flow
 const ProductBotOutputSchema = z.object({
   text: z.string(),
+  productName: z.string().optional(),
 });
 export type ProductBotOutput = z.infer<typeof ProductBotOutputSchema>;
 
 
-// Define the structure for our conversation state
 interface ProductCreationData {
+    editProductId?: number;
     raw_name?: string;
     price_etb?: number;
     material?: string;
@@ -49,7 +40,6 @@ interface ProductCreationData {
     aiContent?: Partial<AIProductContent>;
 }
 
-// State management helpers
 function getState(chatId: string): ProductCreationData {
     return appCache.get<ProductCreationData>(chatId) || { image_ids: [], image_srcs: [] };
 }
@@ -57,13 +47,47 @@ function setState(chatId: string, data: ProductCreationData) {
     appCache.set(chatId, data);
 }
 
-// The main flow function
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
-    const { chatId, newMessage, images } = input;
+    const { chatId, newMessage, images, editProductId } = input;
     let data = getState(chatId);
 
     try {
-        // Handle image uploads immediately
+        if (editProductId && !newMessage && (!images || images.length === 0)) {
+            const product = await getProduct(parseInt(editProductId, 10));
+            if (!product) {
+                return { text: `Sorry, I couldn't find a product with ID ${editProductId}.` };
+            }
+
+            const editData: ProductCreationData = {
+                editProductId: product.id,
+                raw_name: product.name,
+                price_etb: parseFloat(product.regular_price),
+                material: product.attributes.find(a => a.name === "Material")?.options[0] || "",
+                focus_keywords: product.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value || product.tags.map(t => t.name).join(', ') || "",
+                amharic_name: product.meta_data.find(m => m.key === 'amharic_name')?.value || "",
+                image_ids: product.images.map(img => img.id),
+                image_srcs: product.images.map(img => img.src),
+                aiContent: {
+                    name: product.name,
+                    slug: product.slug,
+                    regular_price: parseFloat(product.regular_price),
+                    description: product.description,
+                    short_description: product.short_description,
+                    categories: product.categories.map(c => c.name),
+                    tags: product.tags.map(t => t.name),
+                    images: product.images.map(img => ({ alt: img.alt })),
+                    meta_data: product.meta_data,
+                    attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
+                }
+            };
+            data = editData;
+            
+            return { 
+                text: `I've loaded the product "${product.name}". What would you like to change? You can ask me to update the name, price, description, or even run AI optimization on it.`,
+                productName: product.name
+            };
+        }
+
         if (images && images.length > 0) {
             for (const image of images) {
                 if (!data.image_ids.includes(image.id)) {
@@ -73,7 +97,6 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             }
         }
         
-        // On a completely new chat with no message, send a welcome message.
         if (!newMessage && (!images || images.length === 0) && Object.keys(data).length <= 2) {
             return { text: "Hi there! I can help you create a new product. What's the name, price, and Amharic name? You can also upload photos or ask me for product suggestions based on search data." };
         }
@@ -83,7 +106,6 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             getAllProductCategories(),
         ]);
 
-        // Define tools for the AI to interact with the system
         const updateProductDetailsTool = ai.defineTool(
             {
                 name: 'updateProductDetailsTool',
@@ -113,16 +135,13 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 outputSchema: z.any(),
             },
             async () => {
-                const currentData = data; // Use local data from closure
-                console.log("Running AI Optimization Tool with data:", currentData);
+                const currentData = data; 
                 if (!currentData.raw_name || !currentData.price_etb || currentData.image_srcs.length === 0) {
                     return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
                 }
 
                 const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
-                
                 const gscData = await getGscTopQueries();
-
                 const aiContent = await generateWooCommerceProductContent({
                     raw_name: currentData.raw_name,
                     price_etb: currentData.price_etb,
@@ -137,103 +156,100 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                     gscData: gscData ?? undefined,
                 });
                 
-                data.aiContent = aiContent; // Update data in the outer scope
+                data.aiContent = aiContent;
                 
-                // Return a preview for the AI to relay to the user
-                const preview = `
-    Here's a preview of the product content I generated:
-    **Name**: ${aiContent.name || ''}
-    **Description**: ${aiContent.short_description || aiContent.description?.substring(0, 100) + '...'}
+                const previewText = data.editProductId 
+                  ? "I've generated the AI content. Do you want to save the changes, or save it as a draft?"
+                  : "Here's a preview of the product content I generated:\n" +
+                    `**Name**: ${aiContent.name || ''}\n` +
+                    `**Description**: ${aiContent.short_description || aiContent.description?.substring(0, 100) + '...'}\n\n` +
+                    "Do you want me to create the product, or save it as a draft?";
 
-    Do you want me to create the product, or save it as a draft?
-                `.trim();
-
-                return preview;
+                return previewText;
             }
         );
 
-        const createProductTool = ai.defineTool(
+        const saveOrUpdateProductTool = ai.defineTool(
             {
-                name: 'createProductTool',
-                description: 'Creates the product in WooCommerce. MUST be called after the user confirms the preview from aiOptimizeProductTool. The user will confirm by sending "Create Product" or "Save as Draft".',
+                name: 'saveOrUpdateProductTool',
+                description: 'Saves or updates the product in WooCommerce. MUST be called after the user confirms the action. The user will confirm by sending "Create Product", "Save as Draft", or "Save Changes".',
                 inputSchema: z.object({
-                    status: z.enum(['publish', 'draft']).describe('Use "publish" if the user says "Create Product". Use "draft" if the user says "Save as Draft".'),
+                    status: z.enum(['publish', 'draft']).describe('Use "publish" if the user says "Create Product" or "Save Changes". Use "draft" if the user says "Save as Draft".'),
                 }),
                 outputSchema: z.any(),
             },
             async ({ status }) => {
-                const currentData = data; // Use local data from closure
-                console.log(`Running Create Product Tool with status: ${status}`);
-                if (!currentData.aiContent) {
+                const currentData = data;
+                if (!currentData.aiContent && !currentData.editProductId) {
                     return "I can't create the product because the AI content hasn't been generated yet. Please provide more details first.";
                 }
 
                 try {
+                    const finalAiContent = currentData.aiContent || {};
+
                     const finalImages = currentData.image_ids.map((id, index) => ({
                         id,
-                        alt: currentData.aiContent?.images?.[index]?.alt || currentData.aiContent?.name,
+                        alt: finalAiContent.images?.[index]?.alt || finalAiContent.name,
                     }));
 
-                    const finalCategories = currentData.aiContent.categories?.map(c => {
+                    const finalCategories = finalAiContent.categories?.map(c => {
                         const existing = availableCategories.find(cat => cat.name.toLowerCase() === c.toLowerCase());
                         return existing ? { id: existing.id } : { name: c };
                     }) || [];
 
                     const finalData = {
-                        name: currentData.aiContent.name,
-                        slug: currentData.aiContent.slug,
-                        regular_price: (currentData.aiContent.regular_price || currentData.price_etb)?.toString(),
-                        description: currentData.aiContent.description,
-                        short_description: currentData.aiContent.short_description,
+                        name: finalAiContent.name || currentData.raw_name,
+                        slug: finalAiContent.slug,
+                        regular_price: (finalAiContent.regular_price || currentData.price_etb)?.toString(),
+                        description: finalAiContent.description,
+                        short_description: finalAiContent.short_description,
                         categories: finalCategories,
-                        tags: currentData.aiContent.tags?.map(tag => ({ name: tag })),
+                        tags: finalAiContent.tags?.map(tag => ({ name: tag })),
                         images: finalImages,
-                        attributes: currentData.aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
-                        meta_data: currentData.aiContent.meta_data,
+                        attributes: finalAiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
+                        meta_data: finalAiContent.meta_data,
                         status: status,
                     };
-
-                    const product = await createProduct(finalData);
-                    appCache.del(chatId); // Clear state after successful creation
-                    return `Success! I've created the product '${product.name}' as a ${status}.`;
+                    
+                    if (currentData.editProductId) {
+                        const product = await updateProduct(currentData.editProductId, finalData);
+                        appCache.del(chatId);
+                        return `Success! I've updated the product '${product.name}'.`;
+                    } else {
+                        const product = await createProduct(finalData);
+                        appCache.del(chatId);
+                        return `Success! I've created the product '${product.name}' as a ${status}.`;
+                    }
 
                 } catch (error: any) {
-                    console.error("Tool Error: Failed to create product:", error);
-                    return `I'm sorry, I failed to create the product. The system reported an error: ${error.message}`;
+                    console.error("Tool Error: Failed to save/update product:", error);
+                    return `I'm sorry, I failed to save the product. The system reported an error: ${error.message}`;
                 }
             }
         );
 
-        // The AI's main prompt
         const systemPrompt = `
-    You are an advanced conversational assistant for creating products. Your goal is to guide the user through a clear, step-by-step process.
+    You are an advanced conversational assistant for creating and editing products. Your goal is to guide the user through a clear, step-by-step process.
 
-    This is the current information you have for the product being created:
+    This is the current information you have for the product:
     ${JSON.stringify(data, null, 2)}
 
-    Your process is as follows:
-    1.  **Gather Information / Suggest Products**: Your primary goal is to collect the product's **Name**, **Price**, **Amharic Name**, and at least one **Image**.
-        - The user might provide multiple details in one message (e.g., 'a beautiful handmade cotton dress for kids, price is 1500 birr'). You must analyze the message and call 'updateProductDetailsTool' with all the information you can extract. Be intelligent about parsing the product name from a descriptive sentence.
+    Your process depends on whether you are creating a new product or editing an existing one (indicated by 'editProductId').
+
+    **IF CREATING A NEW PRODUCT (no 'editProductId'):**
+    1.  **Gather Information / Suggest Products**: Your primary goal is to collect the product's **Name**, **Price**, and at least one **Image**.
+        - The user might provide multiple details in one message (e.g., 'a beautiful handmade cotton dress for kids, price is 1500 birr'). You must analyze the message and call 'updateProductDetailsTool' with all the information you can extract.
         - If any of these core details are missing, ask the user for them clearly.
         - **Product Suggestions**: If the user asks for new product ideas, what to sell, or for suggestions based on search data, you MUST call the 'suggestProductsTool'. After providing suggestions, return to the product creation flow.
-
-    2.  **Confirm and Summarize**: Once you have gathered at least the Name, Price, and one Image, your response MUST STOP asking for information. Instead, you MUST present a summary of the collected data and ask the user if you should proceed with AI optimization.
-        - **Your response MUST follow this structure:**
-          "Great! I have the following details:
-          - Name: [The name you have]
-          - Price: [The price you have] ETB
-          - Amharic Name: [The Amharic name you have, or 'Not set']
-          - Material: [The material you have, or 'Not set']
-          - Images: [Number of images] uploaded
-
-          Should I go ahead and AI-optimize this content?"
-        - Refer to the JSON data at the top of this prompt to get the values for your summary.
-
+    2.  **Confirm and Summarize**: Once you have gathered at least the Name, Price, and one Image, your response MUST present a summary and ask the user if you should proceed with AI optimization.
     3.  **AI Optimize**: Only when the user's message is exactly "AI Optimize Now", you MUST then call the 'aiOptimizeProductTool'.
+    4.  **Show Preview & Save**: After 'aiOptimizeProductTool' runs, it will return a preview. Your response MUST be that preview, which asks the user to "Create Product" or "Save as Draft". When they respond, call 'saveOrUpdateProductTool'.
 
-    4.  **Show Preview**: After 'aiOptimizeProductTool' runs, it will return a preview of the AI content. Your response to the user MUST be exactly that preview text. The preview text ends with the question: 'Do you want me to create the product, or save it as a draft?'
-
-    5.  **Create Product**: If the user's message is "Create Product" or "Save as Draft", you MUST call the 'createProductTool' with the correct status ('publish' for "Create Product", and 'draft' for "Save as Draft").
+    **IF EDITING AN EXISTING PRODUCT (has 'editProductId'):**
+    1.  **Assist with Changes**: You have already loaded the product. Your goal is to help the user modify it. They can provide new details (e.g., "change the price to 2000 birr"), and you must use 'updateProductDetailsTool' to update the state.
+    2.  **Run Optimization**: If the user asks to optimize, or says "AI Optimize Now", you MUST call 'aiOptimizeProductTool'.
+    3.  **Confirm Save**: After 'aiOptimizeProductTool' runs, it will return a confirmation. Your response MUST be that text. It will ask the user to "Save Changes" or "Save as Draft".
+    4.  **Save Changes**: If the user says "Save Changes" or "Save as Draft", you MUST call 'saveOrUpdateProductTool' with the correct status.
 
     **Important:**
     - If images are uploaded (user message is empty), just acknowledge it and ask for any other missing details.
@@ -241,9 +257,9 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         `;
         
         const response = await generate({
-            prompt: newMessage || "Images were just uploaded.", // Provide context if message is empty
+            prompt: newMessage || "Images were just uploaded.",
             system: systemPrompt,
-            tools: [updateProductDetailsTool, aiOptimizeProductTool, createProductTool, suggestProductsTool],
+            tools: [updateProductDetailsTool, aiOptimizeProductTool, saveOrUpdateProductTool, suggestProductsTool],
         });
 
         const responseText = response.text;
@@ -254,7 +270,6 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         console.error("Genkit Flow Error:", error);
         return { text: `I'm sorry, an internal error occurred: ${error.message}` };
     } finally {
-        // After the model runs (and potentially calls tools that update state), save the final state, even if there was an error.
         setState(chatId, data);
     }
 }
