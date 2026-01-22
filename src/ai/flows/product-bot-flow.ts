@@ -8,6 +8,8 @@ import { createProduct, getProduct, updateProduct, getSettings, getAllProductCat
 import { AIProductContent, Settings, WooCategory } from '@/lib/types';
 import { suggestProductsTool } from '../tools/suggest-products-tool';
 import { getGscTopQueries } from '@/lib/gsc-api';
+import { generateSocialMediaPost } from './generate-social-media-post';
+import { sendPhotoToChannel } from '@/lib/telegram-api';
 
 
 const ProductBotInputSchema = z.object({
@@ -83,7 +85,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             data = editData;
             
             return { 
-                text: `I've loaded the product "${product.name}". What would you like to change? You can ask me to update the name, price, description, or even run AI optimization on it.`,
+                text: `I've loaded the product "${product.name}". What would you like to change? You can ask me to update the name, price, description, run AI optimization on it, or post it to Telegram.`,
                 productName: product.name
             };
         }
@@ -168,6 +170,54 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 return previewText;
             }
         );
+        
+        const postProductToTelegramTool = ai.defineTool(
+            {
+                name: 'postProductToTelegramTool',
+                description: "Generates and posts a social media update for the current product to the public Telegram channel. Call this when the user asks to post, share, or publish the product to Telegram. You must ask for the topic and tone if they are not provided.",
+                inputSchema: z.object({
+                    topic: z.string().optional().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
+                    tone: z.enum(['descriptive', 'playful']).describe("The desired tone for the post."),
+                }),
+                outputSchema: z.string(),
+            },
+            async ({ topic, tone }) => {
+                if (!data.editProductId) {
+                    return "Please load a product to edit before you can post it to Telegram.";
+                }
+                if (!topic || !tone) {
+                    return "What should be the topic for the post (like 'New Arrival' or 'Special Offer'), and should the tone be 'descriptive' or 'playful'?";
+                }
+                
+                try {
+                    const product = await getProduct(data.editProductId);
+                    if (!product) {
+                        return `I couldn't find the product with ID ${data.editProductId} to post.`;
+                    }
+                    if (!product.images || product.images.length === 0) {
+                        return "The product needs at least one image before I can post it to Telegram.";
+                    }
+
+                    const postContent = await generateSocialMediaPost({
+                        product,
+                        platform: 'telegram',
+                        topic,
+                        tone,
+                        settings,
+                    });
+
+                    const imageUrl = product.images[0].src;
+
+                    await sendPhotoToChannel(imageUrl, postContent.content);
+                    
+                    return `Successfully posted "${product.name}" to the Telegram channel.`;
+
+                } catch (error: any) {
+                    console.error("Tool Error: Failed to post to Telegram:", error);
+                    return `I'm sorry, I failed to post to the Telegram channel. The system reported an error: ${error.message}`;
+                }
+            }
+        );
 
         const saveOrUpdateProductTool = ai.defineTool(
             {
@@ -248,8 +298,9 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     **IF EDITING AN EXISTING PRODUCT (has 'editProductId'):**
     1.  **Assist with Changes**: You have already loaded the product. Your goal is to help the user modify it. They can provide new details (e.g., "change the price to 2000 birr"), and you must use 'updateProductDetailsTool' to update the state.
     2.  **Run Optimization**: If the user asks to optimize, or says "AI Optimize Now", you MUST call 'aiOptimizeProductTool'.
-    3.  **Confirm Save**: After 'aiOptimizeProductTool' runs, it will return a confirmation. Your response MUST be that text. It will ask the user to "Save Changes" or "Save as Draft".
-    4.  **Save Changes**: If the user says "Save Changes" or "Save as Draft", you MUST call 'saveOrUpdateProductTool' with the correct status.
+    3.  **Post to Telegram**: If the user asks to "post to Telegram", "share on Telegram", or similar, you MUST use the 'postProductToTelegramTool'. If the tool needs more information (like topic or tone), it will ask for it.
+    4.  **Confirm Save**: After 'aiOptimizeProductTool' runs, it will return a confirmation. Your response MUST be that text. It will ask the user to "Save Changes" or "Save as Draft".
+    5.  **Save Changes**: If the user says "Save Changes" or "Save as Draft", you MUST call 'saveOrUpdateProductTool' with the correct status.
 
     **Important:**
     - If images are uploaded (user message is empty), just acknowledge it and ask for any other missing details.
@@ -259,7 +310,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         const response = await generate({
             prompt: newMessage || "Images were just uploaded.",
             system: systemPrompt,
-            tools: [updateProductDetailsTool, aiOptimizeProductTool, saveOrUpdateProductTool, suggestProductsTool],
+            tools: [updateProductDetailsTool, aiOptimizeProductTool, saveOrUpdateProductTool, suggestProductsTool, postProductToTelegramTool],
         });
 
         const responseText = response.text;

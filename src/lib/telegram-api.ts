@@ -34,6 +34,36 @@ export async function sendMessage(chatId: number | string, text: string) {
     }
 }
 
+export async function sendPhotoToChannel(photoUrl: string, caption: string) {
+    const channelId = process.env.TELEGRAM_CHANNEL_ID;
+    if (!BOT_TOKEN || !channelId) {
+        console.error("TELEGRAM_BOT_TOKEN or TELEGRAM_CHANNEL_ID is not configured.");
+        throw new Error("Bot or channel is not configured for posting.");
+    }
+
+    try {
+        const response = await fetch(`${TELEGRAM_API_URL}/sendPhoto`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: channelId,
+                photo: photoUrl,
+                caption: caption,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Telegram API Error sending photo:", errorData);
+            throw new Error(errorData.description || "Failed to send photo to Telegram channel.");
+        }
+        return await response.json();
+    } catch (error: any) {
+        console.error("Failed to send photo to channel:", error);
+        throw error;
+    }
+}
+
 
 // Function to get file details from Telegram
 async function getFile(fileId: string): Promise<any> {
