@@ -33,7 +33,7 @@ const SocialPostSchema = z.object({
   platform: z.string().min(1, 'Please select a platform.'),
   topic: z.string().optional(),
   tone: z.enum(['descriptive', 'playful']),
-  showPrice: z.boolean().default(true),
+  showPrice: z.boolean().default(false),
 });
 
 type PostFormValues = z.infer<typeof PostGeneratorSchema>;
@@ -229,7 +229,7 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
 
   const form = useSocialForm<SocialPostFormValues>({
     resolver: zodResolver(SocialPostSchema),
-    defaultValues: { productId: defaultProductId || '', platform: 'telegram', topic: '', tone: 'playful', showPrice: true },
+    defaultValues: { productId: defaultProductId || '', platform: 'telegram', topic: '', tone: 'playful', showPrice: false },
   });
   
   useEffect(() => {
@@ -374,7 +374,7 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
                     <div className="space-y-0.5">
                       <FormLabel>Show Price</FormLabel>
                       <FormDescription>
-                        Display the price in the post, otherwise it will be hidden.
+                        Display the price in the post. If off, the price will be omitted entirely.
                       </FormDescription>
                     </div>
                     <FormControl>

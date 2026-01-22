@@ -22,7 +22,7 @@ const GenerateSocialMediaPostInputSchema = z.object({
   topic: z.string().optional().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
   settings: z.any().describe('The application settings object.'),
   tone: z.enum(['descriptive', 'playful']).describe('The desired tone for the post.'),
-  showPrice: z.boolean().optional().describe('Whether to show the price or hide it in a spoiler. Defaults to hidden.'),
+  showPrice: z.boolean().optional().describe('Whether to show the price in the post. If false, the price line is omitted entirely. Defaults to false.'),
 });
 export type GenerateSocialMediaPostInput = z.infer<typeof GenerateSocialMediaPostInputSchema>;
 
@@ -72,7 +72,8 @@ Your output MUST be a single string containing only the post content, formatted 
 - Use <code> for item codes (e.g., <code>ZF0512</code>).
 - Use <blockquote> to wrap the main list of features.
 - Use a separate <blockquote> to wrap the hashtags at the end of the post.
-- If 'showPrice' is true, display the price clearly (e.g., '💰 <b>Price</b>: 12,000 ETB'). If it is false or not provided, you MUST hide the price inside a <tg-spoiler> tag (e.g., '💰 <b>Price</b>: <tg-spoiler>12000</tg-spoiler> ETB').
+- If 'showPrice' is true, you MUST include the price line. It's best practice to place the price value inside a <tg-spoiler> tag (e.g., '💰 <b>Price</b>: <tg-spoiler>12000</tg-spoiler> ETB').
+- If 'showPrice' is false, you MUST NOT include the price line in the post at all.
 - Use \n for new lines to ensure proper alignment.
 - Use <a href="...">link text</a> for hyperlinks. DO NOT paste raw URLs.
 - Mix English and Amharic where it feels natural to connect with the local audience.
@@ -80,7 +81,7 @@ Your output MUST be a single string containing only the post content, formatted 
 
 ---
 **IF TONE IS 'descriptive':**
-Use a clear, structured format. Use blockquotes for the main details and hashtags.
+Use a clear, structured format. Use blockquotes for the main details and hashtags. The example below shows the price, but remember to omit it if 'showPrice' is false.
 
 <b>Descriptive Example (HTML):</b>
 #139
@@ -105,7 +106,7 @@ CALL: {{{settings.phoneNumber}}}
 
 ---
 **IF TONE IS 'playful':**
-Use an engaging, emoji-rich format. Focus on lifestyle and appeal.
+Use an engaging, emoji-rich format. Focus on lifestyle and appeal. This example does not include the price, which is the correct behavior when 'showPrice' is false.
 
 <b>Playful Example (HTML):</b>
 #Item code: <code>ZF0406</code>
