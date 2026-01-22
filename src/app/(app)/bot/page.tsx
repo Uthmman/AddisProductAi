@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft } from 'lucide-react';
+import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, Image as ImageIcon } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { fileToBase64, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,6 +48,7 @@ export default function BotPage() {
   const [isClient, setIsClient] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [stagedImages, setStagedImages] = useState<Array<{ src: string; file: File }>>([]);
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,10 +56,10 @@ export default function BotPage() {
   
   const handlePickerSelect = (data: any[]) => {
     const newImages = data.map(photo => ({
-      id: -1, // Temporary ID
-      src: photo.url
+      src: photo.url,
+      file: new File([], `google_photo_${photo.id || Date.now()}.jpg`, { type: 'image/jpeg' }),
     }));
-    handleImageUpload(newImages);
+    setStagedImages(prev => [...prev, ...newImages]);
   };
 
   const { openPicker, isPickerLoading } = useGooglePicker({
@@ -116,21 +117,20 @@ export default function BotPage() {
     }
   }, [messages]);
 
-  // Fetch initial welcome message for a new chat
-  useEffect(() => {
-    if (activeSession && activeSession.messages.length === 0 && !isLoading) {
-        sendBackendRequest(undefined, undefined, true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSession]);
-
-
   const updateSessionMessages = (sessionId: string, newMessages: Message[]) => {
     setSessions(prevSessions =>
       prevSessions.map(session =>
         session.id === sessionId ? { ...session, messages: newMessages } : session
       )
     );
+  };
+
+  const appendToSessionMessages = (sessionId: string, messagesToAppend: Message[]) => {
+      setSessions(prevSessions =>
+          prevSessions.map(session =>
+              session.id === sessionId ? { ...session, messages: [...session.messages, ...messagesToAppend] } : session
+          )
+      );
   };
   
   const updateSessionTitle = (sessionId: string, title: string) => {
@@ -141,106 +141,137 @@ export default function BotPage() {
     );
   };
 
-  const sendBackendRequest = async (text?: string, images?: Array<{id: number, src: string}>, isWelcome: boolean = false) => {
-    if (!activeSessionId) return;
-    
-    setIsLoading(true);
-
-    let currentMessages = [...(sessions.find(s => s.id === activeSessionId)?.messages || [])];
-    
-    if (text) {
-      const userMessage: Message = { role: 'user', type: 'text', content: text };
-      currentMessages.push(userMessage);
-      updateSessionMessages(activeSessionId, currentMessages);
-      setInput('');
-      if (currentMessages.filter(m => m.role === 'user').length === 1 && text) {
-          updateSessionTitle(activeSessionId, text.substring(0, 30));
-      }
+  // Fetch initial welcome message for a new chat
+  useEffect(() => {
+    if (activeSession && activeSession.messages.length === 0 && !isLoading && activeSessionId) {
+        setIsLoading(true);
+        fetch('/api/telegram/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatId: activeSessionId }),
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Failed to get welcome message.");
+            return res.json();
+        })
+        .then(data => {
+            const botMessage: Message = { role: 'model', type: 'text', content: data.text };
+            appendToSessionMessages(activeSessionId, [botMessage]);
+        })
+        .catch(error => {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: error.message || 'Could not communicate with the bot.',
+            });
+        })
+        .finally(() => {
+            setIsLoading(false);
+        });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession]);
 
-    try {
-      const response = await fetch('/api/telegram/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId: activeSessionId, newMessage: text, images }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.text || 'Failed to get response from bot.');
-      }
-
-      const botMessage: Message = { role: 'model', type: 'text', content: data.text };
-      currentMessages.push(botMessage);
-      updateSessionMessages(activeSessionId, currentMessages);
-
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Could not communicate with the bot.',
-      });
-      if(text && !isWelcome) setInput(text);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleSendMessage = async () => {
-    if (!input || isLoading || !activeSessionId) return;
-    await sendBackendRequest(input);
+    if ((!input && stagedImages.length === 0) || isLoading || !activeSessionId) return;
+
+    // 1. Optimistic UI update
+    const userMessages: Message[] = [];
+    if (input) {
+        userMessages.push({ role: 'user', type: 'text', content: input });
+    }
+    stagedImages.forEach(img => {
+        userMessages.push({ role: 'user', type: 'image', content: img.src });
+    });
+
+    appendToSessionMessages(activeSessionId, userMessages);
+
+    const firstUserMessage = !messages.some(m => m.role === 'user');
+    if (firstUserMessage && input) {
+        updateSessionTitle(activeSessionId, input.substring(0, 30));
+    }
+
+    const textToSend = input;
+    const imagesToUpload = [...stagedImages];
+
+    setInput('');
+    setStagedImages([]);
+    setIsLoading(true);
+
+    try {
+        // 2. Upload images
+        let uploadedImageInfo: Array<{ id: number; src: string }> | undefined = undefined;
+        if (imagesToUpload.length > 0) {
+            toast({ description: `Uploading ${imagesToUpload.length} image(s)...` });
+            const uploadPromises = imagesToUpload.map(async (image) => {
+                const uploadResponse = await fetch('/api/products/upload-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_data: image.src, image_name: image.file.name }),
+                });
+                if (!uploadResponse.ok) throw await uploadResponse.json();
+                return uploadResponse.json();
+            });
+
+            const uploadedImages = await Promise.all(uploadPromises);
+            toast({ title: "Success!", description: `${uploadedImages.length} image(s) uploaded.` });
+            uploadedImageInfo = uploadedImages.map(img => ({ id: img.id, src: img.src }));
+        }
+
+        // 3. Send to bot backend
+        const response = await fetch('/api/telegram/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatId: activeSessionId, newMessage: textToSend, images: uploadedImageInfo }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw data;
+
+        const botMessage: Message = { role: 'model', type: 'text', content: data.text };
+        appendToSessionMessages(activeSessionId, [botMessage]);
+
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message || 'An error occurred while sending the message.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
   
   const handleActionClick = async (text: string) => {
     if (isLoading || !activeSessionId) return;
-    await sendBackendRequest(text);
-  };
-  
-  const handleImageUpload = async (imageFiles: Array<{id?: number; src: string; file?: File}>) => {
-     if (imageFiles.length === 0 || !activeSessionId) return;
-
+    
+    const userMessage: Message = { role: 'user', type: 'text', content: text };
+    appendToSessionMessages(activeSessionId, [userMessage]);
+    
     setIsLoading(true);
-    toast({ description: `Uploading ${imageFiles.length} image(s)...` });
-
-    let currentMessages = [...(sessions.find(s => s.id === activeSessionId)?.messages || [])];
-    const tempImageMessages: Message[] = imageFiles.map(img => ({ role: 'user', type: 'image', content: img.src }));
-    updateSessionMessages(activeSessionId, [...currentMessages, ...tempImageMessages]);
-
     try {
-        const uploadPromises = imageFiles.map(async (image) => {
-            const image_data = image.src; // Already a data URI or a URL
-            const image_name = image.file?.name || `web_upload_${Date.now()}.jpg`;
-            
-            const uploadResponse = await fetch('/api/products/upload-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image_data, image_name }),
-            });
-            if (!uploadResponse.ok) {
-                const errorData = await uploadResponse.json();
-                throw new Error(errorData.message || `Image upload failed for ${image_name}.`);
-            }
-            return uploadResponse.json();
+        const response = await fetch('/api/telegram/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatId: activeSessionId, newMessage: text }),
         });
-
-        const uploadedImages = await Promise.all(uploadPromises);
-        toast({ title: "Success!", description: `${uploadedImages.length} image(s) uploaded.` });
-
-        const imageInfos = uploadedImages.map(img => ({ id: img.id, src: img.src }));
+        const data = await response.json();
+        if (!response.ok) throw data;
         
-        setSessions(prev => prev.map(s => s.id === activeSessionId ? {...s, messages: currentMessages} : s));
-        await sendBackendRequest(undefined, imageInfos);
-
+        const botMessage: Message = { role: 'model', type: 'text', content: data.text };
+        appendToSessionMessages(activeSessionId, [botMessage]);
     } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Upload Failed', description: error.message });
-        setSessions(prev => prev.map(s => s.id === activeSessionId ? {...s, messages: currentMessages} : s));
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message || 'Could not communicate with the bot.',
+        });
     } finally {
         setIsLoading(false);
-        if(fileInputRef.current) fileInputRef.current.value = '';
     }
-  }
-
-
+  };
+  
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -248,8 +279,14 @@ export default function BotPage() {
         src: await fileToBase64(file),
         file
     })));
-    handleImageUpload(imageFiles);
+    setStagedImages(prev => [...prev, ...imageFiles]);
+    if(fileInputRef.current) fileInputRef.current.value = '';
   };
+  
+  const removeStagedImage = (index: number) => {
+    setStagedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
 
   const handleNewChat = (makeActive = true) => {
     const newSession: ChatSession = {
@@ -424,13 +461,30 @@ export default function BotPage() {
                     </div>
                 </CardContent>
                 <div className="border-t p-4">
+                    {stagedImages.length > 0 && (
+                        <div className="p-2 border-b mb-4 flex flex-wrap gap-2">
+                            {stagedImages.map((image, index) => (
+                                <div key={index} className="relative">
+                                    <Image src={image.src} alt="Staged image" width={64} height={64} className="rounded-md object-cover h-16 w-16" />
+                                    <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full z-10"
+                                        onClick={() => removeStagedImage(index)}
+                                    >
+                                        <XIcon className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex items-center gap-2">
                         <Input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" multiple />
                         <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
                             <Paperclip className="h-4 w-4" />
                         </Button>
                         <Button variant="outline" size="icon" onClick={openPicker} disabled={isLoading || isPickerLoading}>
-                            {isPickerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2.5a2.5 2.5 0 0 0-5 0V5a2.5 2.5 0 0 0 5 0V2.5z"/><path d="M21 12a2.5 2.5 0 0 0 0-5h-2.5a2.5 2.5 0 0 0-5 0V9"/><path d="M9.5 21.5a2.5 2.5 0 0 0 5 0V19a2.5 2.5 0 0 0-5 0v2.5z"/><path d="M3 12a2.5 2.5 0 0 0 0 5h2.5a2.5 2.5 0 0 0 5 0V15"/></svg>}
+                            {isPickerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
                         </Button>
                         <Input
                             value={input}
@@ -439,7 +493,7 @@ export default function BotPage() {
                             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                             disabled={isLoading}
                         />
-                        <Button onClick={handleSendMessage} disabled={isLoading || !input}>
+                        <Button onClick={handleSendMessage} disabled={isLoading || (!input && stagedImages.length === 0)}>
                             <Send className="h-4 w-4" />
                         </Button>
                     </div>
@@ -474,3 +528,5 @@ export default function BotPage() {
     </div>
   );
 }
+
+    
