@@ -127,8 +127,8 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 flex-1 flex flex-col overflow-hidden">
-        <ScrollArea className="flex-1 pr-6 -mr-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col overflow-hidden">
+        <ScrollArea className="flex-grow pr-6 -mr-6">
           <div className="space-y-4">
             <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem><FormLabel>Name</FormLabel><FormControl><Input placeholder="e.g., Modern" {...field} /></FormControl><FormMessage /></FormItem>
@@ -192,7 +192,7 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
             </Card>
           </div>
         </ScrollArea>
-        <div className="flex justify-end pt-4 border-t">
+        <div className="flex-shrink-0 flex justify-end pt-4 mt-4 border-t">
           <Button type="submit" disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {tag ? "Save Changes" : "Create Tag"}
