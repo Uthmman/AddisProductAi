@@ -51,11 +51,20 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
   });
 
   useEffect(() => {
-    if (tag?.meta_data) {
-      setFocusKeyphrase(tag.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value || '');
-      setMetaDescription(tag.meta_data.find(m => m.key === '_yoast_wpseo_metadesc')?.value || '');
+    if (tag) {
+        form.reset({
+            name: tag.name,
+            slug: tag.slug,
+            description: tag.description,
+        });
+        setFocusKeyphrase(tag.meta?._yoast_wpseo_focuskw || '');
+        setMetaDescription(tag.meta?._yoast_wpseo_metadesc || '');
+    } else {
+        form.reset({ name: '', slug: '', description: '' });
+        setFocusKeyphrase('');
+        setMetaDescription('');
     }
-  }, [tag]);
+  }, [tag, form]);
 
 
   const handleGenerateSeo = async () => {
@@ -100,12 +109,12 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
       const url = tag ? `/api/products/tags/${tag.id}` : "/api/products/tags";
       const method = tag ? "PUT" : "POST";
       
-      const metaData = [
-        { key: '_yoast_wpseo_focuskw', value: focusKeyphrase },
-        { key: '_yoast_wpseo_metadesc', value: metaDescription },
-      ];
+      const meta = {
+        _yoast_wpseo_focuskw: focusKeyphrase,
+        _yoast_wpseo_metadesc: metaDescription,
+      };
 
-      const submissionData = { ...data, meta_data: metaData };
+      const submissionData = { ...data, meta };
       
       const response = await fetch(url, {
         method,

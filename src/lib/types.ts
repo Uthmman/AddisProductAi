@@ -61,7 +61,7 @@ export interface WooTag {
   slug: string;
   description: string;
   count: number;
-  meta_data?: { id: number; key: string; value: any }[];
+  meta?: { [key: string]: any };
 }
 
 export interface Settings {
