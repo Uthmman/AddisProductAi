@@ -12,7 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 import { WooTag } from "@/lib/types";
 import { Loader2, Sparkles, Copy, Info } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
@@ -127,8 +126,8 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-        <ScrollArea className="flex-grow pr-6 -mr-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto pr-6 py-1">
           <div className="space-y-4">
             <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem><FormLabel>Name</FormLabel><FormControl><Input placeholder="e.g., Modern" {...field} /></FormControl><FormMessage /></FormItem>
@@ -204,7 +203,7 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
                 </CardContent>
             </Card>
           </div>
-        </ScrollArea>
+        </div>
         <div className="flex-shrink-0 flex justify-end pt-4 mt-4 border-t">
           <Button type="submit" disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
