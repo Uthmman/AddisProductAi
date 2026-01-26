@@ -28,7 +28,6 @@ type AIGeneratedContent = {
     description: string;
     focusKeyphrase: string;
     metaDescription: string;
-    slug?: string;
 };
 
 type TagFormProps = {
@@ -78,9 +77,6 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
       const content: AIGeneratedContent = await response.json();
       setAiContent(content);
       form.setValue('description', content.description);
-      if (content.slug) {
-        form.setValue('slug', content.slug);
-      }
       toast({ title: 'Success!', description: 'SEO content has been generated.' });
 
     } catch (error: any) {
