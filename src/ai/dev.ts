@@ -6,3 +6,4 @@ import '@/ai/flows/product-bot-flow.ts';
 import '@/ai/flows/bulk-product-action-flow.ts';
 import '@/ai/flows/suggest-blog-topics-flow.ts';
 import '@/ai/flows/suggest-products-flow.ts';
+import '@/ai/tools/suggest-seo-keywords-tool.ts';
