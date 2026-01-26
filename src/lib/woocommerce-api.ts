@@ -287,7 +287,7 @@ export async function getAllProductTags(): Promise<WooTag[]> {
     return await response.json();
 }
 
-export async function updateProductTag(id: number, tagData: { name?: string; slug?: string; description?: string }): Promise<WooTag> {
+export async function updateProductTag(id: number, tagData: { name?: string; slug?: string; description?: string; meta_data?: any[] }): Promise<WooTag> {
     const headers = getAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}`, {
         method: 'PUT',
@@ -304,7 +304,7 @@ export async function updateProductTag(id: number, tagData: { name?: string; slu
     return await response.json();
 }
 
-export async function createProductTag(tagData: { name: string }): Promise<WooTag> {
+export async function createProductTag(tagData: { name: string; slug?: string; description?: string; meta_data?: any[] }): Promise<WooTag> {
     const headers = getAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags`, {
         method: 'POST',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState }from "react";
+import { useState, useEffect }from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,10 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooTag } from "@/lib/types";
-import { Loader2, Sparkles, Copy, Info } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Label } from "./ui/label";
 
 const TagFormSchema = z.object({
@@ -50,6 +49,14 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
       description: tag?.description || "",
     },
   });
+
+  useEffect(() => {
+    if (tag?.meta_data) {
+      setFocusKeyphrase(tag.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value || '');
+      setMetaDescription(tag.meta_data.find(m => m.key === '_yoast_wpseo_metadesc')?.value || '');
+    }
+  }, [tag]);
+
 
   const handleGenerateSeo = async () => {
     const tagName = form.getValues("name");
@@ -93,10 +100,17 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
       const url = tag ? `/api/products/tags/${tag.id}` : "/api/products/tags";
       const method = tag ? "PUT" : "POST";
       
+      const metaData = [
+        { key: '_yoast_wpseo_focuskw', value: focusKeyphrase },
+        { key: '_yoast_wpseo_metadesc', value: metaDescription },
+      ];
+
+      const submissionData = { ...data, meta_data: metaData };
+      
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(submissionData),
       });
 
       if (!response.ok) {
@@ -120,11 +134,6 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
       setIsSaving(false);
     }
   };
-  
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ description: "Copied to clipboard!" });
-  };
 
   return (
     <Form {...form}>
@@ -145,7 +154,7 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
                     <div className="flex justify-between items-center">
                         <div>
                             <CardTitle>SEO Content</CardTitle>
-                            <CardDescription>Generate an SEO-friendly description for this tag page.</CardDescription>
+                            <CardDescription>Generate or edit the SEO content. It will be saved automatically.</CardDescription>
                         </div>
                         <Button type="button" onClick={handleGenerateSeo} disabled={isGenerating}>
                             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
@@ -178,26 +187,13 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
                     )}
 
                     <div className="space-y-4 pt-4">
-                        <Alert>
-                            <Info className="h-4 w-4" />
-                            <AlertTitle>Manual SEO Update Required</AlertTitle>
-                            <AlertDescription>
-                                The WooCommerce API does not allow reading or writing Yoast SEO data for tags. For this reason, existing values cannot be loaded, and new values must be manually copied into your WordPress admin.
-                            </AlertDescription>
-                        </Alert>
                          <div className="space-y-2">
                             <Label>Yoast Focus Keyphrase</Label>
-                            <div className="relative">
-                                <Input value={focusKeyphrase} onChange={(e) => setFocusKeyphrase(e.target.value)} placeholder="Generate or enter a focus keyphrase..."/>
-                                <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(focusKeyphrase)}><Copy className="h-4 w-4" /></Button>
-                            </div>
+                            <Input value={focusKeyphrase} onChange={(e) => setFocusKeyphrase(e.target.value)} placeholder="Generate or enter a focus keyphrase..."/>
                         </div>
                         <div className="space-y-2">
                             <Label>Yoast Meta Description</Label>
-                            <div className="relative">
-                                <Textarea value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} rows={3} placeholder="Generate or enter a meta description..."/>
-                                <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(metaDescription)}><Copy className="h-4 w-4" /></Button>
-                            </div>
+                            <Textarea value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} rows={3} placeholder="Generate or enter a meta description..."/>
                         </div>
                     </div>
                 </CardContent>
