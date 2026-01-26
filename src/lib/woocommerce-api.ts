@@ -1,4 +1,4 @@
-import { WooProduct, WooCategory, Settings } from './types';
+import { WooProduct, WooCategory, Settings, WooTag } from './types';
 
 
 // In a real app, you would fetch from your WooCommerce API.
@@ -272,5 +272,65 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
         throw new Error(errorBody.message || 'Failed to batch update products');
     }
 
+    return await response.json();
+}
+
+export async function getAllProductTags(): Promise<WooTag[]> {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("Failed to fetch product tags:", response.status, errorBody);
+        throw new Error('Failed to fetch product tags');
+    }
+    return await response.json();
+}
+
+export async function updateProductTag(id: number, tagData: { name?: string; slug?: string; description?: string }): Promise<WooTag> {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(tagData),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error(`Failed to update product tag ${id}:`, response.status, errorBody);
+        throw new Error(errorBody.message || `Failed to update product tag ${id}`);
+    }
+
+    return await response.json();
+}
+
+export async function createProductTag(tagData: { name: string }): Promise<WooTag> {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(tagData),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error('Failed to create product tag:', response.status, errorBody);
+        throw new Error(errorBody.message || 'Failed to create product tag');
+    }
+    return await response.json();
+}
+
+export async function deleteProductTag(id: number, force: boolean = true): Promise<WooTag> {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}?force=${force}`, {
+        method: 'DELETE',
+        headers,
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error(`Failed to delete product tag ${id}:`, response.status, errorBody);
+        throw new Error(errorBody.message || `Failed to delete product tag ${id}`);
+    }
     return await response.json();
 }

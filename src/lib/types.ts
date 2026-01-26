@@ -55,6 +55,14 @@ export interface WooCategory {
   count: number;
 }
 
+export interface WooTag {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  count: number;
+}
+
 export interface Settings {
     phoneNumber: string;
     facebookUrl: string;
