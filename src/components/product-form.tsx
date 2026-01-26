@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { WooProduct, AIProductContent, WooCategory, Settings } from "@/lib/types";
+import { WooProduct, AIProductContent, WooCategory, Settings, WooTag } from "@/lib/types";
 import { fileToBase64, cn, applyWatermark as applyWatermarkUtil } from "@/lib/utils";
 import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save, Image as ImageIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
@@ -71,6 +71,7 @@ export default function ProductForm({ product }: ProductFormProps) {
   const [aiContent, setAiContent] = useState<Partial<AIProductContent>>({});
   const [availableCategories, setAvailableCategories] = useState<WooCategory[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<DisplayCategory[]>([]);
+  const [allTags, setAllTags] = useState<WooTag[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [applyWatermark, setApplyWatermark] = useState(true);
 
@@ -140,14 +141,19 @@ export default function ProductForm({ product }: ProductFormProps) {
   useEffect(() => {
     async function fetchInitialData() {
         try {
-            const [categoriesData, settingsData] = await Promise.all([
+            const [categoriesData, settingsData, tagsData] = await Promise.all([
                 fetch('/api/products/categories?all=true'),
-                getSettings()
+                getSettings(),
+                fetch('/api/products/tags')
             ]);
             
             if (categoriesData.ok) {
                 const data: WooCategory[] = await categoriesData.json();
                 setAvailableCategories(data);
+            }
+            if (tagsData.ok) {
+                const data: WooTag[] = await tagsData.json();
+                setAllTags(data);
             }
             
             setSettings(settingsData);
@@ -159,7 +165,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             console.error("Failed to fetch initial data", error);
             toast({
                 title: "Error",
-                description: "Could not load product categories or settings.",
+                description: "Could not load product categories, tags, or settings.",
                 variant: "destructive"
             });
         }
@@ -386,6 +392,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
         const url = product ? `/api/products/${product.id}` : '/api/products';
         const method = product ? 'PUT' : 'POST';
+        const isNewProduct = !product;
 
         const response = await fetch(url, {
             method,
@@ -399,6 +406,40 @@ export default function ProductForm({ product }: ProductFormProps) {
         }
 
         const savedProduct = await response.json();
+
+        // If a new product was created, check for and optimize any new tags.
+        if (isNewProduct && aiContent.tags && aiContent.tags.length > 0) {
+            const newTagNames = aiContent.tags.filter(tagName => 
+                !allTags.some(existingTag => existingTag.name.toLowerCase() === tagName.toLowerCase())
+            );
+
+            if (newTagNames.length > 0) {
+                toast({
+                    title: "Optimizing new tags...",
+                    description: `Found ${newTagNames.length} new tags. Generating SEO content for them in the background.`
+                });
+
+                // Fire and forget, no need to await.
+                fetch('/api/tags/bulk-optimize-specific', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tagNames: newTagNames }),
+                }).then(async (res) => {
+                    if (res.ok) {
+                        const result = await res.json();
+                        if (result.updatedCount > 0) {
+                            toast({
+                                title: "Background Task Complete",
+                                description: `Successfully generated SEO for ${result.updatedCount} new tags.`
+                            });
+                        }
+                    }
+                }).catch(err => {
+                    console.error("Failed to bulk optimize new tags:", err);
+                });
+            }
+        }
+        
         toast({
             title: "Success!",
             description: `Product "${savedProduct.name}" has been saved as a ${action}.`,
