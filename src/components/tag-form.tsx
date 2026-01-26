@@ -127,7 +127,7 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="h-full flex flex-col overflow-hidden">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
         <ScrollArea className="flex-grow pr-6 -mr-6">
           <div className="space-y-4">
             <FormField control={form.control} name="name" render={({ field }) => (
@@ -162,6 +162,19 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
                             <FormMessage />
                         </FormItem>
                     )} />
+
+                    {isGenerating && !aiContent && (
+                        <div className="space-y-4 pt-4 animate-pulse">
+                            <div className="space-y-2">
+                                <div className="h-5 w-24 bg-muted rounded-md" />
+                                <div className="h-10 w-full bg-muted rounded-md" />
+                            </div>
+                             <div className="space-y-2">
+                                <div className="h-5 w-24 bg-muted rounded-md" />
+                                <div className="h-20 w-full bg-muted rounded-md" />
+                            </div>
+                        </div>
+                    )}
 
                     {aiContent && (
                         <div className="space-y-4 pt-4">
