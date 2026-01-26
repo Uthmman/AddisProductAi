@@ -11,6 +11,10 @@ export async function GET(request: NextRequest) {
     const { products, totalPages, totalProducts } = await wooCommerceApi.getProducts(page, perPage, category);
     return NextResponse.json({ products, totalPages, totalProducts });
   } catch (error: any) {
+    if (error.message.includes("credentials or URL are not set")) {
+      console.warn("WooCommerce API credentials not configured. Returning empty product list.");
+      return NextResponse.json({ products: [], totalPages: 0, totalProducts: 0 });
+    }
     console.error(error);
     return NextResponse.json({ message: error.message || 'Failed to fetch products' }, { status: 500 });
   }
