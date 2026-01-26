@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PlusCircle, Edit, Trash2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { WooTag } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -39,6 +39,7 @@ export default function TagTable() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTag, setEditingTag] = useState<WooTag | null>(null);
   const [deletingTag, setDeletingTag] = useState<WooTag | null>(null);
+  const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const { toast } = useToast();
 
   const fetchTags = async () => {
@@ -116,14 +117,55 @@ export default function TagTable() {
     }
   };
   
+    const handleBulkGenerate = async () => {
+    setIsBulkGenerating(true);
+    toast({
+      title: "Bulk Generation Started",
+      description: "AI is generating SEO content for tags without a description. This may take a few minutes.",
+    });
+
+    try {
+      const response = await fetch('/api/tags/bulk-ai-optimize', {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Bulk generation failed.');
+      }
+      
+      const result = await response.json();
+      toast({
+        title: "Bulk Generation Complete",
+        description: result.message,
+      });
+
+      fetchTags(); // Refresh the table
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Bulk Generation Failed",
+        description: error.message,
+      });
+    } finally {
+      setIsBulkGenerating(false);
+    }
+  }
+
   return (
     <div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <h1 className="text-2xl sm:text-3xl font-bold font-headline">Product Tags</h1>
-            <Button onClick={openNewDialog} className="w-full sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                New Tag
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button onClick={openNewDialog} className="w-full sm:w-auto" variant="outline">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  New Tag
+              </Button>
+              <Button onClick={handleBulkGenerate} className="w-full sm:w-auto" disabled={isBulkGenerating || isLoading}>
+                  {isBulkGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                  Generate All SEO
+              </Button>
+            </div>
         </div>
   
         {isLoading ? (
@@ -181,7 +223,7 @@ export default function TagTable() {
                 <DialogHeader>
                     <DialogTitle>{editingTag ? 'Edit Tag' : 'Create New Tag'}</DialogTitle>
                     <DialogDescription>
-                        {editingTag ? 'Edit the tag details and generate SEO content.' : 'Create a new tag. You can generate SEO content after creating.'}
+                        {editingTag ? 'Edit the tag details and generate SEO content.' : 'Create a new tag. You can generate SEO content for it before saving.'}
                     </DialogDescription>
                 </DialogHeader>
                 <TagForm 
