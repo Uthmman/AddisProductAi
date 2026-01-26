@@ -18,21 +18,27 @@ const generateTagSeoPrompt = ai.definePrompt({
   name: 'generateTagSeoPrompt',
   input: { schema: GenerateTagSeoInputSchema },
   output: { schema: GenerateTagSeoOutputSchema },
-  prompt: `You are an SEO expert for an e-commerce store in Ethiopia. Your task is to generate SEO content for a product tag page.
+  prompt: `You are an SEO expert for an e-commerce store in Ethiopia. Your task is to generate SEO content for a product tag page to satisfy Yoast SEO analysis requirements.
 
 Product Tag: "{{tagName}}"
 
-Instructions:
-1.  **Focus Keyphrase**: First, determine the best focus keyphrase for this tag page. It should be concise and relevant.
-2.  **Meta Description**: Write a meta description (under 156 characters) that is engaging and includes the exact focus keyphrase.
-3.  **Page Description**: Write a full, SEO-optimized description of 200-300 words for the tag archive page.
-    *   The description MUST start with a paragraph that includes the exact focus keyphrase.
-    *   It should be well-structured with HTML tags like <p>, <h2>, and <ul>.
-    *   It should be informative and helpful for a user landing on this page, explaining what kinds of products they can expect to find.
-    *   Incorporate relevant Amharic terms naturally.
-    *   This description will be used to address Yoast SEO issues like "Keyphrase in introduction", "Keyphrase density", and "Text length".
+Your goal is to address all Yoast SEO problems by generating the following content:
 
-Your final output must be a single, valid JSON object with the 'description', 'focusKeyphrase', and 'metaDescription' fields.
+1.  **Focus Keyphrase**: Determine the best focus keyphrase for this tag page. This keyphrase is the most important part of the SEO strategy. It should be concise, relevant, and something a user would search for.
+    *   *This will solve: "Keyphrase length", "Previously used keyphrase"*
+
+2.  **Meta Description**: Write an engaging meta description (between 120 and 156 characters) that includes the exact focus keyphrase.
+    *   *This will solve: "Keyphrase in meta description", "Meta description length"*
+
+3.  **Page Description**: Write a full, SEO-optimized description of 200-300 words for the tag archive page.
+    *   The description **MUST** start with a paragraph that includes the exact focus keyphrase.
+    *   The keyphrase should appear a few times naturally throughout the text.
+    *   The content should be well-structured with HTML tags like <p>, <h2>, and <ul>.
+    *   It should be informative and helpful for a user landing on this page, explaining what kinds of products they can expect to find under the "{{tagName}}" tag.
+    *   Incorporate relevant Amharic terms naturally to connect with the local market.
+    *   *This will solve: "Keyphrase in introduction", "Keyphrase density", "Text length"*
+
+Your final output must be a single, valid JSON object containing the 'description', 'focusKeyphrase', and 'metaDescription' fields. The content you generate for these fields will be used to fix the Yoast SEO analysis results.
 `,
 });
 
