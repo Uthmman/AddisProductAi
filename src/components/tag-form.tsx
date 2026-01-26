@@ -126,7 +126,7 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
         <div className="flex-1 overflow-y-auto pr-6 py-1">
           <div className="space-y-4">
             <FormField control={form.control} name="name" render={({ field }) => (
@@ -181,21 +181,21 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
                                 <Info className="h-4 w-4" />
                                 <AlertTitle>Manual SEO Update Required</AlertTitle>
                                 <AlertDescription>
-                                    Copy the Focus Keyphrase and Meta Description below and paste them into the Yoast SEO fields for this tag in your WordPress admin.
+                                    The WooCommerce API does not support updating Yoast fields for tags. Please copy the values below and paste them into the Yoast SEO section for this tag in your WordPress admin.
                                 </AlertDescription>
                             </Alert>
                              <div className="space-y-2">
-                                <Label>Focus Keyphrase</Label>
+                                <Label>Yoast Focus Keyphrase</Label>
                                 <div className="relative">
-                                    <Input readOnly value={aiContent.focusKeyphrase} />
-                                    <Button variant="ghost" size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(aiContent.focusKeyphrase)}><Copy className="h-4 w-4" /></Button>
+                                    <Input value={aiContent.focusKeyphrase} onChange={(e) => setAiContent(p => p ? { ...p, focusKeyphrase: e.target.value } : null)} />
+                                    <Button type="button" variant="ghost" size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(aiContent.focusKeyphrase)}><Copy className="h-4 w-4" /></Button>
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label>Meta Description</Label>
+                                <Label>Yoast Meta Description</Label>
                                 <div className="relative">
-                                    <Textarea readOnly value={aiContent.metaDescription} rows={3} />
-                                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(aiContent.metaDescription)}><Copy className="h-4 w-4" /></Button>
+                                    <Textarea value={aiContent.metaDescription} onChange={(e) => setAiContent(p => p ? { ...p, metaDescription: e.target.value } : null)} rows={3} />
+                                    <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(aiContent.metaDescription)}><Copy className="h-4 w-4" /></Button>
                                 </div>
                             </div>
                         </div>
