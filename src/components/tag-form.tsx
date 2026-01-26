@@ -14,6 +14,7 @@ import { Loader2, Sparkles, Copy, Info } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Label } from "./ui/label";
 
 const TagFormSchema = z.object({
   name: z.string().min(2, "Tag name is required."),
