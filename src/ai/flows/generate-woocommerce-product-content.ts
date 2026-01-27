@@ -13,9 +13,15 @@
  * - GenerateWooCommerceProductContentOutput - The output type for the function.
  */
 
-import {ai, runPrompt} from '@/ai/genkit';
+import {ai, generate} from '@/ai/genkit';
 import {z} from 'genkit';
 import { suggestSeoKeywordsTool } from '../tools/suggest-seo-keywords-tool';
+import { getPrompts } from '@/lib/prompts-api';
+import * as handlebars from 'handlebars';
+
+handlebars.registerHelper('json', function(context) {
+    return JSON.stringify(context, null, 2);
+});
 
 // Define the input schema for the flow
 const GenerateWooCommerceProductContentInputSchema = z.object({
@@ -50,7 +56,6 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
     telegramUrl: z.string().optional(),
     telegramUsername: z.string().optional(),
     tiktokUrl: z.string().optional(),
-    aiPromptInstruction: z.string().optional(),
   }).optional().describe('General business settings like contact info and social media links.'),
   primaryCategory: z.object({
       id: z.number(),
@@ -90,99 +95,6 @@ export async function generateWooCommerceProductContent(
   return generateWooCommerceProductContentFlow(input);
 }
 
-// Define the prompt for the Gemini API
-const generateWooCommerceProductContentPrompt = ai.definePrompt({
-  name: 'generateWooCommerceProductContentPrompt',
-  input: {schema: GenerateWooCommerceProductContentInputSchema},
-  output: {schema: GenerateWooCommerceProductContentOutputSchema},
-  tools: [suggestSeoKeywordsTool],
-  prompt: `You are a specialized e-commerce content optimizer for the **Addis Ababa, Ethiopia** market. Your task is to generate a complete, SEO-optimized JSON object for a WooCommerce product.
-
-{{#if settings.aiPromptInstruction}}
-**General Content Guide from Store Owner:**
-You MUST follow these general instructions for all content you generate:
-"{{{settings.aiPromptInstruction}}}"
-{{/if}}
-
-**Your process is as follows:**
-1.  **Analyze SEO**: First, call the \`suggestSeoKeywordsTool\`. Use the provided 'raw_name' and 'focus_keywords' from the user input to get a strategic list of SEO tags and a primary "Focus Keyphrase". **If available, you MUST also pass the \`gscData\` from your input to the tool to get data-driven SEO insights.**
-2.  **Generate Content**: After you have the SEO strategy from the tool, generate all the product fields in the JSON output. All content you create MUST be based on the "Focus Keyphrase" and "Tags" returned by the tool.
-
-**Key Content Requirements (Apply these AFTER using the tool):**
-1.  **SKU:** Generate a unique SKU. It MUST start with 'ZF' followed by 4 digits. The first two digits MUST be based on the product's primary category, using the mapping below. The last two digits should be random-like to ensure uniqueness.
-    *   ZF01: bookshelf
-    *   ZF02: Shoe shelf, shoerack
-    *   ZF03: sofa table
-    *   ZF04: baby bed
-    *   ZF05: 1.50 bed
-    *   ZF06: bunk bed
-    *   ZF07: single bed
-    *   ZF08: coffee table
-    *   ZF09: Drawer, chestdrawer
-    *   ZF10: tv stand
-    *   ZF11: dressing table
-    *   ZF12: bedside table
-    *   ZF13: office furniture
-    *   ZF14: sofa side table
-    *   ZF15: coat hanger
-    *   ZF16: study table
-    *   ZF17: Wardrobe
-    *   ZF18: carpet
-    *   ZF19: reception
-    *   ZF20: home office table
-    *   ZF21: kitchen furniture
-    *   ZF22: door
-2.  **Description:** Generate a compelling, SEO-rich product description of approximately 300 words. Format it with HTML tags (e.g., <p>, <strong>, <ul>, <li>).
-3.  **Amharic Keyword Integration:** Weave relevant Amharic words and phrases naturally into the product description to improve local SEO and connect with customers. For example, use terms like 'የቤት ዕቃዎች' (yebēt ‘əqawoch, for furniture), 'ዋጋ' (waga, for price), 'ዘመናዊ' (zemenawi, for modern), or other descriptive local terms.
-4.  **Linking Strategy:**
-    *   **Inbound Link:** Naturally weave an inbound link into the description pointing to the product's primary category page. Use the format \`<a href="/product-category/{{{primaryCategory.slug}}}/">Explore more {{{primaryCategory.name}}}</a>\`.
-    *   **Outbound Links:** Naturally integrate outbound links to the provided social media pages and a telephone link. For the phone, use the format \`<a href="tel:{{{settings.phoneNumber}}}">call us</a>\`. For social media, link relevant phrases to the URLs provided in the settings.
-5.  **Yoast SEO:**
-    *   **Focus Keyphrase:** The \`_yoast_wpseo_focuskw\` field MUST be the **exact** "Focus Keyphrase" you received from the tool.
-    *   **Meta Description:** Generate a concise meta description for \`_yoast_wpseo_metadesc\`. This description MUST contain the exact Focus Keyphrase.
-    *   **Title and Description Integration:** The generated product \`name\` (SEO Title) and the first paragraph of the \`description\` MUST include the exact Focus Keyphrase.
-6.  **Image Alt Text:** Create descriptive alt text for each image that includes the Focus Keyphrase, 'zenbaba furniture', 'ethiopia', 'addis ababa', and the product's Amharic name ({{{amharic_name}}}).
-7.  **Categories:** Select the most relevant categories from the provided list. Your response for 'categories' should be an array of category NAME strings.
-8.  **Tags**: The tags you generate in the output JSON MUST be the list of "Tags" you received from the tool.
-
-**Business & Link Information:**
-- Phone Number: {{{settings.phoneNumber}}}
-- Facebook: {{{settings.facebookUrl}}}
-- Instagram: {{{settings.instagramUrl}}}
-- Telegram: {{{settings.telegramUrl}}}
-- TikTok: {{{settings.tiktokUrl}}}
-- Primary Category: {{{primaryCategory.name}}} (Slug: {{{primaryCategory.slug}}})
-
-**Available Categories for selection:**
-{{{json availableCategories}}}
-
-{{#if fieldToGenerate}}
-You are being asked to generate a single field: \`{{fieldToGenerate}}\`. 
-Base your response on the provided input data and the existing product content below. The generated value for \`{{fieldToGenerate}}\` should be consistent with the other product details.
-
-Existing Content Context:
-{{{json existingContent}}}
-{{else}}
-You are being asked to generate all content fields. For each image provided, generate a descriptive and SEO-optimized alt text. The 'images' array in your output JSON should contain one object with alt text for each image in the input.
-{{/if}}
-
-Input Data (text fields):
-Raw Name: {{{raw_name}}}
-Material: {{{material}}}
-Amharic Name: {{{amharic_name}}}
-Focus Keywords: {{{focus_keywords}}}
-Price (ETB): {{{price_etb}}}
-{{#if gscData}}
-GSC Data: [Data is available and will be passed to the SEO tool]
-{{/if}}
-
-Images:
-{{#each images_data}}
-{{media url=this}}
-{{/each}}
-`,
-});
-
 
 const generateWooCommerceProductContentFlow = ai.defineFlow(
   {
@@ -198,7 +110,16 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
         contextInput.images_data = [contextInput.images_data[0]];
     }
 
-    const {output} = await runPrompt(generateWooCommerceProductContentPrompt, contextInput);
+    const prompts = await getPrompts();
+    const promptTemplate = prompts.generateWooCommerceProductContent;
+    const template = handlebars.compile(promptTemplate);
+    const renderedPrompt = template(contextInput);
+    
+    const {output} = await generate({
+      prompt: renderedPrompt,
+      output: { schema: GenerateWooCommerceProductContentOutputSchema },
+      tools: [suggestSeoKeywordsTool],
+    });
     return output!;
   }
 );

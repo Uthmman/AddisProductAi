@@ -11,8 +11,14 @@
  * - GenerateBlogPostOutput - The output type for the function.
  */
 
-import { ai, runPrompt } from '@/ai/genkit';
+import { ai, generate } from '@/ai/genkit';
 import { z } from 'genkit';
+import { getPrompts } from '@/lib/prompts-api';
+import * as handlebars from 'handlebars';
+
+handlebars.registerHelper('json', function(context) {
+    return JSON.stringify(context, null, 2);
+});
 
 // Define the input schema for the flow
 const GenerateBlogPostInputSchema = z.object({
@@ -37,41 +43,6 @@ export async function generateBlogPost(
   return generateBlogPostFlow(input);
 }
 
-// Define the prompt for the Gemini API
-const generateBlogPostPrompt = ai.definePrompt({
-  name: 'generateBlogPostPrompt',
-  input: { schema: GenerateBlogPostInputSchema },
-  output: { schema: GenerateBlogPostOutputSchema },
-  prompt: `You are an expert content creator and SEO specialist for a furniture company based in Addis Ababa, Ethiopia. Your goal is to write a blog post that will attract local customers and drive traffic to the website.
-
-{{#if settings.aiPromptInstruction}}
-**General Content Guide from Store Owner:**
-You MUST follow these general instructions for all content you generate:
-"{{{settings.aiPromptInstruction}}}"
-{{/if}}
-
-Topic: {{{topic}}}
-
-{{#if gscData}}
-**Google Search Console Insights (Top User Queries):**
-Use this data as your primary source of inspiration. Analyze what users are searching for and write a blog post that directly addresses one of their problems or provides information they would find valuable. The user-provided "Topic" above should be considered a secondary suggestion if the GSC data isn't relevant.
-
-{{{json gscData}}}
-{{/if}}
-
-Instructions:
-1.  **Title:** Write a catchy, SEO-friendly title for the blog post based on the topic and any relevant GSC queries.
-2.  **Content:** Write an engaging and informative blog post of about 400-500 words. If GSC data is present, make sure the content is highly relevant to those user searches.
-3.  **Formatting:** Structure the content using HTML tags like <p>, <h2>, <h3>, <ul>, and <li> for readability.
-4.  **Local SEO:** Naturally incorporate keywords relevant to the Ethiopian and Addis Ababa market. Mention places, local customs, or trends if applicable. Use Amharic words where it feels natural (e.g., 'Habesha home', 'injera table').
-5.  **Call to Action:** End the post with a compelling call to action, encouraging readers to visit the website, check out products, or contact the company.
-6.  **Output:** Your final output must be a single, valid JSON object containing the 'title' and 'content' fields.
-
-Example Keywords to consider: 'modern furniture Ethiopia', 'furniture price in Addis Ababa', 'Zenbaba Furniture', 'Ethiopian home decor', 'quality furniture Addis'.
-`,
-});
-
-
 const generateBlogPostFlow = ai.defineFlow(
   {
     name: 'generateBlogPostFlow',
@@ -79,7 +50,15 @@ const generateBlogPostFlow = ai.defineFlow(
     outputSchema: GenerateBlogPostOutputSchema,
   },
   async (input) => {
-    const { output } = await runPrompt(generateBlogPostPrompt, input);
+    const prompts = await getPrompts();
+    const promptTemplate = prompts.generateBlogPost;
+    const template = handlebars.compile(promptTemplate);
+    const renderedPrompt = template(input);
+    
+    const { output } = await generate({
+      prompt: renderedPrompt,
+      output: { schema: GenerateBlogPostOutputSchema },
+    });
     return output!;
   }
 );

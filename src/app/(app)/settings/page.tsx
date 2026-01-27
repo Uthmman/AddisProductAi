@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { appCache } from '@/lib/cache';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const SettingsSchema = z.object({
   phoneNumber: z.string().optional(),
@@ -29,7 +30,6 @@ const SettingsSchema = z.object({
   tiktokUrl: z.string().url().or(z.literal('')).optional(),
   telegramUsername: z.string().optional(),
   commonKeywords: z.string().optional(),
-  aiPromptInstruction: z.string().optional(),
   watermarkImageUrl: z.string().optional(),
   watermarkPlacement: z.enum(['bottom-right', 'bottom-left', 'top-right', 'top-left', 'center']).default('bottom-right'),
   watermarkScale: z.number().min(5).max(100).default(40),
@@ -39,11 +39,24 @@ const SettingsSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof SettingsSchema>;
 
+const promptTitles: { [key: string]: string } = {
+  generateWooCommerceProductContent: "Product Content Generation Prompt",
+  generateBlogPost: "Blog Post Generation Prompt",
+  generateSocialMediaPost: "Social Media Post Generation Prompt",
+  generateTagSeo: "Tag SEO Content Generation Prompt",
+  bulkProductAction: "Bulk Product Action Prompt",
+  suggestBlogTopics: "Suggest Blog Topics Prompt",
+  suggestProducts: "Suggest Products Prompt",
+  suggestSeoKeywords: "Suggest SEO Keywords Tool Prompt",
+};
+
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [watermarkPreview, setWatermarkPreview] = useState<string | null>(null);
+  const [prompts, setPrompts] = useState<{ [key: string]: string }>({});
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(SettingsSchema),
@@ -55,7 +68,6 @@ export default function SettingsPage() {
       tiktokUrl: '',
       telegramUsername: '',
       commonKeywords: '',
-      aiPromptInstruction: '',
       watermarkImageUrl: '',
       watermarkPlacement: 'bottom-right',
       watermarkScale: 40,
@@ -72,13 +84,16 @@ export default function SettingsPage() {
   ]);
 
   useEffect(() => {
-    const fetchSettings = async () => {
+    const fetchAllSettings = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/settings');
-        if (response.ok) {
-          const data: Settings = await response.json();
-          // Provide defaults for new fields if they don't exist in the loaded data
+        const [settingsRes, promptsRes] = await Promise.all([
+          fetch('/api/settings'),
+          fetch('/api/prompts')
+        ]);
+        
+        if (settingsRes.ok) {
+          const data: Settings = await settingsRes.json();
           const defaults = {
              watermarkPlacement: 'bottom-right',
              watermarkScale: 40,
@@ -92,18 +107,26 @@ export default function SettingsPage() {
         } else {
           throw new Error('Failed to load settings');
         }
+
+        if (promptsRes.ok) {
+          const promptsData = await promptsRes.json();
+          setPrompts(promptsData);
+        } else {
+            throw new Error('Failed to load prompts');
+        }
+
       } catch (error) {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Could not load your settings. Please try again later.',
+          description: 'Could not load your settings or prompts. Please try again later.',
         });
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSettings();
+    fetchAllSettings();
   }, [form, toast]);
 
   const handleWatermarkChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,6 +137,10 @@ export default function SettingsPage() {
       form.setValue('watermarkImageUrl', base64);
     }
   };
+  
+  const handlePromptChange = (key: string, value: string) => {
+    setPrompts(p => ({ ...p, [key]: value }));
+  };
 
   const removeWatermark = () => {
     setWatermarkPreview(null);
@@ -123,24 +150,29 @@ export default function SettingsPage() {
   const onSubmit = async (data: SettingsFormValues) => {
     setIsSaving(true);
     try {
-      const response = await fetch('/api/settings', {
+      const settingsResponse = fetch('/api/settings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to save settings');
+      const promptsResponse = fetch('/api/prompts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prompts),
+      });
+
+      const [settingsResult, promptsResult] = await Promise.all([settingsResponse, promptsResponse]);
+
+      if (!settingsResult.ok || !promptsResult.ok) {
+        throw new Error('Failed to save settings or prompts');
       }
       
-      // Clear the cache so the AI flow picks up the new setting
       appCache.del('app_settings');
 
       toast({
         title: 'Success!',
-        description: 'Your settings have been saved.',
+        description: 'Your settings and prompts have been saved.',
       });
     } catch (error) {
       toast({
@@ -190,29 +222,12 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-10 max-w-2xl">
+      <div className="container mx-auto py-10 max-w-4xl">
         <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-6">Settings</h1>
-        <Card>
-          <CardHeader>
-             <Skeleton className="h-6 w-1/3" />
-             <Skeleton className="h-4 w-2/3 mt-1" />
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-             <div className="space-y-2">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-             <div className="space-y-2">
-                <Skeleton className="h-5 w-24" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-            {/* More skeletons */}
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
       </div>
     );
   }
@@ -253,10 +268,10 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
 
-              <Card>
+               <Card>
                 <CardHeader>
-                  <CardTitle>Content Settings</CardTitle>
-                  <CardDescription>Customize content generation and image watermarking.</CardDescription>
+                  <CardTitle>Content Generation</CardTitle>
+                  <CardDescription>Customize common keywords for content generation.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <FormField control={form.control} name="commonKeywords" render={({ field }) => (
@@ -264,14 +279,6 @@ export default function SettingsPage() {
                           <FormLabel>Common Keywords</FormLabel>
                           <FormControl><Textarea placeholder="zenbaba furniture, made in ethiopia, addis ababa..." {...field} /></FormControl>
                           <FormDescription>Comma-separated keywords that will be suggested on the product form.</FormDescription>
-                          <FormMessage />
-                      </FormItem>
-                  )} />
-                   <FormField control={form.control} name="aiPromptInstruction" render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>AI Content Generation Guide</FormLabel>
-                          <FormControl><Textarea placeholder="e.g., Always write in a friendly and professional tone. Mention our free delivery service in Addis Ababa." {...field} rows={5} /></FormControl>
-                          <FormDescription>Provide a general guide for the AI to follow when generating any product, blog, or social media content.</FormDescription>
                           <FormMessage />
                       </FormItem>
                   )} />
@@ -419,6 +426,32 @@ export default function SettingsPage() {
             </div>
           </div>
           
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Prompt Templates</CardTitle>
+              <CardDescription>
+                Edit the underlying prompts for each AI flow. Changes are saved when you click the main "Save All Settings" button.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="single" collapsible className="w-full">
+                {Object.entries(prompts).map(([key, value]) => (
+                  <AccordionItem value={key} key={key}>
+                    <AccordionTrigger>{promptTitles[key] || key}</AccordionTrigger>
+                    <AccordionContent>
+                      <Textarea
+                        value={value}
+                        onChange={(e) => handlePromptChange(key, e.target.value)}
+                        rows={15}
+                        className="font-mono text-xs bg-muted/30"
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end">
               <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

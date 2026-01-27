@@ -1,7 +1,13 @@
 'use server';
 
-import { ai, runPrompt } from '@/ai/genkit';
+import { ai, generate } from '@/ai/genkit';
 import { z } from 'genkit';
+import { getPrompts } from '@/lib/prompts-api';
+import * as handlebars from 'handlebars';
+
+handlebars.registerHelper('json', function(context) {
+    return JSON.stringify(context, null, 2);
+});
 
 // Schemas for the tool's input and output
 const SuggestSeoKeywordsInputSchema = z.object({
@@ -16,31 +22,6 @@ const SuggestSeoKeywordsOutputSchema = z.object({
   tags: z.array(z.string()).describe('A list of 5-10 relevant SEO keywords and tags, including a mix of English and Amharic terms.'),
 });
 
-// The prompt that powers the tool's logic
-const suggestKeywordsPrompt = ai.definePrompt({
-    name: 'suggestKeywordsSubPrompt',
-    input: { schema: SuggestSeoKeywordsInputSchema },
-    output: { schema: SuggestSeoKeywordsOutputSchema },
-    prompt: `
-    You are an SEO expert for the e-commerce market in Addis Ababa, Ethiopia.
-    Based on the product details below, and prioritizing the provided Google Search Console data, generate a primary "Focus Keyphrase" and a list of SEO tags.
-
-    Product Name: {{{productName}}}
-    Product Description: {{{productDescription}}}
-    User's Keywords: {{{existingKeywords}}}
-
-    {{#if gscData}}
-    Google Search Console Top Queries (prioritize these):
-    {{{json gscData}}}
-    {{/if}}
-
-    Instructions:
-    1.  **Analyze GSC Data**: If Google Search Console data is provided, analyze the queries. Identify terms that are relevant to the product and have high impressions or clicks. These are your most important source for keywords.
-    2.  **Focus Keyphrase**: Create one concise, high-impact focus keyphrase (max 4 words). This should ideally be derived from a high-performing GSC query if a relevant one exists.
-    3.  **Tags**: Generate a list of 5-10 supplementary keywords. These should be a mix of relevant GSC queries, Amharic terms, local market terms, and variations on the product name.
-    4.  Your final output must be a single, valid JSON object.
-  `,
-});
 
 // Define and export the tool
 export const suggestSeoKeywordsTool = ai.defineTool(
@@ -51,7 +32,15 @@ export const suggestSeoKeywordsTool = ai.defineTool(
     outputSchema: SuggestSeoKeywordsOutputSchema,
   },
   async (input) => {
-    const { output } = await runPrompt(suggestKeywordsPrompt, input);
+    const prompts = await getPrompts();
+    const promptTemplate = prompts.suggestSeoKeywords;
+    const template = handlebars.compile(promptTemplate);
+    const renderedPrompt = template(input);
+    
+    const { output } = await generate({
+        prompt: renderedPrompt,
+        output: { schema: SuggestSeoKeywordsOutputSchema }
+    });
     return output!;
   }
 );

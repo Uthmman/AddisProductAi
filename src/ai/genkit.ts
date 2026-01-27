@@ -1,6 +1,5 @@
-import { genkit, type GenerateRequest, type Prompt } from 'genkit';
+import { genkit, type GenerateRequest } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { z } from 'zod';
 
 // Configure Genkit plugins
 export const ai = genkit({
@@ -19,13 +18,4 @@ const model = 'googleai/gemini-2.5-flash';
 export async function generate(request: Omit<GenerateRequest, 'model'>) {
   const newRequest = { ...request, model };
   return ai.generate(newRequest);
-}
-
-// Wrapper for prompt calls.
-export async function runPrompt<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
->(prompt: Prompt<I, O>, input: z.infer<I>) {
-  // Pass the model in the options object to the prompt function
-  return prompt(input, { model });
 }

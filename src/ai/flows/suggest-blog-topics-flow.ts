@@ -1,6 +1,13 @@
 'use server';
-import { ai, runPrompt } from '@/ai/genkit';
+import { ai, generate } from '@/ai/genkit';
 import { z } from 'genkit';
+import { getPrompts } from '@/lib/prompts-api';
+import * as handlebars from 'handlebars';
+
+handlebars.registerHelper('json', function(context) {
+    return JSON.stringify(context, null, 2);
+});
+
 
 const SuggestBlogTopicsInputSchema = z.object({
   gscData: z.array(z.object({}).passthrough()).optional().describe('An array of top search queries from Google Search Console.'),
@@ -11,26 +18,18 @@ const SuggestBlogTopicsOutputSchema = z.object({
 });
 export type SuggestBlogTopicsOutput = z.infer<typeof SuggestBlogTopicsOutputSchema>;
 
-const suggestBlogTopicsPrompt = ai.definePrompt({
-  name: 'suggestBlogTopicsPrompt',
-  input: { schema: SuggestBlogTopicsInputSchema },
-  output: { schema: SuggestBlogTopicsOutputSchema },
-  prompt: `
-    You are an expert content strategist and SEO specialist for a furniture company in Addis Ababa, Ethiopia.
-    Based on the following Google Search Console data (top user queries), generate a list of 5 creative and engaging blog post topics.
-    These topics should address user problems, answer their questions, or align with their interests as indicated by their search queries.
-    Focus on topics that are highly relevant to the Ethiopian market and have the potential to drive organic traffic.
-
-    Google Search Console Insights (Top User Queries):
-    {{{json gscData}}}
-
-    Your final output must be a single, valid JSON object containing a 'topics' array with 5 topic strings.
-  `,
-});
 
 export async function suggestBlogTopicsFlow(
   input: z.infer<typeof SuggestBlogTopicsInputSchema>
 ): Promise<SuggestBlogTopicsOutput> {
-    const { output } = await runPrompt(suggestBlogTopicsPrompt, input);
+    const prompts = await getPrompts();
+    const promptTemplate = prompts.suggestBlogTopics;
+    const template = handlebars.compile(promptTemplate);
+    const renderedPrompt = template(input);
+    
+    const { output } = await generate({
+      prompt: renderedPrompt,
+      output: { schema: SuggestBlogTopicsOutputSchema },
+    });
     return output!;
 }
