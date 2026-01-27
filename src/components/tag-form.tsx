@@ -113,7 +113,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         
         if (fetchedTag.meta === undefined) {
           setIsMetaAvailable(false);
-          const errorDetail = `Your server is not sending the editable Yoast SEO fields.\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(fetchedTag, null, 2)}`;
+          const errorDetail = `The API returned the tag object, but the 'meta' field with Yoast data is missing. Please ensure the PHP code to register these fields has been added to your active theme's functions.php file and that all server/plugin caches have been cleared.\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(fetchedTag, null, 2)}`;
           setFetchError(errorDetail);
           toast({
               variant: "destructive",
@@ -129,6 +129,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
 
       } catch (error: any) {
         toast({ variant: "destructive", title: "Error Loading Tag", description: `Could not load tag data: ${error.message}` });
+        setFetchError(error.message);
       } finally {
         setIsFetching(false);
       }
@@ -168,7 +169,66 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       form.setValue('description', content.description);
       toast({ title: 'Success!', description: 'SEO content has been generated.' });
 
-    } catch (error: any)      const detailedError = `The server did not save the SEO data correctly. This usually means the REST API fields are not correctly registered in your active theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Generation Failed',
+        description: error.message,
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const onSubmit = async (data: TagFormValues) => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
+      const method = tagId ? "PUT" : "POST";
+      
+      const submissionData: {
+          name: string;
+          slug?: string;
+          description?: string;
+          meta?: any;
+      } = { ...data };
+
+      if (isMetaAvailable) {
+        submissionData.meta = {
+          _yoast_wpseo_title: seoTitle,
+          _yoast_wpseo_metadesc: metaDescription,
+          _yoast_wpseo_focuskw: focusKeyphrase,
+        };
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(submissionData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save tag");
+      }
+
+      const savedTag: WooTag = await response.json();
+
+      // Verification Step
+      if (tagId && isMetaAvailable) {
+        const verifyResponse = await fetch(`/api/products/tags/${tagId}`);
+        const verifiedTag: WooTag = await verifyResponse.json();
+        
+        const sentDataString = JSON.stringify(submissionData.meta, null, 2);
+        const receivedDataString = JSON.stringify(verifiedTag.meta, null, 2);
+
+        if (
+          verifiedTag.meta?._yoast_wpseo_title !== seoTitle ||
+          verifiedTag.meta?._yoast_wpseo_metadesc !== metaDescription ||
+          verifiedTag.meta?._yoast_wpseo_focuskw !== focusKeyphrase
+        ) {
+            const detailedError = `The server did not save the SEO data correctly. This usually means the REST API fields are not correctly registered in your active theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
             setSaveError(detailedError);
             throw new Error("Verification failed. See details below.");
         }
@@ -297,7 +357,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
               </Alert>
             )}
 
-             {fetchError && !isMetaAvailable && (
+             {fetchError && (
               <Alert variant="destructive" className="mt-6">
                 <AlertTitle>Fetch Error Details</AlertTitle>
                 <AlertDescription>
