@@ -54,7 +54,7 @@ export default function TagTable() {
     } catch (error: any) {
       console.error("Failed to fetch tags:", error);
       toast({
-        title: "Error",
+        title: "Error Loading Tags",
         description: error.message || "Could not load product tags.",
         variant: "destructive"
       });

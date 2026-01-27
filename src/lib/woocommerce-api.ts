@@ -28,7 +28,7 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
             message = errorBody.message;
         }
     } catch(e) {
-        // Not a JSON response
+        message = await response.text();
     }
     throw new Error(message);
   }
@@ -55,7 +55,9 @@ export async function getTopProductCategories(): Promise<WooCategory[]> {
             if (errorBody.message) {
                 message = errorBody.message;
             }
-        } catch(e) {}
+        } catch(e) {
+            message = await response.text();
+        }
         throw new Error(message);
     }
 
@@ -74,7 +76,9 @@ export async function getAllProductCategories(): Promise<WooCategory[]> {
             if (errorBody.message) {
                 message = errorBody.message;
             }
-        } catch(e) {}
+        } catch(e) {
+            message = await response.text();
+        }
         throw new Error(message);
     }
     const categories: WooCategory[] = await response.json();
@@ -90,9 +94,9 @@ export async function getProduct(id: number): Promise<WooProduct | null> {
         if (response.status === 404) {
             return null;
         }
-        const errorBody = await response.text();
-        console.error(`Failed to fetch product ${id}:`, response.status, errorBody);
-        throw new Error(`Failed to fetch product ${id}`);
+        const errorText = await response.text();
+        console.error(`Failed to fetch product ${id}:`, response.status, errorText);
+        throw new Error(`Failed to fetch product ${id}. Status: ${response.status}. Response: ${errorText}`);
     }
 
     return await response.json();
@@ -107,9 +111,9 @@ export async function createProduct(productData: any): Promise<WooProduct> {
     });
 
     if (!response.ok) {
-        const errorBody = await response.json();
-        console.error("Failed to create product:", response.status, errorBody);
-        throw new Error(errorBody.message || 'Failed to create product');
+        const errorText = await response.text();
+        console.error("Failed to create product:", response.status, errorText);
+        throw new Error(`Failed to create product. Status: ${response.status}. Response: ${errorText}`);
     }
 
     return await response.json();
@@ -124,9 +128,9 @@ export async function updateProduct(id: number, productData: any): Promise<WooPr
     });
     
     if (!response.ok) {
-        const errorBody = await response.json();
-        console.error(`Failed to update product ${id}:`, response.status, errorBody);
-        throw new Error(errorBody.message || 'Failed to update product');
+        const errorText = await response.text();
+        console.error(`Failed to update product ${id}:`, response.status, errorText);
+        throw new Error(`Failed to update product ${id}. Status: ${response.status}. Response: ${errorText}`);
     }
 
     return await response.json();
@@ -140,9 +144,9 @@ export async function deleteProduct(id: number): Promise<{id: number}> {
     });
 
     if (!response.ok) {
-        const errorBody = await response.json();
-        console.error(`Failed to delete product ${id}:`, response.status, errorBody);
-        throw new Error(errorBody.message || `Failed to delete product ${id}`);
+        const errorText = await response.text();
+        console.error(`Failed to delete product ${id}:`, response.status, errorText);
+        throw new Error(`Failed to delete product ${id}. Status: ${response.status}. Response: ${errorText}`);
     }
 
     const result = await response.json();
@@ -158,9 +162,9 @@ export async function createCategory(categoryData: { name: string; slug?: string
   });
 
   if (!response.ok) {
-    const errorBody = await response.json();
-    console.error('Failed to create category:', response.status, errorBody);
-    throw new Error(errorBody.message || 'Failed to create category');
+    const errorText = await response.text();
+    console.error('Failed to create category:', response.status, errorText);
+    throw new Error(`Failed to create category. Status: ${response.status}. Response: ${errorText}`);
   }
 
   return await response.json();
@@ -175,9 +179,9 @@ export async function updateCategory(id: number, categoryData: { name?: string; 
   });
 
   if (!response.ok) {
-    const errorBody = await response.json();
-    console.error(`Failed to update category ${id}:`, response.status, errorBody);
-    throw new Error(errorBody.message || `Failed to update category ${id}`);
+    const errorText = await response.text();
+    console.error(`Failed to update category ${id}:`, response.status, errorText);
+    throw new Error(`Failed to update category ${id}. Status: ${response.status}. Response: ${errorText}`);
   }
 
   return await response.json();
@@ -191,9 +195,9 @@ export async function deleteCategory(id: number, force: boolean = true): Promise
   });
 
   if (!response.ok) {
-    const errorBody = await response.json();
-    console.error(`Failed to delete category ${id}:`, response.status, errorBody);
-    throw new Error(errorBody.message || `Failed to delete category ${id}`);
+    const errorText = await response.text();
+    console.error(`Failed to delete category ${id}:`, response.status, errorText);
+    throw new Error(`Failed to delete category ${id}. Status: ${response.status}. Response: ${errorText}`);
   }
 
   return await response.json();
@@ -206,7 +210,6 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     const wcApiUrl = process.env.WOOCOMMERCE_API_URL;
     
     if(!wcApiUrl || !user || !pass) {
-        console.error("WordPress API credentials or URL for media upload are not set.");
         throw new Error("WordPress API credentials or URL for media upload are not set.");
     }
     
@@ -233,9 +236,9 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     });
 
     if (!response.ok) {
-      const errorBody = await response.json();
-      console.error("Failed to upload image to WordPress:", response.status, errorBody);
-      throw new Error(errorBody.message || 'Failed to upload image to WordPress');
+      const errorText = await response.text();
+      console.error("Failed to upload image to WordPress:", response.status, errorText);
+      throw new Error(`Failed to upload image to WordPress. Status: ${response.status}. Response: ${errorText}`);
     }
 
     const data = await response.json();
@@ -251,9 +254,9 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
     });
     
     if (!response.ok) {
-        const errorBody = await response.json();
-        console.error(`Failed to batch update products:`, response.status, errorBody);
-        throw new Error(errorBody.message || 'Failed to batch update products');
+        const errorText = await response.text();
+        console.error(`Failed to batch update products:`, response.status, errorText);
+        throw new Error(`Failed to batch update products. Status: ${response.status}. Response: ${errorText}`);
     }
 
     return await response.json();
@@ -264,21 +267,15 @@ export async function getAllProductTags(): Promise<WooTag[]> {
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
-        let message = `Failed to fetch product tags. Status: ${response.status}`;
-        try {
-            const errorBody = await response.json();
-            if (errorBody.message) {
-                message = errorBody.message;
-            }
-        } catch(e) {}
-        throw new Error(message);
+        const errorText = await response.text();
+        console.error("Failed to fetch product tags:", response.status, errorText);
+        throw new Error(`Failed to fetch tags. Status: ${response.status}. Response: ${errorText}`);
     }
     return await response.json();
 }
 
 export async function getSingleProductTag(id: number): Promise<WooTag | null> {
     const headers = getAuthHeaders();
-    // context=edit is crucial for seeing the 'meta' field in the response
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}?context=edit`, { 
         headers, 
         cache: 'no-store' 
@@ -286,9 +283,9 @@ export async function getSingleProductTag(id: number): Promise<WooTag | null> {
 
     if (!response.ok) {
         if (response.status === 404) return null;
-        const errorBody = await response.text();
-        console.error(`Failed to fetch tag ${id}:`, response.status, errorBody);
-        throw new Error(`Failed to fetch tag ${id}`);
+        const errorText = await response.text();
+        console.error(`Failed to fetch tag ${id}:`, response.status, errorText);
+        throw new Error(`Failed to fetch tag ${id}. Status: ${response.status}. Response: ${errorText}`);
     }
 
     return await response.json();
@@ -300,7 +297,7 @@ export async function updateProductTag(
         name?: string; 
         slug?: string; 
         description?: string; 
-        meta?: { [key: string]: any } // This will hold your _yoast fields
+        meta?: { [key: string]: any }
     }
 ): Promise<WooTag> {
     const headers = getAuthHeaders();
@@ -312,9 +309,9 @@ export async function updateProductTag(
     });
 
     if (!response.ok) {
-        const errorBody = await response.json();
-        console.error(`Failed to update product tag ${id}:`, response.status, errorBody);
-        throw new Error(errorBody.message || `Failed to update product tag ${id}`);
+        const errorText = await response.text();
+        console.error(`Failed to update product tag ${id}:`, response.status, errorText);
+        throw new Error(`Failed to update product tag ${id}. Status: ${response.status}. Response: ${errorText}`);
     }
 
     return await response.json();
@@ -329,9 +326,9 @@ export async function createProductTag(tagData: { name: string; slug?: string; d
     });
 
     if (!response.ok) {
-        const errorBody = await response.json();
-        console.error('Failed to create product tag:', response.status, errorBody);
-        throw new Error(errorBody.message || 'Failed to create product tag');
+        const errorText = await response.text();
+        console.error('Failed to create product tag:', response.status, errorText);
+        throw new Error(`Failed to create product tag. Status: ${response.status}. Response: ${errorText}`);
     }
     return await response.json();
 }
@@ -344,9 +341,9 @@ export async function deleteProductTag(id: number, force: boolean = true): Promi
     });
 
     if (!response.ok) {
-        const errorBody = await response.json();
-        console.error(`Failed to delete product tag ${id}:`, response.status, errorBody);
-        throw new Error(errorBody.message || `Failed to delete product tag ${id}`);
+        const errorText = await response.text();
+        console.error(`Failed to delete product tag ${id}:`, response.status, errorText);
+        throw new Error(`Failed to delete product tag ${id}. Status: ${response.status}. Response: ${errorText}`);
     }
     return await response.json();
 }
@@ -358,11 +355,9 @@ export async function getSettings(): Promise<Partial<Settings>> {
         return JSON.parse(fileContent);
     } catch (error: any) {
         if (error.code === 'ENOENT') {
-            console.warn('settings.json not found, returning default empty object.');
             return {};
         }
         console.error('Failed to read settings file:', error);
-        // Return empty object on other errors too, to avoid breaking callers
         return {}; 
     }
 }
