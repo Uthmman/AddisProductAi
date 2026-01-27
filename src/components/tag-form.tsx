@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect }from "react";
@@ -15,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Separator } from "./ui/separator";
 import { Label } from "./ui/label";
 import { Skeleton } from "./ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 const TagFormSchema = z.object({
   name: z.string().min(2, "Tag name is required."),
@@ -45,6 +47,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const [seoTitle, setSeoTitle] = useState('');
   const [focusKeyphrase, setFocusKeyphrase] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const form = useForm<TagFormValues>({
     resolver: zodResolver(TagFormSchema),
@@ -57,11 +60,13 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       setSeoTitle('');
       setFocusKeyphrase('');
       setMetaDescription('');
+      setSaveError(null);
       return;
     }
 
     const fetchTagData = async () => {
       setIsFetching(true);
+      setSaveError(null);
       try {
         const response = await fetch(`/api/products/tags/${tagId}`);
         if (!response.ok) {
@@ -76,7 +81,14 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           description: fetchedTag.description,
         });
         
-        // Fetch from the 'meta' object
+        if (!fetchedTag.meta) {
+          toast({
+              variant: "destructive",
+              title: "Warning: SEO Fields Missing",
+              description: "The application could not fetch the Yoast SEO meta fields from your website. They may not be configured correctly in your theme's functions.php file.",
+          });
+        }
+        
         setSeoTitle(fetchedTag.meta?._yoast_wpseo_title || '');
         setFocusKeyphrase(fetchedTag.meta?._yoast_wpseo_focuskw || '');
         setMetaDescription(fetchedTag.meta?._yoast_wpseo_metadesc || '');
@@ -131,15 +143,17 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
 
   const onSubmit = async (data: TagFormValues) => {
     setIsSaving(true);
+    setSaveError(null);
+    let submissionData; // To hold the data that was sent
+
     try {
-      // Use the 'meta' object for submission
       const meta = {
         _yoast_wpseo_title: seoTitle,
         _yoast_wpseo_focuskw: focusKeyphrase,
         _yoast_wpseo_metadesc: metaDescription,
       };
 
-      const submissionData = { ...data, meta };
+      submissionData = { ...data, meta };
       
       const url = tagId ? `/api/products/tags/${tagId}` : '/api/products/tags';
       const method = tagId ? 'PUT' : 'POST';
@@ -158,7 +172,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       const savedTag: WooTag = await response.json();
       const newTagId = savedTag.id;
       
-      // Verification step
       const verifyResponse = await fetch(`/api/products/tags/${newTagId}`);
       if (!verifyResponse.ok) {
         throw new Error("Verification failed: Could not re-fetch the saved tag.");
@@ -171,7 +184,11 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       if (metaDescription !== (verifiedTag.meta?._yoast_wpseo_metadesc || '')) verificationPassed = false;
       
       if (!verificationPassed) {
-          throw new Error("Verification failed. The server accepted the update, but the SEO data was not saved correctly. Please check your WordPress `functions.php` file to ensure the Yoast meta fields are registered with the REST API.");
+          const sentDataString = JSON.stringify(submissionData, null, 2);
+          const receivedDataString = JSON.stringify(verifiedTag, null, 2);
+          const detailedError = `The server did not save the SEO data correctly.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
+          setSaveError(detailedError);
+          throw new Error("Verification failed. See details below.");
       }
 
       toast({
@@ -179,6 +196,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         description: `Tag "${verifiedTag.name}" has been saved.`,
       });
       onSuccess();
+
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -256,6 +274,23 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                     </div>
                 </CardContent>
             </Card>
+
+            {saveError && (
+              <Alert variant="destructive" className="mt-6">
+                <AlertTitle>Save Error Details</AlertTitle>
+                <AlertDescription>
+                  <Textarea
+                    readOnly
+                    value={saveError}
+                    className="h-72 font-mono text-xs bg-destructive/5 text-destructive-foreground mt-2 whitespace-pre-wrap"
+                  />
+                  <p className="text-xs text-destructive-foreground/80 mt-2">
+                    This error usually means the meta fields are not correctly registered in your WordPress theme's <code>functions.php</code> file, or there is a server-side caching issue.
+                  </p>
+                </AlertDescription>
+              </Alert>
+            )}
+
           </div>
         </div>
         <div className="flex-shrink-0 flex justify-end pt-4 mt-4 border-t">
