@@ -1,14 +1,14 @@
 import { WooProduct, WooCategory, Settings, WooTag } from './types';
+import { promises as fs } from 'fs';
+import path from 'path';
 
-
-const WOOCOMMERCE_API_URL = process.env.NEXT_PUBLIC_WORDPRESS_URL ? `${process.env.NEXT_PUBLIC_WORDPRESS_URL}/wp-json/wc/v3` : undefined;
+const WOOCOMMERCE_API_URL = process.env.WOOCOMMERCE_API_URL;
 
 const getAuthHeaders = () => {
-    const consumerKey = process.env.WC_CONSUMER_KEY;
-    const consumerSecret = process.env.WC_CONSUMER_SECRET;
+    const consumerKey = process.env.WOOCOMMERCE_CONSUMER_KEY;
+    const consumerSecret = process.env.WOOCOMMERCE_CONSUMER_SECRET;
     
     if (!consumerKey || !consumerSecret || !WOOCOMMERCE_API_URL) {
-        console.error("WooCommerce API credentials or URL are not configured. Please check your .env file.");
         throw new Error("WooCommerce API credentials or URL are not configured or are incorrect.");
     }
     const base64Auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
@@ -21,14 +21,11 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
   const response = await fetch(`${WOOCOMMERCE_API_URL}/products?per_page=${perPage}&page=${page}${categoryParam}&_embed`, { headers, cache: 'no-store' });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    console.error("Failed to fetch products:", response.status, errorBody);
-    
     let message = `Failed to fetch products. Status: ${response.status}`;
     try {
-        const errorJson = JSON.parse(errorBody);
-        if (errorJson.message) {
-            message = errorJson.message;
+        const errorBody = await response.json();
+        if (errorBody.message) {
+            message = errorBody.message;
         }
     } catch(e) {
         // Not a JSON response
@@ -52,9 +49,14 @@ export async function getTopProductCategories(): Promise<WooCategory[]> {
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?hide_empty=true&orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        console.error("Failed to fetch product categories:", response.status, errorBody);
-        throw new Error('Failed to fetch product categories');
+        let message = `Failed to fetch product categories. Status: ${response.status}`;
+        try {
+            const errorBody = await response.json();
+            if (errorBody.message) {
+                message = errorBody.message;
+            }
+        } catch(e) {}
+        throw new Error(message);
     }
 
     const categories: WooCategory[] = await response.json();
@@ -66,9 +68,14 @@ export async function getAllProductCategories(): Promise<WooCategory[]> {
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?orderby=name&order=asc&per_page=100`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        console.error("Failed to fetch all product categories:", response.status, errorBody);
-        throw new Error('Failed to fetch all product categories');
+        let message = `Failed to fetch all product categories. Status: ${response.status}`;
+        try {
+            const errorBody = await response.json();
+            if (errorBody.message) {
+                message = errorBody.message;
+            }
+        } catch(e) {}
+        throw new Error(message);
     }
     const categories: WooCategory[] = await response.json();
     return categories.filter(c => c.slug !== 'uncategorized');
@@ -194,15 +201,18 @@ export async function deleteCategory(id: number, force: boolean = true): Promise
 
 
 export async function uploadImage(imageName: string, imageData: string): Promise<{id: number, src: string}> {
-    const wpApiUrl = process.env.NEXT_PUBLIC_WORDPRESS_URL ? `${process.env.NEXT_PUBLIC_WORDPRESS_URL}/wp-json/wp/v2` : undefined;
-    const user = process.env.WC_CONSUMER_KEY; // Re-using WC keys for WP auth is common if using a plugin
-    const pass = process.env.WC_CONSUMER_SECRET;
-
-    if(!wpApiUrl || !user || !pass) {
+    const user = process.env.WOOCOMMERCE_CONSUMER_KEY;
+    const pass = process.env.WOOCOMMERCE_CONSUMER_SECRET;
+    const wcApiUrl = process.env.WOOCOMMERCE_API_URL;
+    
+    if(!wcApiUrl || !user || !pass) {
         console.error("WordPress API credentials or URL for media upload are not set.");
         throw new Error("WordPress API credentials or URL for media upload are not set.");
     }
     
+    const siteUrl = wcApiUrl.replace('/wp-json/wc/v3', '');
+    const wpApiUrl = `${siteUrl}/wp-json/wp/v2`;
+
     const mimeTypeMatch = imageData.match(/^data:(image\/[a-z]+);base64,/);
     if (!mimeTypeMatch) {
       throw new Error('Invalid Base64 image format. Could not determine MIME type.');
@@ -254,9 +264,14 @@ export async function getAllProductTags(): Promise<WooTag[]> {
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
-        const errorBody = await response.text();
-        console.error("Failed to fetch product tags:", response.status, errorBody);
-        throw new Error('Failed to fetch product tags');
+        let message = `Failed to fetch product tags. Status: ${response.status}`;
+        try {
+            const errorBody = await response.json();
+            if (errorBody.message) {
+                message = errorBody.message;
+            }
+        } catch(e) {}
+        throw new Error(message);
     }
     return await response.json();
 }
@@ -334,4 +349,20 @@ export async function deleteProductTag(id: number, force: boolean = true): Promi
         throw new Error(errorBody.message || `Failed to delete product tag ${id}`);
     }
     return await response.json();
+}
+
+export async function getSettings(): Promise<Partial<Settings>> {
+    const settingsFilePath = path.join(process.cwd(), 'src', 'lib', 'settings.json');
+    try {
+        const fileContent = await fs.readFile(settingsFilePath, 'utf8');
+        return JSON.parse(fileContent);
+    } catch (error: any) {
+        if (error.code === 'ENOENT') {
+            console.warn('settings.json not found, returning default empty object.');
+            return {};
+        }
+        console.error('Failed to read settings file:', error);
+        // Return empty object on other errors too, to avoid breaking callers
+        return {}; 
+    }
 }
