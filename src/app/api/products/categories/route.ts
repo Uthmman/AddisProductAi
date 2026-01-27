@@ -12,12 +12,8 @@ export async function GET(request: NextRequest) {
       
     return NextResponse.json(categories);
   } catch (error: any) {
-     if (error.message.includes("credentials or URL are not set")) {
-        console.warn("WooCommerce API credentials not configured. Returning empty category list.");
-        return NextResponse.json([]);
-    }
-    console.error(error);
-    return NextResponse.json({ message: 'Failed to fetch product categories' }, { status: 500 });
+    console.error("API Route Error fetching categories:", error.message);
+    return NextResponse.json({ message: error.message || 'Failed to fetch product categories' }, { status: 500 });
   }
 }
 

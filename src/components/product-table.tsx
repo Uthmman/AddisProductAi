@@ -73,7 +73,9 @@ export default function ProductTable() {
       setTotalProducts(data.totalProducts || 0);
     } catch (error: any) {
       console.error("Failed to fetch products:", error);
-      setProducts([]); // Set to empty array on error
+      setProducts([]);
+      setTotalPages(1);
+      setTotalProducts(0);
       toast({
         title: "Error",
         description: error.message || "Could not load products.",

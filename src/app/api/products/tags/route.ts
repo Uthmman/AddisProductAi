@@ -6,12 +6,8 @@ export async function GET(request: NextRequest) {
     const tags = await wooCommerceApi.getAllProductTags();
     return NextResponse.json(tags);
   } catch (error: any) {
-    if (error.message.includes("credentials or URL are not set")) {
-        console.warn("WooCommerce API credentials not configured. Returning empty tag list.");
-        return NextResponse.json([]);
-    }
-    console.error(error);
-    return NextResponse.json({ message: 'Failed to fetch product tags' }, { status: 500 });
+    console.error("API Route Error fetching tags:", error.message);
+    return NextResponse.json({ message: error.message || 'Failed to fetch product tags' }, { status: 500 });
   }
 }
 

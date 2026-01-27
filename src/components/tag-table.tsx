@@ -46,19 +46,19 @@ export default function TagTable() {
     setIsLoading(true);
     try {
       const response = await fetch("/api/products/tags");
-      if (response.ok) {
-        const data = await response.json();
-        setTags(data);
-      } else {
-         throw new Error("Failed to fetch tags");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to fetch tags");
       }
-    } catch (error) {
+      setTags(data);
+    } catch (error: any) {
       console.error("Failed to fetch tags:", error);
       toast({
         title: "Error",
-        description: "Could not load product tags.",
+        description: error.message || "Could not load product tags.",
         variant: "destructive"
       });
+      setTags([]); // Clear tags on error
     } finally {
       setIsLoading(false);
     }

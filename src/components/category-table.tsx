@@ -45,19 +45,19 @@ export default function CategoryTable() {
     setIsLoading(true);
     try {
       const response = await fetch("/api/products/categories?all=true");
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      } else {
-         throw new Error("Failed to fetch categories");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to fetch categories");
       }
-    } catch (error) {
+      setCategories(data);
+    } catch (error: any) {
       console.error("Failed to fetch categories:", error);
       toast({
         title: "Error",
-        description: "Could not load categories.",
+        description: error.message || "Could not load categories.",
         variant: "destructive"
       });
+      setCategories([]); // Clear categories on error
     } finally {
       setIsLoading(false);
     }
