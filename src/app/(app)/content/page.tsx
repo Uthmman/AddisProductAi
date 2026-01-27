@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send, Share2, Bot as BotIcon, PanelLeft, FileText } from 'lucide-react';
+import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send, Share2, Bot as BotIcon, PanelLeft, FileText, Check, ChevronsUpDown } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WooProduct } from '@/lib/types';
@@ -27,6 +27,9 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
 
 const PostGeneratorSchema = z.object({
   topic: z.string().min(5, 'Please enter a topic with at least 5 characters.'),
@@ -230,6 +233,7 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
   const [generatedPost, setGeneratedPost] = useState<SocialPost | null>(null);
   const [products, setProducts] = useState<WooProduct[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [openProductPopover, setOpenProductPopover] = useState(false);
 
   const form = useSocialForm<SocialPostFormValues>({
     resolver: zodResolver(SocialPostSchema),
@@ -303,35 +307,79 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField control={form.control} name="productId" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Product</FormLabel>
-                  {isLoadingProducts ? <Skeleton className="h-10 w-full" /> : (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a product" /></SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            {products.map(p => (
-                                <SelectItem key={p.id} value={String(p.id)}>
+              <FormField
+                control={form.control}
+                name="productId"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Product</FormLabel>
+                    {isLoadingProducts ? (
+                      <Skeleton className="h-10 w-full" />
+                    ) : (
+                      <Popover open={openProductPopover} onOpenChange={setOpenProductPopover}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={openProductPopover}
+                              className={cn(
+                                "w-full justify-between text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <span className="truncate">
+                                {field.value
+                                  ? products.find((p) => String(p.id) === field.value)?.name
+                                  : "Select a product"}
+                              </span>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput placeholder="Search product..." />
+                            <CommandList>
+                              <CommandEmpty>No product found.</CommandEmpty>
+                              <CommandGroup>
+                                {products.map((p) => (
+                                  <CommandItem
+                                    key={p.id}
+                                    value={p.name}
+                                    onSelect={() => {
+                                      form.setValue("productId", String(p.id));
+                                      setOpenProductPopover(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        String(p.id) === field.value ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
                                     <div className="flex items-center gap-3">
-                                        <Image
-                                            src={p.images?.[0]?.src || "https://picsum.photos/seed/placeholder/40/40"}
-                                            alt={p.name}
-                                            width={24}
-                                            height={24}
-                                            className="h-6 w-6 rounded-sm object-cover"
-                                        />
-                                        <span>{p.name}</span>
+                                      <Image
+                                        src={p.images?.[0]?.src || "https://picsum.photos/seed/placeholder/40/40"}
+                                        alt={p.name}
+                                        width={24}
+                                        height={24}
+                                        className="h-6 w-6 rounded-sm object-cover"
+                                      />
+                                      <span className="truncate">{p.name}</span>
                                     </div>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )} />
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
                <FormField control={form.control} name="platform" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Platform</FormLabel>
