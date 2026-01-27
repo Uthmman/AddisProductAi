@@ -3,7 +3,7 @@
 
 import { useState, useEffect }from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@rodix-ui/react-hook-form-resolvers";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooTag } from "@/lib/types";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Terminal } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Label } from "./ui/label";
@@ -49,6 +49,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const [metaDescription, setMetaDescription] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isMetaAvailable, setIsMetaAvailable] = useState(true);
 
 
   const form = useForm<TagFormValues>({
@@ -64,6 +65,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       setMetaDescription('');
       setSaveError(null);
       setFetchError(null);
+      setIsMetaAvailable(true);
       return;
     }
 
@@ -71,6 +73,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       setIsFetching(true);
       setSaveError(null);
       setFetchError(null);
+      setIsMetaAvailable(true);
       try {
         const response = await fetch(`/api/products/tags/${tagId}`);
         if (!response.ok) {
@@ -86,17 +89,19 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         });
         
         if (!fetchedTag.meta) {
+          setIsMetaAvailable(false);
           const errorDetail = `The API returned the tag object, but the 'meta' field with Yoast data is missing. Please ensure the PHP code to register these fields has been added to your active theme's functions.php file and that all server/plugin caches have been cleared.\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(fetchedTag, null, 2)}`;
           setFetchError(errorDetail);
           toast({
               variant: "destructive",
               title: "Warning: SEO Fields Missing",
-              description: "Could not fetch Yoast SEO meta fields. See details in the form.",
+              description: "Editable SEO fields could not be loaded from your server. See details in the form.",
           });
         } else {
-          setSeoTitle(fetchedTag.meta?._yoast_wpseo_title || '');
-          setFocusKeyphrase(fetchedTag.meta?._yoast_wpseo_focuskw || '');
-          setMetaDescription(fetchedTag.meta?._yoast_wpseo_metadesc || '');
+          setIsMetaAvailable(true);
+          setSeoTitle(fetchedTag.meta._yoast_wpseo_title || '');
+          setFocusKeyphrase(fetchedTag.meta._yoast_wpseo_focuskw || '');
+          setMetaDescription(fetchedTag.meta._yoast_wpseo_metadesc || '');
         }
 
       } catch (error: any) {
@@ -150,16 +155,16 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const onSubmit = async (data: TagFormValues) => {
     setIsSaving(true);
     setSaveError(null);
-    let submissionData; // To hold the data that was sent
+    let submissionData;
 
     try {
-      const meta = {
+      const meta = isMetaAvailable ? {
         _yoast_wpseo_title: seoTitle,
         _yoast_wpseo_focuskw: focusKeyphrase,
         _yoast_wpseo_metadesc: metaDescription,
-      };
+      } : undefined;
 
-      submissionData = { ...data, meta };
+      submissionData = { ...data, ...(meta && { meta }) };
       
       const url = tagId ? `/api/products/tags/${tagId}` : '/api/products/tags';
       const method = tagId ? 'PUT' : 'POST';
@@ -178,32 +183,34 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       const savedTag: WooTag = await response.json();
       const newTagId = savedTag.id;
       
-      const verifyResponse = await fetch(`/api/products/tags/${newTagId}`);
-      if (!verifyResponse.ok) {
-        throw new Error("Verification failed: Could not re-fetch the saved tag.");
-      }
-      const verifiedTag: WooTag = await verifyResponse.json();
-      
-      let verificationPassed = true;
-      // Check if the 'meta' field exists and has the properties we sent
-      if (!verifiedTag.meta ||
-          seoTitle !== (verifiedTag.meta._yoast_wpseo_title || '') ||
-          focusKeyphrase !== (verifiedTag.meta._yoast_wpseo_focuskw || '') ||
-          metaDescription !== (verifiedTag.meta._yoast_wpseo_metadesc || '')) {
-          verificationPassed = false;
-      }
-      
-      if (!verificationPassed) {
-          const sentDataString = JSON.stringify(submissionData, null, 2);
-          const receivedDataString = JSON.stringify(verifiedTag, null, 2);
-          const detailedError = `The server did not save the SEO data correctly. This usually means the REST API fields are not correctly registered in your active theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
-          setSaveError(detailedError);
-          throw new Error("Verification failed. See details below.");
+      // Only verify if we intended to save meta fields.
+      if (isMetaAvailable) {
+        const verifyResponse = await fetch(`/api/products/tags/${newTagId}`);
+        if (!verifyResponse.ok) {
+          throw new Error("Verification failed: Could not re-fetch the saved tag.");
+        }
+        const verifiedTag: WooTag = await verifyResponse.json();
+        
+        let verificationPassed = true;
+        if (!verifiedTag.meta ||
+            seoTitle !== (verifiedTag.meta._yoast_wpseo_title || '') ||
+            focusKeyphrase !== (verifiedTag.meta._yoast_wpseo_focuskw || '') ||
+            metaDescription !== (verifiedTag.meta._yoast_wpseo_metadesc || '')) {
+            verificationPassed = false;
+        }
+        
+        if (!verificationPassed) {
+            const sentDataString = JSON.stringify(submissionData, null, 2);
+            const receivedDataString = JSON.stringify(verifiedTag, null, 2);
+            const detailedError = `The server did not save the SEO data correctly. This usually means the REST API fields are not correctly registered in your active theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
+            setSaveError(detailedError);
+            throw new Error("Verification failed. See details below.");
+        }
       }
 
       toast({
         title: "Success!",
-        description: `Tag "${verifiedTag.name}" has been saved.`,
+        description: `Tag "${savedTag.name}" has been saved.`,
       });
       onSuccess();
 
@@ -229,6 +236,29 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             </div>
         )
     }
+    
+const functionsPhpCode = `
+function register_yoast_seo_meta_for_tags() {
+    $yoast_meta_keys = [
+        '_yoast_wpseo_title',
+        '_yoast_wpseo_metadesc',
+        '_yoast_wpseo_focuskw'
+    ];
+
+    foreach ($yoast_meta_keys as $meta_key) {
+        // Unregister first to avoid conflicts.
+        unregister_term_meta('product_tag', $meta_key);
+        
+        register_term_meta('product_tag', $meta_key, array(
+            'type'         => 'string',
+            'description'  => 'Yoast SEO meta field',
+            'single'       => true,
+            'show_in_rest' => true,
+        ));
+    }
+}
+add_action('init', 'register_yoast_seo_meta_for_tags');
+`;
 
   return (
     <Form {...form}>
@@ -251,52 +281,82 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                             <CardTitle>SEO Content</CardTitle>
                             <CardDescription>Generate or edit the SEO content for this tag.</CardDescription>
                         </div>
-                        <Button type="button" onClick={handleGenerateSeo} disabled={isGenerating}>
+                        <Button type="button" onClick={handleGenerateSeo} disabled={isGenerating || !isMetaAvailable}>
                             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                             Generate
                         </Button>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <FormField control={form.control} name="description" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Description</FormLabel>
-                            <FormControl>
-                                <Textarea placeholder="AI-generated description will appear here..." {...field} rows={10} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-
-                    <div className="space-y-4 pt-4">
-                         <div className="space-y-2">
-                            <Label>Yoast SEO Title</Label>
-                            <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} placeholder="Generate or enter an SEO title..."/>
-                        </div>
-                         <div className="space-y-2">
-                            <Label>Yoast Focus Keyphrase</Label>
-                            <Input value={focusKeyphrase} onChange={(e) => setFocusKeyphrase(e.target.value)} placeholder="Generate or enter a focus keyphrase..."/>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Yoast Meta Description</Label>
-                            <Textarea value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} rows={3} placeholder="Generate or enter a meta description..."/>
-                        </div>
-                    </div>
+                    { !isMetaAvailable ? (
+                       <Alert variant="destructive">
+                         <Terminal className="h-4 w-4" />
+                         <AlertTitle>Server Configuration Required</AlertTitle>
+                         <AlertDescription>
+                           <p className="mb-2">Your WordPress site is not returning the editable Yoast SEO fields. To fix this, add the following PHP code to your active theme's <strong>functions.php</strong> file, then clear all server and plugin caches.</p>
+                           <Textarea
+                             readOnly
+                             value={functionsPhpCode.trim()}
+                             className="h-64 font-mono text-xs bg-destructive/5 text-destructive-foreground mt-2 whitespace-pre-wrap"
+                           />
+                         </AlertDescription>
+                       </Alert>
+                    ) : (
+                        <>
+                           <FormField control={form.control} name="description" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Description</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder="AI-generated description will appear here..." {...field} rows={10} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <div className="space-y-4 pt-4">
+                                <div className="space-y-2">
+                                    <Label>Yoast SEO Title</Label>
+                                    <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} placeholder="Generate or enter an SEO title..."/>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Yoast Focus Keyphrase</Label>
+                                    <Input value={focusKeyphrase} onChange={(e) => setFocusKeyphrase(e.target.value)} placeholder="Generate or enter a focus keyphrase..."/>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Yoast Meta Description</Label>
+                                    <Textarea value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} rows={3} placeholder="Generate or enter a meta description..."/>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
 
-            {(saveError || fetchError) && (
+            {saveError && (
               <Alert variant="destructive" className="mt-6">
-                <AlertTitle>{saveError ? 'Save Error Details' : 'Fetch Error Details'}</AlertTitle>
+                <AlertTitle>Save Error Details</AlertTitle>
                 <AlertDescription>
                   <Textarea
                     readOnly
-                    value={saveError || fetchError || ''}
+                    value={saveError}
                     className="h-72 font-mono text-xs bg-destructive/5 text-destructive-foreground mt-2 whitespace-pre-wrap"
                   />
                 </AlertDescription>
               </Alert>
             )}
+
+             {fetchError && !isMetaAvailable && (
+              <Alert variant="destructive" className="mt-6">
+                <AlertTitle>Fetch Error Details</AlertTitle>
+                <AlertDescription>
+                  <Textarea
+                    readOnly
+                    value={fetchError}
+                    className="h-72 font-mono text-xs bg-destructive/5 text-destructive-foreground mt-2 whitespace-pre-wrap"
+                  />
+                </AlertDescription>
+              </Alert>
+            )}
+
 
           </div>
         </div>
