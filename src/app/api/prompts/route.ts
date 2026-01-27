@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { getPrompts } from '@/lib/prompts-api';
+import { getPrompts, PROMPTS_CACHE_KEY } from '@/lib/prompts-api';
+import { appCache } from '@/lib/cache';
 
 const promptsFilePath = path.join(process.cwd(), 'src', 'lib', 'prompts.json');
 
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
     }
 
     await fs.writeFile(promptsFilePath, JSON.stringify(newPrompts, null, 2), 'utf8');
+    
+    // Invalidate the cache
+    appCache.del(PROMPTS_CACHE_KEY);
     
     return NextResponse.json({ message: 'Prompts saved successfully' });
   } catch (error) {

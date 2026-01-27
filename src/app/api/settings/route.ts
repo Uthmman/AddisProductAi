@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { appCache } from '@/lib/cache';
+import { SETTINGS_CACHE_KEY } from '@/lib/settings-api';
 
 // The path to the settings file
 const settingsFilePath = path.join(process.cwd(), 'src', 'lib', 'settings.json');
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     await fs.writeFile(settingsFilePath, JSON.stringify(newSettings, null, 2), 'utf8');
 
     // Invalidate the cache
-    appCache.del('app_settings');
+    appCache.del(SETTINGS_CACHE_KEY);
     
     return NextResponse.json({ message: 'Settings saved successfully' });
   } catch (error) {
