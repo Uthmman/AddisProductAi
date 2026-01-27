@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UploadCloud, X as XIcon, Info, Droplet, BrainCircuit, PanelLeft } from 'lucide-react';
+import { Loader2, UploadCloud, X as XIcon, Info, Droplet, BrainCircuit, PanelLeft, Bot, Send, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Settings } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
@@ -26,6 +26,7 @@ import { appCache } from '@/lib/cache';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 
 const GeneralSettingsSchema = z.object({
@@ -36,6 +37,7 @@ const GeneralSettingsSchema = z.object({
   tiktokUrl: z.string().url().or(z.literal('')).optional(),
   telegramUsername: z.string().optional(),
   commonKeywords: z.string().optional(),
+  aiPromptInstruction: z.string().optional(),
 });
 
 type GeneralSettingsFormValues = z.infer<typeof GeneralSettingsSchema>;
@@ -56,6 +58,7 @@ function GeneralSettings() {
       tiktokUrl: '',
       telegramUsername: '',
       commonKeywords: '',
+      aiPromptInstruction: '',
     },
   });
 
@@ -157,7 +160,7 @@ function GeneralSettings() {
           <Card>
           <CardHeader>
             <CardTitle>Content Generation</CardTitle>
-            <CardDescription>Customize common keywords for content generation.</CardDescription>
+            <CardDescription>Customize common keywords and provide general guidance to the AI.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <FormField control={form.control} name="commonKeywords" render={({ field }) => (
@@ -165,6 +168,14 @@ function GeneralSettings() {
                     <FormLabel>Common Keywords</FormLabel>
                     <FormControl><Textarea placeholder="zenbaba furniture, made in ethiopia, addis ababa..." {...field} /></FormControl>
                     <FormDescription>Comma-separated keywords that will be suggested on the product form.</FormDescription>
+                    <FormMessage />
+                </FormItem>
+            )} />
+             <FormField control={form.control} name="aiPromptInstruction" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>AI Content Generation Guide</FormLabel>
+                    <FormControl><Textarea placeholder="e.g., Always maintain a professional and helpful tone. All content should be optimized for the Ethiopian market..." {...field} rows={5} /></FormControl>
+                    <FormDescription>This general instruction will be included in all AI content generation prompts to guide the AI's tone and style.</FormDescription>
                     <FormMessage />
                 </FormItem>
             )} />
@@ -484,6 +495,7 @@ function PromptSettings() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [prompts, setPrompts] = useState<{ [key: string]: string }>({});
+    const [chats, setChats] = useState<{ [key: string]: { messages: { role: string; content: string }[], input: string, isLoading: boolean } }>({});
 
     useEffect(() => {
         async function fetchPrompts() {
@@ -511,6 +523,61 @@ function PromptSettings() {
     
     const handlePromptChange = (key: string, value: string) => {
         setPrompts(p => ({ ...p, [key]: value }));
+    };
+
+    const handleChatInputChange = (key: string, newInputValue: string) => {
+      setChats(prev => ({
+        ...prev,
+        [key]: { ...prev[key], messages: prev[key]?.messages || [], input: newInputValue, isLoading: prev[key]?.isLoading || false },
+      }));
+    };
+  
+    const handleSendMessage = async (key: string) => {
+      const chat = chats[key] || { messages: [], input: '', isLoading: false };
+      if (!chat.input || chat.isLoading) return;
+  
+      const newMessages = [...(chat.messages || []), { role: 'user', content: chat.input }];
+      
+      setChats(prev => ({
+        ...prev,
+        [key]: { messages: newMessages, input: '', isLoading: true },
+      }));
+  
+      try {
+        const res = await fetch('/api/prompts/modify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            request: chat.input,
+            promptKey: key,
+            originalPrompt: prompts[key],
+          }),
+        });
+  
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to get AI response.');
+        
+        const botResponse = data.modifiedPrompt;
+        handlePromptChange(key, botResponse);
+  
+        setChats(prev => ({
+          ...prev,
+          [key]: {
+            ...prev[key],
+            messages: [...newMessages, { role: 'model', content: `I've updated the prompt template. Review the changes in the text area.` }],
+            isLoading: false
+          }
+        }));
+        
+        toast({ description: "Prompt template updated by AI." });
+  
+      } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message });
+        setChats(prev => ({
+          ...prev,
+          [key]: { ...prev[key], messages: newMessages, isLoading: false }
+        }));
+      }
     };
 
     const handleSave = async () => {
@@ -549,7 +616,7 @@ function PromptSettings() {
                 <CardHeader>
                 <CardTitle>AI Prompt Templates</CardTitle>
                 <CardDescription>
-                    Edit the underlying prompts for each AI flow.
+                    Edit the underlying prompts for each AI flow, or use the AI assistant to modify them for you.
                 </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -564,6 +631,50 @@ function PromptSettings() {
                             rows={15}
                             className="font-mono text-xs bg-muted/30"
                         />
+                        <div className="mt-6 border-t pt-4">
+                          <h4 className="font-semibold text-sm mb-2 flex items-center"><Bot className="mr-2 h-4 w-4 text-primary"/>Prompt Assistant</h4>
+                          <Card className="p-3 mb-2 max-h-48 overflow-y-auto bg-muted/30">
+                              <div className="space-y-3 text-xs">
+                                  {(chats[key]?.messages || []).map((msg, i) => (
+                                      <div key={i} className={`flex items-start gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                                          {msg.role === 'model' && <Avatar className="h-5 w-5"><AvatarFallback><Bot size={12}/></AvatarFallback></Avatar>}
+                                          <p className={`max-w-[85%] rounded-lg px-3 py-2 ${msg.role === 'user' ? 'bg-primary/10' : 'bg-muted'}`}>
+                                              {msg.content}
+                                          </p>
+                                          {msg.role === 'user' && <Avatar className="h-5 w-5"><AvatarFallback><User size={12}/></AvatarFallback></Avatar>}
+                                      </div>
+                                  ))}
+                                  {chats[key]?.isLoading && (
+                                      <div className="flex items-start gap-2">
+                                          <Avatar className="h-5 w-5"><AvatarFallback><Bot size={12}/></AvatarFallback></Avatar>
+                                          <p className="max-w-[85%] rounded-lg px-3 py-2 bg-muted flex items-center">
+                                              <Loader2 className="h-3 w-3 animate-spin" />
+                                          </p>
+                                      </div>
+                                  )}
+                                  {(chats[key]?.messages || []).length === 0 && (
+                                    <p className="text-muted-foreground text-center p-2">Ask the assistant to modify the prompt above.</p>
+                                  )}
+                              </div>
+                          </Card>
+                          <div className="flex gap-2">
+                            <Input
+                              value={chats[key]?.input || ''}
+                              onChange={(e) => handleChatInputChange(key, e.target.value)}
+                              placeholder="e.g., 'Make it more professional...'"
+                              disabled={chats[key]?.isLoading || isSaving}
+                              onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleSendMessage(key);
+                                  }
+                              }}
+                            />
+                            <Button onClick={() => handleSendMessage(key)} disabled={chats[key]?.isLoading || isSaving || !(chats[key]?.input)}>
+                              <Send className="h-4 w-4"/>
+                            </Button>
+                          </div>
+                        </div>
                         </AccordionContent>
                     </AccordionItem>
                     ))}

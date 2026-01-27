@@ -10,3 +10,4 @@ import '@/ai/tools/suggest-seo-keywords-tool.ts';
 import '@/ai/flows/generate-tag-seo-flow.ts';
 import '@/ai/flows/bulk-generate-tag-seo-flow.ts';
 import '@/ai/flows/bulk-generate-seo-for-specific-tags-flow.ts';
+import '@/ai/flows/modify-prompt-flow.ts';
