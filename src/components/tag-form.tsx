@@ -86,7 +86,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         });
         
         if (!fetchedTag.meta) {
-          const errorDetail = `The API returned the tag object, but the 'meta' field with Yoast data is missing. This usually means the REST API fields are not correctly registered in your theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(fetchedTag, null, 2)}`;
+          const errorDetail = `The API returned the tag object, but the 'meta' field with Yoast data is missing. Please ensure the PHP code to register these fields has been added to your active theme's functions.php file and that all server/plugin caches have been cleared.\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(fetchedTag, null, 2)}`;
           setFetchError(errorDetail);
           toast({
               variant: "destructive",
@@ -185,14 +185,18 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       const verifiedTag: WooTag = await verifyResponse.json();
       
       let verificationPassed = true;
-      if (seoTitle !== (verifiedTag.meta?._yoast_wpseo_title || '')) verificationPassed = false;
-      if (focusKeyphrase !== (verifiedTag.meta?._yoast_wpseo_focuskw || '')) verificationPassed = false;
-      if (metaDescription !== (verifiedTag.meta?._yoast_wpseo_metadesc || '')) verificationPassed = false;
+      // Check if the 'meta' field exists and has the properties we sent
+      if (!verifiedTag.meta ||
+          seoTitle !== (verifiedTag.meta._yoast_wpseo_title || '') ||
+          focusKeyphrase !== (verifiedTag.meta._yoast_wpseo_focuskw || '') ||
+          metaDescription !== (verifiedTag.meta._yoast_wpseo_metadesc || '')) {
+          verificationPassed = false;
+      }
       
       if (!verificationPassed) {
           const sentDataString = JSON.stringify(submissionData, null, 2);
           const receivedDataString = JSON.stringify(verifiedTag, null, 2);
-          const detailedError = `The server did not save the SEO data correctly.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
+          const detailedError = `The server did not save the SEO data correctly. This usually means the REST API fields are not correctly registered in your active theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
           setSaveError(detailedError);
           throw new Error("Verification failed. See details below.");
       }
@@ -290,12 +294,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                     value={saveError || fetchError || ''}
                     className="h-72 font-mono text-xs bg-destructive/5 text-destructive-foreground mt-2 whitespace-pre-wrap"
                   />
-                  <p className="text-xs text-destructive-foreground/80 mt-2">
-                    {fetchError
-                      ? "This error usually means the meta fields are not correctly registered in your WordPress theme's functions.php file, or there is a server-side caching/security issue."
-                      : "This error usually means the meta fields are not correctly registered in your WordPress theme's functions.php file, or there is a server-side caching issue."
-                    }
-                  </p>
                 </AlertDescription>
               </Alert>
             )}
