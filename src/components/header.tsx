@@ -1,47 +1,35 @@
-import Link from "next/link";
-import { Package, FolderTree, Settings, FileText, Bot, MessageSquare, Tag } from "lucide-react";
-import { Button } from "./ui/button";
-import NavLink from "./nav-link";
+
+'use client';
+
+import Link from 'next/link';
+import { PanelLeft, Package } from 'lucide-react';
+import { Button } from './ui/button';
+import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { MainNav } from './main-nav';
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-auto min-h-14 flex-col items-start justify-center gap-4 py-2 md:flex-row md:items-center">
-        <Link href="/dashboard" className="flex items-center space-x-2">
-          <Package className="h-6 w-6 text-primary" />
-          <span className="font-bold font-headline text-lg">
-            Addis Product AI
-          </span>
-        </Link>
-        <div className="flex w-full flex-1 items-center justify-start overflow-x-auto md:justify-start">
-           <nav className="flex items-center gap-1 text-sm font-medium">
-            <NavLink href="/dashboard">
-              <Package className="h-4 w-4 mr-1.5" />
-              Products
-            </NavLink>
-             <NavLink href="/categories">
-                <FolderTree className="h-4 w-4 mr-1.5" />
-                Categories
-             </NavLink>
-             <NavLink href="/tags">
-                <Tag className="h-4 w-4 mr-1.5" />
-                Tags
-             </NavLink>
-             <NavLink href="/content">
-                <FileText className="h-4 w-4 mr-1.5" />
-                Content
-             </NavLink>
-              <NavLink href="/bot">
-                <MessageSquare className="h-4 w-4 mr-1.5" />
-                Chatbot
-             </NavLink>
-             <NavLink href="/settings">
-                <Settings className="h-4 w-4 mr-1.5" />
-                Settings
-             </NavLink>
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button size="icon" variant="outline" className="sm:hidden">
+            <PanelLeft className="h-5 w-5" />
+            <span className="sr-only">Toggle Menu</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="sm:max-w-xs">
+          <nav className="grid gap-6 text-lg font-medium">
+            <Link
+              href="/dashboard"
+              className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
+            >
+              <Package className="h-5 w-5 transition-all group-hover:scale-110" />
+              <span className="sr-only">Addis Product AI</span>
+            </Link>
+            <MainNav isCollapsed={false} />
           </nav>
-        </div>
-      </div>
+        </SheetContent>
+      </Sheet>
     </header>
   );
 }
