@@ -1,15 +1,15 @@
 import { WooProduct, WooCategory, Settings, WooTag } from './types';
 
 
-// In a real app, you would fetch from your WooCommerce API.
-const WOOCOMMERCE_API_URL = process.env.WOOCOMMERCE_API_URL;
+const WOOCOMMERCE_API_URL = process.env.NEXT_PUBLIC_WORDPRESS_URL ? `${process.env.NEXT_PUBLIC_WORDPRESS_URL}/wp-json/wc/v3` : undefined;
 
 const getAuthHeaders = () => {
-    const consumerKey = process.env.WOOCOMMERCE_CONSUMER_KEY;
-    const consumerSecret = process.env.WOOCOMMERCE_CONSUMER_SECRET;
+    const consumerKey = process.env.WC_CONSUMER_KEY;
+    const consumerSecret = process.env.WC_CONSUMER_SECRET;
+    
     if (!consumerKey || !consumerSecret || !WOOCOMMERCE_API_URL) {
-        console.error("WooCommerce API credentials or URL are not set.");
-        throw new Error("WooCommerce API credentials or URL are not set.");
+        console.error("WooCommerce API credentials or URL are not configured. Please check your .env file.");
+        throw new Error("WooCommerce API credentials or URL are not configured or are incorrect.");
     }
     const base64Auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
     return { 'Authorization': `Basic ${base64Auth}`, 'Content-Type': 'application/json' };
@@ -31,7 +31,7 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
             message = errorJson.message;
         }
     } catch(e) {
-        // Not a JSON response, maybe it's html. The console log above will have it.
+        // Not a JSON response
     }
     throw new Error(message);
   }
@@ -49,7 +49,6 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
 
 export async function getTopProductCategories(): Promise<WooCategory[]> {
     const headers = getAuthHeaders();
-    // Fetches top categories by product count, excluding 'uncategorized'
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?hide_empty=true&orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
@@ -64,7 +63,6 @@ export async function getTopProductCategories(): Promise<WooCategory[]> {
 
 export async function getAllProductCategories(): Promise<WooCategory[]> {
     const headers = getAuthHeaders();
-    // Fetches all categories, ordered by name
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?orderby=name&order=asc&per_page=100`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
@@ -196,13 +194,13 @@ export async function deleteCategory(id: number, force: boolean = true): Promise
 
 
 export async function uploadImage(imageName: string, imageData: string): Promise<{id: number, src: string}> {
-    const wpApiUrl = process.env.WORDPRESS_API_URL;
-    const user = process.env.WORDPRESS_AUTH_USER;
-    const pass = process.env.WORDPRESS_AUTH_PASS;
+    const wpApiUrl = process.env.NEXT_PUBLIC_WORDPRESS_URL ? `${process.env.NEXT_PUBLIC_WORDPRESS_URL}/wp-json/wp/v2` : undefined;
+    const user = process.env.WC_CONSUMER_KEY; // Re-using WC keys for WP auth is common if using a plugin
+    const pass = process.env.WC_CONSUMER_SECRET;
 
     if(!wpApiUrl || !user || !pass) {
-        console.error("WordPress API credentials or URL are not set.");
-        throw new Error("WordPress API credentials or URL are not set.");
+        console.error("WordPress API credentials or URL for media upload are not set.");
+        throw new Error("WordPress API credentials or URL for media upload are not set.");
     }
     
     const mimeTypeMatch = imageData.match(/^data:(image\/[a-z]+);base64,/);
@@ -212,7 +210,6 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     const mimeType = mimeTypeMatch[1];
     const imageBuffer = Buffer.from(imageData.split(';base64,').pop()!, 'base64');
     
-    // Sanitize the file name to prevent errors with non-ASCII characters in headers.
     const sanitizedImageName = imageName.replace(/[^a-zA-Z0-9._-]/g, '_');
 
     const response = await fetch(`${wpApiUrl}/media`, {
@@ -235,29 +232,6 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     return { id: data.id, src: data.source_url };
 }
 
-// Function to get settings, safe for both client and server.
-export async function getSettings(): Promise<Partial<Settings>> {
-    // On the server, we need an absolute URL. On the client, a relative one is fine.
-    // This check determines if the code is running on the server or client.
-    const isServer = typeof window === 'undefined';
-    const baseUrl = isServer 
-        ? (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'http://localhost:9002')
-        : '';
-    
-    try {
-        const response = await fetch(`${baseUrl}/api/settings`, { cache: 'no-store' });
-    
-        if (!response.ok) {
-            console.error('Failed to fetch settings, returning default empty object.');
-            return {};
-        }
-        return response.json();
-    } catch (error) {
-        console.error('Error fetching settings:', error);
-        return {};
-    }
-}
-
 export async function updateProductBatch(updates: { update: any[] }): Promise<any> {
     const headers = getAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/batch`, {
@@ -277,7 +251,7 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
 
 export async function getAllProductTags(): Promise<WooTag[]> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
         const errorBody = await response.text();
@@ -289,12 +263,14 @@ export async function getAllProductTags(): Promise<WooTag[]> {
 
 export async function getSingleProductTag(id: number): Promise<WooTag | null> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}?context=edit`, { headers, cache: 'no-store' });
+    // context=edit is crucial for seeing the 'meta' field in the response
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}?context=edit`, { 
+        headers, 
+        cache: 'no-store' 
+    });
 
     if (!response.ok) {
-        if (response.status === 404) {
-            return null;
-        }
+        if (response.status === 404) return null;
         const errorBody = await response.text();
         console.error(`Failed to fetch tag ${id}:`, response.status, errorBody);
         throw new Error(`Failed to fetch tag ${id}`);
@@ -303,8 +279,17 @@ export async function getSingleProductTag(id: number): Promise<WooTag | null> {
     return await response.json();
 }
 
-export async function updateProductTag(id: number, tagData: { name?: string; slug?: string; description?: string; meta?: { [key: string]: any } }): Promise<WooTag> {
+export async function updateProductTag(
+    id: number, 
+    tagData: { 
+        name?: string; 
+        slug?: string; 
+        description?: string; 
+        meta?: { [key: string]: any } // This will hold your _yoast fields
+    }
+): Promise<WooTag> {
     const headers = getAuthHeaders();
+    
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}`, {
         method: 'PUT',
         headers,
