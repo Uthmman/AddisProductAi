@@ -14,6 +14,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Label } from "./ui/label";
+import { Skeleton } from "./ui/skeleton";
 
 const TagFormSchema = z.object({
   name: z.string().min(2, "Tag name is required."),
@@ -30,12 +31,14 @@ type AIGeneratedContent = {
 };
 
 type TagFormProps = {
-  tag: WooTag | null;
+  tagId: number | null;
   onSuccess: () => void;
 };
 
-export default function TagForm({ tag, onSuccess }: TagFormProps) {
+export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const { toast } = useToast();
+  const [tag, setTag] = useState<WooTag | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [focusKeyphrase, setFocusKeyphrase] = useState('');
@@ -43,28 +46,41 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
 
   const form = useForm<TagFormValues>({
     resolver: zodResolver(TagFormSchema),
-    defaultValues: {
-      name: tag?.name || "",
-      slug: tag?.slug || "",
-      description: tag?.description || "",
-    },
+    defaultValues: { name: "", slug: "", description: "" },
   });
 
   useEffect(() => {
-    if (tag) {
-        form.reset({
-            name: tag.name,
-            slug: tag.slug,
-            description: tag.description,
-        });
-        setFocusKeyphrase(tag.meta?._yoast_wpseo_focuskw || '');
-        setMetaDescription(tag.meta?._yoast_wpseo_metadesc || '');
-    } else {
-        form.reset({ name: '', slug: '', description: '' });
-        setFocusKeyphrase('');
-        setMetaDescription('');
+    if (!tagId) {
+      setTag(null);
+      form.reset({ name: '', slug: '', description: '' });
+      setFocusKeyphrase('');
+      setMetaDescription('');
+      return;
     }
-  }, [tag, form]);
+
+    const fetchTagData = async () => {
+      setIsFetching(true);
+      try {
+        const response = await fetch(`/api/products/tags/${tagId}`);
+        if (!response.ok) throw new Error('Failed to fetch tag data');
+        const fetchedTag: WooTag = await response.json();
+        setTag(fetchedTag);
+        form.reset({
+          name: fetchedTag.name,
+          slug: fetchedTag.slug,
+          description: fetchedTag.description,
+        });
+        setFocusKeyphrase(fetchedTag.meta?._yoast_wpseo_focuskw || '');
+        setMetaDescription(fetchedTag.meta?._yoast_wpseo_metadesc || '');
+      } catch (error: any) {
+        toast({ variant: "destructive", title: "Error", description: `Could not load tag data: ${error.message}` });
+      } finally {
+        setIsFetching(false);
+      }
+    };
+
+    fetchTagData();
+  }, [tagId, form, toast]);
 
 
   const handleGenerateSeo = async () => {
@@ -106,8 +122,8 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
   const onSubmit = async (data: TagFormValues) => {
     setIsSaving(true);
     try {
-      const url = tag ? `/api/products/tags/${tag.id}` : "/api/products/tags";
-      const method = tag ? "PUT" : "POST";
+      const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
+      const method = tagId ? "PUT" : "POST";
       
       const meta = {
         _yoast_wpseo_focuskw: focusKeyphrase,
@@ -143,11 +159,23 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
       setIsSaving(false);
     }
   };
+  
+    if (isFetching) {
+        return (
+            <div className="space-y-4 py-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-20 w-full" />
+            </div>
+        )
+    }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-y-auto pr-6 py-1">
+        <div className="flex-1 overflow-y-auto pr-2 sm:pr-6 py-1">
           <div className="space-y-4">
             <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem><FormLabel>Name</FormLabel><FormControl><Input placeholder="e.g., Modern" {...field} /></FormControl><FormMessage /></FormItem>
@@ -163,7 +191,7 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
                     <div className="flex justify-between items-center">
                         <div>
                             <CardTitle>SEO Content</CardTitle>
-                            <CardDescription>Generate or edit the SEO content. It will be saved automatically.</CardDescription>
+                            <CardDescription>Generate or edit the SEO content for this tag.</CardDescription>
                         </div>
                         <Button type="button" onClick={handleGenerateSeo} disabled={isGenerating}>
                             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
@@ -182,19 +210,6 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
                         </FormItem>
                     )} />
 
-                    {isGenerating && (
-                        <div className="space-y-4 pt-4 animate-pulse">
-                            <div className="space-y-2">
-                                <div className="h-5 w-24 bg-muted rounded-md" />
-                                <div className="h-10 w-full bg-muted rounded-md" />
-                            </div>
-                             <div className="space-y-2">
-                                <div className="h-5 w-24 bg-muted rounded-md" />
-                                <div className="h-20 w-full bg-muted rounded-md" />
-                            </div>
-                        </div>
-                    )}
-
                     <div className="space-y-4 pt-4">
                          <div className="space-y-2">
                             <Label>Yoast Focus Keyphrase</Label>
@@ -210,9 +225,9 @@ export default function TagForm({ tag, onSuccess }: TagFormProps) {
           </div>
         </div>
         <div className="flex-shrink-0 flex justify-end pt-4 mt-4 border-t">
-          <Button type="submit" disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {tag ? "Save Changes" : "Create Tag"}
+          <Button type="submit" disabled={isSaving || isFetching}>
+            {(isSaving || isFetching) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {tagId ? "Save Changes" : "Create Tag"}
           </Button>
         </div>
       </form>

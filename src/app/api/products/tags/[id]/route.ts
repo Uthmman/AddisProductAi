@@ -5,6 +5,25 @@ interface Params {
   params: { id: string };
 }
 
+export async function GET(request: NextRequest, { params }: Params) {
+  const id = parseInt(params.id, 10);
+  if (isNaN(id)) {
+    return NextResponse.json({ message: 'Invalid tag ID' }, { status: 400 });
+  }
+
+  try {
+    const tag = await wooCommerceApi.getSingleProductTag(id);
+    if (!tag) {
+      return NextResponse.json({ message: 'Tag not found' }, { status: 404 });
+    }
+    return NextResponse.json(tag);
+  } catch (error: any) {
+    console.error(error);
+    return NextResponse.json({ message: error.message || 'Failed to fetch tag' }, { status: 500 });
+  }
+}
+
+
 export async function PUT(request: NextRequest, { params }: Params) {
   const id = parseInt(params.id, 10);
   if (isNaN(id)) {

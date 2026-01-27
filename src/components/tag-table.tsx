@@ -37,7 +37,7 @@ export default function TagTable() {
   const [tags, setTags] = useState<WooTag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingTag, setEditingTag] = useState<WooTag | null>(null);
+  const [editingTagId, setEditingTagId] = useState<number | null>(null);
   const [deletingTag, setDeletingTag] = useState<WooTag | null>(null);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const { toast } = useToast();
@@ -70,17 +70,17 @@ export default function TagTable() {
 
   const handleFormSuccess = () => {
     setIsFormOpen(false);
-    setEditingTag(null);
+    setEditingTagId(null);
     fetchTags(); // Refresh the list
   };
   
   const openEditDialog = (tag: WooTag) => {
-    setEditingTag(tag);
+    setEditingTagId(tag.id);
     setIsFormOpen(true);
   }
 
   const openNewDialog = () => {
-    setEditingTag(null);
+    setEditingTagId(null);
     setIsFormOpen(true);
   }
 
@@ -221,13 +221,13 @@ export default function TagTable() {
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogContent className="sm:max-w-2xl w-[90%] max-h-[90vh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle>{editingTag ? 'Edit Tag' : 'Create New Tag'}</DialogTitle>
+                    <DialogTitle>{editingTagId ? 'Edit Tag' : 'Create New Tag'}</DialogTitle>
                     <DialogDescription>
-                        {editingTag ? 'Edit the tag details and generate SEO content.' : 'Create a new tag. You can generate SEO content for it before saving.'}
+                        {editingTagId ? 'Edit the tag details and generate SEO content.' : 'Create a new tag. You can generate SEO content for it before saving.'}
                     </DialogDescription>
                 </DialogHeader>
                 <TagForm 
-                    tag={editingTag} 
+                    tagId={editingTagId} 
                     onSuccess={handleFormSuccess} 
                 />
             </DialogContent>

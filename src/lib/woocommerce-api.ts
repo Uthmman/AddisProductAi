@@ -287,6 +287,22 @@ export async function getAllProductTags(): Promise<WooTag[]> {
     return await response.json();
 }
 
+export async function getSingleProductTag(id: number): Promise<WooTag | null> {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}`, { headers, cache: 'no-store' });
+
+    if (!response.ok) {
+        if (response.status === 404) {
+            return null;
+        }
+        const errorBody = await response.text();
+        console.error(`Failed to fetch tag ${id}:`, response.status, errorBody);
+        throw new Error(`Failed to fetch tag ${id}`);
+    }
+
+    return await response.json();
+}
+
 export async function updateProductTag(id: number, tagData: { name?: string; slug?: string; description?: string; meta?: { [key: string]: any } }): Promise<WooTag> {
     const headers = getAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}`, {
