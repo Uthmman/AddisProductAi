@@ -15,7 +15,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Separator } from "./ui/separator";
 import { Label } from "./ui/label";
 import { Skeleton } from "./ui/skeleton";
-import { getSingleProductTag, updateProductTag, createProductTag } from "@/lib/woocommerce-api";
 
 const TagFormSchema = z.object({
   name: z.string().min(2, "Tag name is required."),
@@ -65,8 +64,12 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     const fetchTagData = async () => {
       setIsFetching(true);
       try {
-        const fetchedTag = await getSingleProductTag(tagId);
-        if (!fetchedTag) throw new Error('Tag not found or could not be loaded.');
+        const response = await fetch(`/api/products/tags/${tagId}`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Tag not found or could not be loaded.');
+        }
+        const fetchedTag: WooTag = await response.json();
         
         setTag(fetchedTag);
         form.reset({
@@ -136,13 +139,30 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
 
       const submissionData = { ...data, meta };
       
-      const savedTag = tagId
-        ? await updateProductTag(tagId, submissionData)
-        : await createProductTag(submissionData);
+      const url = tagId ? `/api/products/tags/${tagId}` : '/api/products/tags';
+      const method = tagId ? 'PUT' : 'POST';
 
-      // VERIFY the save/create operation
+      const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submissionData),
+      });
+
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to save tag');
+      }
+
+      const savedTag: WooTag = await response.json();
+      
       const newTagId = savedTag.id;
-      const verifiedTag = await getSingleProductTag(newTagId);
+      
+      // Verification step
+      const verifyResponse = await fetch(`/api/products/tags/${newTagId}`);
+      if (!verifyResponse.ok) {
+        throw new Error("Verification failed: Could not re-fetch the saved tag.");
+      }
+      const verifiedTag: WooTag = await verifyResponse.json();
       
       // Check if any of the meta fields we tried to save are missing or different in the verified data.
       if (!verifiedTag || 
