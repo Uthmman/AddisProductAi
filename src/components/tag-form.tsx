@@ -36,11 +36,6 @@ type TagFormProps = {
   onSuccess: () => void;
 };
 
-const getMetaValue = (key: string, meta_data: any[] | undefined) => {
-    if (!meta_data) return '';
-    const meta = meta_data.find(m => m.key === key);
-    return meta ? meta.value : '';
-}
 
 export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const { toast } = useToast();
@@ -81,9 +76,10 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           description: fetchedTag.description,
         });
         
-        setSeoTitle(getMetaValue('_yoast_wpseo_title', fetchedTag.meta_data));
-        setFocusKeyphrase(getMetaValue('_yoast_wpseo_focuskw', fetchedTag.meta_data));
-        setMetaDescription(getMetaValue('_yoast_wpseo_metadesc', fetchedTag.meta_data));
+        // Fetch from the 'meta' object
+        setSeoTitle(fetchedTag.meta?._yoast_wpseo_title || '');
+        setFocusKeyphrase(fetchedTag.meta?._yoast_wpseo_focuskw || '');
+        setMetaDescription(fetchedTag.meta?._yoast_wpseo_metadesc || '');
 
       } catch (error: any) {
         toast({ variant: "destructive", title: "Error Loading Tag", description: `Could not load tag data: ${error.message}` });
@@ -136,13 +132,14 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const onSubmit = async (data: TagFormValues) => {
     setIsSaving(true);
     try {
-      const meta_data = [
-        { key: '_yoast_wpseo_title', value: seoTitle },
-        { key: '_yoast_wpseo_focuskw', value: focusKeyphrase },
-        { key: '_yoast_wpseo_metadesc', value: metaDescription },
-      ];
+      // Use the 'meta' object for submission
+      const meta = {
+        _yoast_wpseo_title: seoTitle,
+        _yoast_wpseo_focuskw: focusKeyphrase,
+        _yoast_wpseo_metadesc: metaDescription,
+      };
 
-      const submissionData = { ...data, meta_data };
+      const submissionData = { ...data, meta };
       
       const url = tagId ? `/api/products/tags/${tagId}` : '/api/products/tags';
       const method = tagId ? 'PUT' : 'POST';
@@ -169,9 +166,9 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       const verifiedTag: WooTag = await verifyResponse.json();
       
       let verificationPassed = true;
-      if (seoTitle !== getMetaValue('_yoast_wpseo_title', verifiedTag.meta_data)) verificationPassed = false;
-      if (focusKeyphrase !== getMetaValue('_yoast_wpseo_focuskw', verifiedTag.meta_data)) verificationPassed = false;
-      if (metaDescription !== getMetaValue('_yoast_wpseo_metadesc', verifiedTag.meta_data)) verificationPassed = false;
+      if (seoTitle !== (verifiedTag.meta?._yoast_wpseo_title || '')) verificationPassed = false;
+      if (focusKeyphrase !== (verifiedTag.meta?._yoast_wpseo_focuskw || '')) verificationPassed = false;
+      if (metaDescription !== (verifiedTag.meta?._yoast_wpseo_metadesc || '')) verificationPassed = false;
       
       if (!verificationPassed) {
           throw new Error("Verification failed. The server accepted the update, but the SEO data was not saved correctly. Please check your WordPress `functions.php` file to ensure the Yoast meta fields are registered with the REST API.");

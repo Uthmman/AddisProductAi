@@ -198,7 +198,7 @@ export async function getAllProductTags(): Promise<WooTag[]> {
 
 export async function getSingleProductTag(id: number): Promise<WooTag | null> {
     const headers = getAuthHeaders();
-    // context=edit is crucial for seeing the 'meta_data' field in the response
+    // context=edit is crucial for seeing the 'meta' field in the response
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}?context=edit`, { 
         headers, 
         cache: 'no-store' 
@@ -217,7 +217,7 @@ export async function updateProductTag(
         name?: string; 
         slug?: string; 
         description?: string; 
-        meta_data?: { key: string; value: any }[];
+        meta?: { [key: string]: any };
     }
 ): Promise<WooTag> {
     const headers = getAuthHeaders();
@@ -231,7 +231,7 @@ export async function updateProductTag(
     return handleResponse(response, `Failed to update product tag ${id}`);
 }
 
-export async function createProductTag(tagData: { name: string; slug?: string; description?: string; meta_data?: { key: string; value: any }[] }): Promise<WooTag> {
+export async function createProductTag(tagData: { name: string; slug?: string; description?: string; meta?: { [key: string]: any } }): Promise<WooTag> {
     const headers = getAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags`, {
         method: 'POST',
