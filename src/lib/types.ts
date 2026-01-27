@@ -61,7 +61,7 @@ export interface WooTag {
   slug: string;
   description: string;
   count: number;
-  meta: { [key: string]: any }; // The API returns 'meta' as an object on GET context=edit
+  meta_data: { id: number; key: string; value: any }[];
 }
 
 export interface Settings {
