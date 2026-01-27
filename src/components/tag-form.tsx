@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Separator } from "./ui/separator";
 import { Label } from "./ui/label";
 import { Skeleton } from "./ui/skeleton";
+import { getSingleProductTag, updateProductTag, createProductTag } from "@/lib/woocommerce-api";
 
 const TagFormSchema = z.object({
   name: z.string().min(2, "Tag name is required."),
@@ -64,9 +65,9 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     const fetchTagData = async () => {
       setIsFetching(true);
       try {
-        const response = await fetch(`/api/products/tags/${tagId}`);
-        if (!response.ok) throw new Error('Failed to fetch tag data');
-        const fetchedTag: WooTag = await response.json();
+        const fetchedTag = await getSingleProductTag(tagId);
+        if (!fetchedTag) throw new Error('Tag not found or could not be loaded.');
+        
         setTag(fetchedTag);
         form.reset({
           name: fetchedTag.name,
@@ -77,7 +78,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         setFocusKeyphrase(fetchedTag.meta?._yoast_wpseo_focuskw || '');
         setMetaDescription(fetchedTag.meta?._yoast_wpseo_metadesc || '');
       } catch (error: any) {
-        toast({ variant: "destructive", title: "Error", description: `Could not load tag data: ${error.message}` });
+        toast({ variant: "destructive", title: "Error Loading Tag", description: `Could not load tag data: ${error.message}` });
       } finally {
         setIsFetching(false);
       }
@@ -127,9 +128,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const onSubmit = async (data: TagFormValues) => {
     setIsSaving(true);
     try {
-      const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
-      const method = tagId ? "PUT" : "POST";
-      
       const meta = {
         _yoast_wpseo_title: seoTitle,
         _yoast_wpseo_focuskw: focusKeyphrase,
@@ -138,21 +136,26 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
 
       const submissionData = { ...data, meta };
       
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(submissionData),
-      });
+      const savedTag = tagId
+        ? await updateProductTag(tagId, submissionData)
+        : await createProductTag(submissionData);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save tag");
+      // VERIFY the save/create operation
+      const newTagId = savedTag.id;
+      const verifiedTag = await getSingleProductTag(newTagId);
+      
+      // Check if any of the meta fields we tried to save are missing or different in the verified data.
+      if (!verifiedTag || 
+          (meta._yoast_wpseo_title && verifiedTag.meta?._yoast_wpseo_title !== meta._yoast_wpseo_title) ||
+          (meta._yoast_wpseo_focuskw && verifiedTag.meta?._yoast_wpseo_focuskw !== meta._yoast_wpseo_focuskw) ||
+          (meta._yoast_wpseo_metadesc && verifiedTag.meta?._yoast_wpseo_metadesc !== meta._yoast_wpseo_metadesc)
+      ) {
+          throw new Error("Verification failed. The server accepted the update, but the SEO data was not saved correctly. Please check your WordPress `functions.php` file to ensure the Yoast meta fields are registered with the REST API.");
       }
 
-      const savedTag = await response.json();
       toast({
         title: "Success!",
-        description: `Tag "${savedTag.name}" has been saved.`,
+        description: `Tag "${verifiedTag.name}" has been saved.`,
       });
       onSuccess();
     } catch (error: any) {
