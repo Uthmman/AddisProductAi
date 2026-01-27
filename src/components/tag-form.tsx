@@ -38,6 +38,29 @@ type TagFormProps = {
   onSuccess: () => void;
 };
 
+const functionsPhpCode = `
+function register_yoast_seo_meta_for_tags() {
+    $yoast_meta_keys = [
+        '_yoast_wpseo_title',
+        '_yoast_wpseo_metadesc',
+        '_yoast_wpseo_focuskw'
+    ];
+
+    foreach ($yoast_meta_keys as $meta_key) {
+        // Unregister first to avoid conflicts if previously registered incorrectly.
+        unregister_term_meta('product_tag', $meta_key);
+        
+        register_term_meta('product_tag', $meta_key, array(
+            'type'         => 'string',
+            'description'  => 'Yoast SEO meta field for product tags',
+            'single'       => true,
+            'show_in_rest' => true, // This is the key setting.
+        ));
+    }
+}
+add_action('init', 'register_yoast_seo_meta_for_tags');
+`;
+
 
 export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const { toast } = useToast();
@@ -88,9 +111,9 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           description: fetchedTag.description,
         });
         
-        if (!fetchedTag.meta) {
+        if (fetchedTag.meta === undefined) {
           setIsMetaAvailable(false);
-          const errorDetail = `The API returned the tag object, but the 'meta' field with Yoast data is missing. Please ensure the PHP code to register these fields has been added to your active theme's functions.php file and that all server/plugin caches have been cleared.\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(fetchedTag, null, 2)}`;
+          const errorDetail = `Your server is not sending the editable Yoast SEO fields.\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(fetchedTag, null, 2)}`;
           setFetchError(errorDetail);
           toast({
               variant: "destructive",
@@ -145,64 +168,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       form.setValue('description', content.description);
       toast({ title: 'Success!', description: 'SEO content has been generated.' });
 
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Generation Failed', description: error.message });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const onSubmit = async (data: TagFormValues) => {
-    setIsSaving(true);
-    setSaveError(null);
-    let submissionData;
-
-    try {
-      const meta = isMetaAvailable ? {
-        _yoast_wpseo_title: seoTitle,
-        _yoast_wpseo_focuskw: focusKeyphrase,
-        _yoast_wpseo_metadesc: metaDescription,
-      } : undefined;
-
-      submissionData = { ...data, ...(meta && { meta }) };
-      
-      const url = tagId ? `/api/products/tags/${tagId}` : '/api/products/tags';
-      const method = tagId ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(submissionData),
-      });
-
-      if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to save tag');
-      }
-
-      const savedTag: WooTag = await response.json();
-      const newTagId = savedTag.id;
-      
-      // Only verify if we intended to save meta fields.
-      if (isMetaAvailable) {
-        const verifyResponse = await fetch(`/api/products/tags/${newTagId}`);
-        if (!verifyResponse.ok) {
-          throw new Error("Verification failed: Could not re-fetch the saved tag.");
-        }
-        const verifiedTag: WooTag = await verifyResponse.json();
-        
-        let verificationPassed = true;
-        if (!verifiedTag.meta ||
-            seoTitle !== (verifiedTag.meta._yoast_wpseo_title || '') ||
-            focusKeyphrase !== (verifiedTag.meta._yoast_wpseo_focuskw || '') ||
-            metaDescription !== (verifiedTag.meta._yoast_wpseo_metadesc || '')) {
-            verificationPassed = false;
-        }
-        
-        if (!verificationPassed) {
-            const sentDataString = JSON.stringify(submissionData, null, 2);
-            const receivedDataString = JSON.stringify(verifiedTag, null, 2);
-            const detailedError = `The server did not save the SEO data correctly. This usually means the REST API fields are not correctly registered in your active theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
+    } catch (error: any)      const detailedError = `The server did not save the SEO data correctly. This usually means the REST API fields are not correctly registered in your active theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
             setSaveError(detailedError);
             throw new Error("Verification failed. See details below.");
         }
@@ -236,29 +202,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             </div>
         )
     }
-    
-const functionsPhpCode = `
-function register_yoast_seo_meta_for_tags() {
-    $yoast_meta_keys = [
-        '_yoast_wpseo_title',
-        '_yoast_wpseo_metadesc',
-        '_yoast_wpseo_focuskw'
-    ];
-
-    foreach ($yoast_meta_keys as $meta_key) {
-        // Unregister first to avoid conflicts.
-        unregister_term_meta('product_tag', $meta_key);
-        
-        register_term_meta('product_tag', $meta_key, array(
-            'type'         => 'string',
-            'description'  => 'Yoast SEO meta field',
-            'single'       => true,
-            'show_in_rest' => true,
-        ));
-    }
-}
-add_action('init', 'register_yoast_seo_meta_for_tags');
-`;
 
   return (
     <Form {...form}>
@@ -270,6 +213,15 @@ add_action('init', 'register_yoast_seo_meta_for_tags');
             )} />
             <FormField control={form.control} name="slug" render={({ field }) => (
                 <FormItem><FormLabel>Slug (Optional)</FormLabel><FormControl><Input placeholder="e.g., modern" {...field} /></FormControl><FormMessage /></FormItem>
+            )} />
+            <FormField control={form.control} name="description" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                        <Textarea placeholder="The main description for the tag page..." {...field} rows={6} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
             )} />
             
             <Separator />
@@ -293,7 +245,19 @@ add_action('init', 'register_yoast_seo_meta_for_tags');
                          <Terminal className="h-4 w-4" />
                          <AlertTitle>Server Configuration Required</AlertTitle>
                          <AlertDescription>
-                           <p className="mb-2">Your WordPress site is not returning the editable Yoast SEO fields. To fix this, add the following PHP code to your active theme's <strong>functions.php</strong> file, then clear all server and plugin caches.</p>
+                            <p className="mb-4">Your WordPress server is not providing the editable Yoast SEO fields. To fix this, you must add a PHP snippet to your site. Here is a checklist:</p>
+                            <ol className="list-decimal list-inside space-y-2 mb-4">
+                                <li>
+                                    <strong>Edit `functions.php`:</strong> Add the following code to your **active** WordPress theme's `functions.php` file.
+                                </li>
+                                <li>
+                                    <strong>Clear All Caches:</strong> After saving the file, go to your WordPress admin dashboard and clear all caches from plugins like LiteSpeed, WP Rocket, etc. Also clear any server-level cache from your hosting provider.
+                                </li>
+                                <li>
+                                    <strong>Check Security Plugins:</strong> Temporarily disable security plugins (like Wordfence) to see if they are blocking the API response.
+                                </li>
+                            </ol>
+                           <Label>Required PHP Code</Label>
                            <Textarea
                              readOnly
                              value={functionsPhpCode.trim()}
@@ -302,31 +266,20 @@ add_action('init', 'register_yoast_seo_meta_for_tags');
                          </AlertDescription>
                        </Alert>
                     ) : (
-                        <>
-                           <FormField control={form.control} name="description" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Description</FormLabel>
-                                    <FormControl>
-                                        <Textarea placeholder="AI-generated description will appear here..." {...field} rows={10} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                            <div className="space-y-4 pt-4">
-                                <div className="space-y-2">
-                                    <Label>Yoast SEO Title</Label>
-                                    <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} placeholder="Generate or enter an SEO title..."/>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Yoast Focus Keyphrase</Label>
-                                    <Input value={focusKeyphrase} onChange={(e) => setFocusKeyphrase(e.target.value)} placeholder="Generate or enter a focus keyphrase..."/>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Yoast Meta Description</Label>
-                                    <Textarea value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} rows={3} placeholder="Generate or enter a meta description..."/>
-                                </div>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label>Yoast SEO Title</Label>
+                                <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} placeholder="Generate or enter an SEO title..."/>
                             </div>
-                        </>
+                            <div className="space-y-2">
+                                <Label>Yoast Focus Keyphrase</Label>
+                                <Input value={focusKeyphrase} onChange={(e) => setFocusKeyphrase(e.target.value)} placeholder="Generate or enter a focus keyphrase..."/>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Yoast Meta Description</Label>
+                                <Textarea value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} rows={3} placeholder="Generate or enter a meta description..."/>
+                            </div>
+                        </div>
                     )}
                 </CardContent>
             </Card>
