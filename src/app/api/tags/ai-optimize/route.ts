@@ -1,6 +1,8 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { generateTagSeoFlow } from '@/ai/flows/generate-tag-seo-flow';
 import { z } from 'zod';
+import { getSettings } from '@/lib/settings-api';
 
 const InputSchema = z.object({
   tagName: z.string(),
@@ -15,7 +17,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid input', errors: validation.error.issues }, { status: 400 });
     }
     
-    const aiContent = await generateTagSeoFlow(validation.data);
+    const settings = await getSettings();
+    const aiContent = await generateTagSeoFlow({ ...validation.data, settings });
 
     return NextResponse.json(aiContent);
 

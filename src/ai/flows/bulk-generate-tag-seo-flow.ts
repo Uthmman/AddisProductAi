@@ -1,9 +1,11 @@
+
 'use server';
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 import { generateTagSeoFlow } from './generate-tag-seo-flow';
 import { WooTag } from '@/lib/types';
+import { getSettings } from '@/lib/settings-api';
 
 // This flow doesn't need input.
 const BulkGenerateTagSeoOutputSchema = z.object({
@@ -14,7 +16,10 @@ const BulkGenerateTagSeoOutputSchema = z.object({
 export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGenerateTagSeoOutputSchema>> {
     console.log("Starting bulk SEO generation for tags...");
 
-    const allTags = await wooCommerceApi.getAllProductTags();
+    const [allTags, settings] = await Promise.all([
+        wooCommerceApi.getAllProductTags(),
+        getSettings()
+    ]);
     
     // Filter for tags that don't have a description.
     const tagsToUpdate = allTags.filter(tag => !tag.description);
@@ -33,7 +38,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     // Process updates in parallel.
     const updatePromises = tagsToUpdate.map(async (tag: WooTag) => {
         try {
-            const seoContent = await generateTagSeoFlow({ tagName: tag.name });
+            const seoContent = await generateTagSeoFlow({ tagName: tag.name, settings });
             
             // We can only update the description via the API.
             // The focus keyphrase and meta description are still a manual copy-paste step for the user.

@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai, runPrompt } from '@/ai/genkit';
@@ -5,6 +6,7 @@ import { z } from 'genkit';
 
 const GenerateTagSeoInputSchema = z.object({
   tagName: z.string().describe('The name of the product tag.'),
+  settings: z.any().optional(),
 });
 
 const GenerateTagSeoOutputSchema = z.object({
@@ -20,6 +22,12 @@ const generateTagSeoPrompt = ai.definePrompt({
   input: { schema: GenerateTagSeoInputSchema },
   output: { schema: GenerateTagSeoOutputSchema },
   prompt: `You are an SEO expert for an e-commerce store in Ethiopia. Your task is to generate SEO content for a product tag page to satisfy Yoast SEO analysis requirements.
+
+{{#if settings.aiPromptInstruction}}
+**General Content Guide from Store Owner:**
+You MUST follow these general instructions for all content you generate:
+"{{{settings.aiPromptInstruction}}}"
+{{/if}}
 
 Product Tag: "{{tagName}}"
 

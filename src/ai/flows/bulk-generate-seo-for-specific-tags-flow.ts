@@ -1,8 +1,10 @@
+
 'use server';
 import { z } from 'zod';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 import { generateTagSeoFlow } from './generate-tag-seo-flow';
 import { WooTag } from '@/lib/types';
+import { getSettings } from '@/lib/settings-api';
 
 export const BulkGenerateSeoForSpecificTagsInputSchema = z.object({
   tagNames: z.array(z.string()).describe("The names of the tags to optimize."),
@@ -21,7 +23,10 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: BulkGenerateSeoF
         return { message: "No tag names provided.", updatedCount: 0 };
     }
 
-    const allTags = await wooCommerceApi.getAllProductTags();
+    const [allTags, settings] = await Promise.all([
+        wooCommerceApi.getAllProductTags(),
+        getSettings()
+    ]);
 
     // Find the tag objects that match the provided names.
     const tagsToUpdate = allTags.filter(tag => input.tagNames.includes(tag.name) && !tag.description);
@@ -39,7 +44,7 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: BulkGenerateSeoF
 
     const updatePromises = tagsToUpdate.map(async (tag: WooTag) => {
         try {
-            const seoContent = await generateTagSeoFlow({ tagName: tag.name });
+            const seoContent = await generateTagSeoFlow({ tagName: tag.name, settings });
             await wooCommerceApi.updateProductTag(tag.id, {
                 description: seoContent.description,
             });

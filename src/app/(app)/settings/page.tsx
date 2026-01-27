@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,6 +29,7 @@ const SettingsSchema = z.object({
   tiktokUrl: z.string().url().or(z.literal('')).optional(),
   telegramUsername: z.string().optional(),
   commonKeywords: z.string().optional(),
+  aiPromptInstruction: z.string().optional(),
   watermarkImageUrl: z.string().optional(),
   watermarkPlacement: z.enum(['bottom-right', 'bottom-left', 'top-right', 'top-left', 'center']).default('bottom-right'),
   watermarkScale: z.number().min(5).max(100).default(40),
@@ -53,6 +55,7 @@ export default function SettingsPage() {
       tiktokUrl: '',
       telegramUsername: '',
       commonKeywords: '',
+      aiPromptInstruction: '',
       watermarkImageUrl: '',
       watermarkPlacement: 'bottom-right',
       watermarkScale: 40,
@@ -261,6 +264,14 @@ export default function SettingsPage() {
                           <FormLabel>Common Keywords</FormLabel>
                           <FormControl><Textarea placeholder="zenbaba furniture, made in ethiopia, addis ababa..." {...field} /></FormControl>
                           <FormDescription>Comma-separated keywords that will be suggested on the product form.</FormDescription>
+                          <FormMessage />
+                      </FormItem>
+                  )} />
+                   <FormField control={form.control} name="aiPromptInstruction" render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>AI Content Generation Guide</FormLabel>
+                          <FormControl><Textarea placeholder="e.g., Always write in a friendly and professional tone. Mention our free delivery service in Addis Ababa." {...field} rows={5} /></FormControl>
+                          <FormDescription>Provide a general guide for the AI to follow when generating any product, blog, or social media content.</FormDescription>
                           <FormMessage />
                       </FormItem>
                   )} />

@@ -1,7 +1,9 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { generateBlogPost } from '@/ai/flows/generate-blog-post';
 import { z } from 'zod';
 import { getGscTopQueries } from '@/lib/gsc-api';
+import { getSettings } from '@/lib/settings-api';
 
 const InputSchema = z.object({
   topic: z.string(),
@@ -17,12 +19,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid input', errors: validation.error.issues }, { status: 400 });
     }
     
-    // Fetch GSC data
-    const gscData = await getGscTopQueries();
+    // Fetch GSC data and settings
+    const [gscData, settings] = await Promise.all([
+        getGscTopQueries(),
+        getSettings()
+    ]);
     
     const aiContent = await generateBlogPost({
       ...validation.data,
       gscData: gscData ?? undefined,
+      settings: settings,
     });
 
     return NextResponse.json(aiContent);

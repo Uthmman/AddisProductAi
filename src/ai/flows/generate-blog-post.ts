@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -17,6 +18,7 @@ import { z } from 'genkit';
 const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The main topic or title for the blog post.'),
   gscData: z.array(z.object({}).passthrough()).optional().describe('An array of top search queries from Google Search Console.'),
+  settings: z.any().optional(),
 });
 export type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
 
@@ -41,6 +43,12 @@ const generateBlogPostPrompt = ai.definePrompt({
   input: { schema: GenerateBlogPostInputSchema },
   output: { schema: GenerateBlogPostOutputSchema },
   prompt: `You are an expert content creator and SEO specialist for a furniture company based in Addis Ababa, Ethiopia. Your goal is to write a blog post that will attract local customers and drive traffic to the website.
+
+{{#if settings.aiPromptInstruction}}
+**General Content Guide from Store Owner:**
+You MUST follow these general instructions for all content you generate:
+"{{{settings.aiPromptInstruction}}}"
+{{/if}}
 
 Topic: {{{topic}}}
 

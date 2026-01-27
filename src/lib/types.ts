@@ -1,3 +1,4 @@
+
 export interface WooProduct {
   id: number;
   name: string;
@@ -72,6 +73,7 @@ export interface Settings {
     tiktokUrl: string;
     telegramUsername?: string;
     commonKeywords?: string;
+    aiPromptInstruction?: string;
     watermarkImageUrl?: string;
     watermarkPlacement?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'center';
     watermarkScale?: number;

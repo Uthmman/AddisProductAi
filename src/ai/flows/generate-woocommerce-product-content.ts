@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -49,6 +50,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
     telegramUrl: z.string().optional(),
     telegramUsername: z.string().optional(),
     tiktokUrl: z.string().optional(),
+    aiPromptInstruction: z.string().optional(),
   }).optional().describe('General business settings like contact info and social media links.'),
   primaryCategory: z.object({
       id: z.number(),
@@ -95,6 +97,12 @@ const generateWooCommerceProductContentPrompt = ai.definePrompt({
   output: {schema: GenerateWooCommerceProductContentOutputSchema},
   tools: [suggestSeoKeywordsTool],
   prompt: `You are a specialized e-commerce content optimizer for the **Addis Ababa, Ethiopia** market. Your task is to generate a complete, SEO-optimized JSON object for a WooCommerce product.
+
+{{#if settings.aiPromptInstruction}}
+**General Content Guide from Store Owner:**
+You MUST follow these general instructions for all content you generate:
+"{{{settings.aiPromptInstruction}}}"
+{{/if}}
 
 **Your process is as follows:**
 1.  **Analyze SEO**: First, call the \`suggestSeoKeywordsTool\`. Use the provided 'raw_name' and 'focus_keywords' from the user input to get a strategic list of SEO tags and a primary "Focus Keyphrase". **If available, you MUST also pass the \`gscData\` from your input to the tool to get data-driven SEO insights.**
