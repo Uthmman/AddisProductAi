@@ -25,6 +25,7 @@ const TagFormSchema = z.object({
 type TagFormValues = z.infer<typeof TagFormSchema>;
 
 type AIGeneratedContent = {
+    title?: string;
     description: string;
     focusKeyphrase: string;
     metaDescription: string;
@@ -41,6 +42,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [seoTitle, setSeoTitle] = useState('');
   const [focusKeyphrase, setFocusKeyphrase] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
 
@@ -53,6 +55,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     if (!tagId) {
       setTag(null);
       form.reset({ name: '', slug: '', description: '' });
+      setSeoTitle('');
       setFocusKeyphrase('');
       setMetaDescription('');
       return;
@@ -70,6 +73,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           slug: fetchedTag.slug,
           description: fetchedTag.description,
         });
+        setSeoTitle(fetchedTag.meta?._yoast_wpseo_title || '');
         setFocusKeyphrase(fetchedTag.meta?._yoast_wpseo_focuskw || '');
         setMetaDescription(fetchedTag.meta?._yoast_wpseo_metadesc || '');
       } catch (error: any) {
@@ -107,6 +111,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       
       const content: AIGeneratedContent = await response.json();
+      setSeoTitle(content.title || '');
       setFocusKeyphrase(content.focusKeyphrase || '');
       setMetaDescription(content.metaDescription || '');
       form.setValue('description', content.description);
@@ -126,6 +131,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       const method = tagId ? "PUT" : "POST";
       
       const meta = {
+        _yoast_wpseo_title: seoTitle,
         _yoast_wpseo_focuskw: focusKeyphrase,
         _yoast_wpseo_metadesc: metaDescription,
       };
@@ -211,6 +217,10 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                     )} />
 
                     <div className="space-y-4 pt-4">
+                         <div className="space-y-2">
+                            <Label>Yoast SEO Title</Label>
+                            <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} placeholder="Generate or enter an SEO title..."/>
+                        </div>
                          <div className="space-y-2">
                             <Label>Yoast Focus Keyphrase</Label>
                             <Input value={focusKeyphrase} onChange={(e) => setFocusKeyphrase(e.target.value)} placeholder="Generate or enter a focus keyphrase..."/>
