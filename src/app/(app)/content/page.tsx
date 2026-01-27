@@ -6,16 +6,16 @@ import { useForm, useForm as useSocialForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { useSearchParams, usePathname } from 'next/navigation';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send } from 'lucide-react';
+import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send, Share2, Bot as BotIcon, PanelLeft, FileText } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WooProduct } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,6 +23,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 
 const PostGeneratorSchema = z.object({
   topic: z.string().min(5, 'Please enter a topic with at least 5 characters.'),
@@ -698,34 +701,92 @@ function SearchInsights() {
     );
 }
 
-function ContentPageInner() {
+function SidebarNav({ className, onLinkClick }: { className?: string, onLinkClick?: () => void }) {
   const searchParams = useSearchParams();
-  const tab = searchParams.get('tab');
-  const productId = searchParams.get('productId');
+  const pathname = usePathname();
+  const activeTab = searchParams.get('tab') || 'blog';
+
+  const navItems = [
+    { value: 'blog', label: 'Blog Post', icon: FileText },
+    { value: 'social', label: 'Social Media Post', icon: Share2 },
+    { value: 'bulk-action', label: 'Bulk Actions', icon: BotIcon },
+    { value: 'search-insights', label: 'Search Insights', icon: TrendingUp },
+  ];
 
   return (
-    <div className="container mx-auto py-10 max-w-6xl">
-      <h1 className="text-2xl sm:text-3xl font-bold font-headline mb-6">Content Tools</h1>
-      <Tabs defaultValue={tab || 'blog'} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="blog">Blog Post</TabsTrigger>
-          <TabsTrigger value="social">Social Media Post</TabsTrigger>
-          <TabsTrigger value="bulk-action">Bulk Actions</TabsTrigger>
-           <TabsTrigger value="search-insights">Search Insights</TabsTrigger>
-        </TabsList>
-        <TabsContent value="blog">
-          <BlogGenerator />
-        </TabsContent>
-        <TabsContent value="social">
-          <SocialPostGenerator productId={productId} />
-        </TabsContent>
-        <TabsContent value="bulk-action">
-          <BulkActionBot />
-        </TabsContent>
-         <TabsContent value="search-insights">
-          <SearchInsights />
-        </TabsContent>
-      </Tabs>
+    <nav className={cn("flex flex-col space-y-1", className)}>
+      {navItems.map((item) => (
+        <Link
+          key={item.value}
+          href={`${pathname}?tab=${item.value}`}
+          onClick={onLinkClick}
+          className={cn(
+            buttonVariants({ variant: "ghost" }),
+            activeTab === item.value
+              ? "bg-muted hover:bg-muted font-semibold"
+              : "hover:bg-muted/50",
+            "justify-start"
+          )}
+        >
+          <item.icon className="mr-2 h-4 w-4" />
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+
+function ContentPageInner() {
+  const searchParams = useSearchParams();
+  const tab = searchParams.get('tab') || 'blog';
+  const productId = searchParams.get('productId');
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  const renderContent = () => {
+    switch (tab) {
+      case 'blog': return <BlogGenerator />;
+      case 'social': return <SocialPostGenerator productId={productId} />;
+      case 'bulk-action': return <BulkActionBot />;
+      case 'search-insights': return <SearchInsights />;
+      default: return <BlogGenerator />;
+    }
+  };
+
+  const renderSidebar = () => <SidebarNav onLinkClick={() => setIsSheetOpen(false)} />;
+
+  return (
+    <div className="container mx-auto py-10 max-w-7xl">
+      <div className="md:hidden mb-4 flex justify-between items-center">
+        <h1 className="text-2xl font-bold font-headline">Content Tools</h1>
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline"><PanelLeft className="mr-2 h-4 w-4" /> Menu</Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[250px] p-4">
+             <h2 className="text-lg font-semibold mb-4">Content Tools</h2>
+             {renderSidebar()}
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <div className="hidden md:block space-y-0.5 mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Content Tools</h1>
+        <p className="text-muted-foreground">
+            Generate blog posts, social media updates, and perform bulk actions.
+        </p>
+      </div>
+      
+      <Separator className="my-6 hidden md:block" />
+
+      <div className="flex flex-col space-y-8 md:flex-row md:space-x-12 md:space-y-0">
+        <aside className="hidden md:block md:w-1/5">
+          {renderSidebar()}
+        </aside>
+        <div className="flex-1 w-full md:max-w-4xl lg:max-w-5xl">
+          {renderContent()}
+        </div>
+      </div>
     </div>
   );
 }
