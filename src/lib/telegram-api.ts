@@ -1,7 +1,6 @@
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
 import { uploadImage } from '@/lib/woocommerce-api';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getSettings } from '@/lib/settings-api';
 import Jimp from 'jimp';
 import type { Settings } from './types';
 
@@ -136,17 +135,6 @@ async function downloadFile(filePath: string): Promise<string> {
     return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }
 
-async function getSettingsFromFile(): Promise<Partial<Settings>> {
-    const settingsFilePath = path.join(process.cwd(), 'src', 'lib', 'settings.json');
-    try {
-        const fileContent = await fs.readFile(settingsFilePath, 'utf8');
-        return JSON.parse(fileContent);
-    } catch (error) {
-        console.warn('Could not read settings.json for watermarking, returning default empty object.', error);
-        return {};
-    }
-}
-
 async function applyWatermarkServerSide(originalImageDataUri: string, watermarkImageDataUri: string, options: Partial<Settings> = {}): Promise<string> {
     const {
         watermarkPlacement = 'bottom-right',
@@ -233,7 +221,7 @@ export async function processTelegramUpdate(update: any) {
             let dataUri = await downloadFile(fileInfo.result.file_path);
 
             // Apply watermark if configured
-            const settings = await getSettingsFromFile();
+            const settings = await getSettings();
             if (settings.watermarkImageUrl && settings.watermarkImageUrl.startsWith('data:image')) {
                  try {
                     console.log("Applying watermark to Telegram upload...");

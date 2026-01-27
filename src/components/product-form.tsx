@@ -21,7 +21,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Badge } from "./ui/badge";
-import { getSettings } from "@/lib/woocommerce-api";
 import { Switch } from "./ui/switch";
 import { useGooglePicker } from "@/hooks/use-google-picker";
 
@@ -141,24 +140,28 @@ export default function ProductForm({ product }: ProductFormProps) {
   useEffect(() => {
     async function fetchInitialData() {
         try {
-            const [categoriesData, settingsData, tagsData] = await Promise.all([
+            const [categoriesResponse, settingsResponse, tagsResponse] = await Promise.all([
                 fetch('/api/products/categories?all=true'),
-                getSettings(),
+                fetch('/api/settings'),
                 fetch('/api/products/tags')
             ]);
             
-            if (categoriesData.ok) {
-                const data: WooCategory[] = await categoriesData.json();
+            if (categoriesResponse.ok) {
+                const data: WooCategory[] = await categoriesResponse.json();
                 setAvailableCategories(data);
             }
-            if (tagsData.ok) {
-                const data: WooTag[] = await tagsData.json();
+             if (tagsResponse.ok) {
+                const data: WooTag[] = await tagsResponse.json();
                 setAllTags(data);
             }
-            
-            setSettings(settingsData);
-            if (!settingsData?.watermarkImageUrl) {
-                setApplyWatermark(false);
+            if (settingsResponse.ok) {
+                const data: Settings = await settingsResponse.json();
+                setSettings(data);
+                if (!data?.watermarkImageUrl) {
+                    setApplyWatermark(false);
+                }
+            } else {
+                 console.error("Failed to fetch settings");
             }
 
         } catch (error) {
