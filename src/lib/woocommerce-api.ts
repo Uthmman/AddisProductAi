@@ -277,7 +277,7 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
 
 export async function getAllProductTags(): Promise<WooTag[]> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
         const errorBody = await response.text();
@@ -289,7 +289,7 @@ export async function getAllProductTags(): Promise<WooTag[]> {
 
 export async function getSingleProductTag(id: number): Promise<WooTag | null> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}`, { headers, cache: 'no-store' });
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}?context=edit`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
         if (response.status === 404) {
