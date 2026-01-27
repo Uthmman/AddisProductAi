@@ -111,7 +111,16 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           description: fetchedTag.description,
         });
         
-        if (fetchedTag.meta === undefined) {
+        if (fetchedTag.meta?._internal_error) {
+            setIsMetaAvailable(false);
+            const detailedError = `${fetchedTag.meta._internal_error}\n\nRequired PHP Code:\n${functionsPhpCode}`;
+            setFetchError(detailedError);
+             toast({
+              variant: "destructive",
+              title: "Warning: SEO Fields Missing",
+              description: "Editable SEO fields could not be loaded. See details in the form.",
+          });
+        } else if (fetchedTag.meta === undefined) {
           setIsMetaAvailable(false);
           const errorDetail = `The API returned the tag object, but the 'meta' field with Yoast data is missing. Please ensure the PHP code to register these fields has been added to your active theme's functions.php file and that all server/plugin caches have been cleared.\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(fetchedTag, null, 2)}`;
           setFetchError(errorDetail);
@@ -220,15 +229,12 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         const verifyResponse = await fetch(`/api/products/tags/${tagId}`);
         const verifiedTag: WooTag = await verifyResponse.json();
         
-        const sentDataString = JSON.stringify(submissionData.meta, null, 2);
-        const receivedDataString = JSON.stringify(verifiedTag.meta, null, 2);
-
         if (
           verifiedTag.meta?._yoast_wpseo_title !== seoTitle ||
           verifiedTag.meta?._yoast_wpseo_metadesc !== metaDescription ||
           verifiedTag.meta?._yoast_wpseo_focuskw !== focusKeyphrase
         ) {
-            const detailedError = `The server did not save the SEO data correctly. This usually means the REST API fields are not correctly registered in your active theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA SENT:\n--------------------\n${sentDataString}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${receivedDataString}`;
+            const detailedError = `The server did not save the SEO data correctly. This usually means the REST API fields are not correctly registered in your active theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA SENT:\n--------------------\n${JSON.stringify(submissionData.meta, null, 2)}\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(verifiedTag.meta, null, 2)}`;
             setSaveError(detailedError);
             throw new Error("Verification failed. See details below.");
         }
@@ -305,24 +311,13 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                          <Terminal className="h-4 w-4" />
                          <AlertTitle>Server Configuration Required</AlertTitle>
                          <AlertDescription>
-                            <p className="mb-4">Your WordPress server is not providing the editable Yoast SEO fields. To fix this, you must add a PHP snippet to your site. Here is a checklist:</p>
-                            <ol className="list-decimal list-inside space-y-2 mb-4">
-                                <li>
-                                    <strong>Edit `functions.php`:</strong> Add the following code to your **active** WordPress theme's `functions.php` file.
-                                </li>
-                                <li>
-                                    <strong>Clear All Caches:</strong> After saving the file, go to your WordPress admin dashboard and clear all caches from plugins like LiteSpeed, WP Rocket, etc. Also clear any server-level cache from your hosting provider.
-                                </li>
-                                <li>
-                                    <strong>Check Security Plugins:</strong> Temporarily disable security plugins (like Wordfence) to see if they are blocking the API response.
-                                </li>
-                            </ol>
-                           <Label>Required PHP Code</Label>
-                           <Textarea
-                             readOnly
-                             value={functionsPhpCode.trim()}
-                             className="h-64 font-mono text-xs bg-destructive/5 text-destructive-foreground mt-2 whitespace-pre-wrap"
-                           />
+                            <p className="mb-4">Your WordPress server is not providing the editable Yoast SEO fields. To fix this, you must add a PHP snippet to your site and clear any caches.</p>
+                            <Label>Diagnostic Info</Label>
+                             <Textarea
+                                readOnly
+                                value={fetchError || 'No detailed error message available.'}
+                                className="h-64 font-mono text-xs bg-destructive/5 text-destructive-foreground mt-2 whitespace-pre-wrap"
+                             />
                          </AlertDescription>
                        </Alert>
                     ) : (
@@ -356,21 +351,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                 </AlertDescription>
               </Alert>
             )}
-
-             {fetchError && (
-              <Alert variant="destructive" className="mt-6">
-                <AlertTitle>Fetch Error Details</AlertTitle>
-                <AlertDescription>
-                  <Textarea
-                    readOnly
-                    value={fetchError}
-                    className="h-72 font-mono text-xs bg-destructive/5 text-destructive-foreground mt-2 whitespace-pre-wrap"
-                  />
-                </AlertDescription>
-              </Alert>
-            )}
-
-
           </div>
         </div>
         <div className="flex-shrink-0 flex justify-end pt-4 mt-4 border-t">

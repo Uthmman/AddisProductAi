@@ -207,8 +207,21 @@ export async function getSingleProductTag(id: number): Promise<WooTag | null> {
     if (!response.ok) {
         if (response.status === 404) return null;
         await handleResponse(response, `Failed to fetch tag ${id}`);
+        return null;
     }
-    return await response.json();
+
+    const tagData = await response.json();
+
+    // The key check: does the returned object have the 'meta' property?
+    if (tagData && typeof tagData.meta === 'undefined') {
+        // Meta field is missing. The server is not configured correctly.
+        // We will augment the tag data with a diagnostic error.
+        tagData.meta = {
+            _internal_error: `The 'meta' field with Yoast SEO data is missing from the API response for this tag. This usually means your WordPress server configuration needs attention. Please check the following:\n\n1. **functions.php**: Ensure the PHP snippet to expose meta fields is in your *active* theme's functions.php file.\n\n2. **Caching**: Clear all server, plugin (e.g., LiteSpeed, WP Rocket), and CDN caches.\n\n3. **Security Plugins**: Temporarily disable plugins like Wordfence to see if they are stripping the 'meta' field from the API response.`
+        };
+    }
+    
+    return tagData;
 }
 
 export async function updateProductTag(
