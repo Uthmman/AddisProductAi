@@ -48,6 +48,8 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const [focusKeyphrase, setFocusKeyphrase] = useState('');
   const [metaDescription, setMetaDescription] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
 
   const form = useForm<TagFormValues>({
     resolver: zodResolver(TagFormSchema),
@@ -61,12 +63,14 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       setFocusKeyphrase('');
       setMetaDescription('');
       setSaveError(null);
+      setFetchError(null);
       return;
     }
 
     const fetchTagData = async () => {
       setIsFetching(true);
       setSaveError(null);
+      setFetchError(null);
       try {
         const response = await fetch(`/api/products/tags/${tagId}`);
         if (!response.ok) {
@@ -82,16 +86,18 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         });
         
         if (!fetchedTag.meta) {
+          const errorDetail = `The API returned the tag object, but the 'meta' field with Yoast data is missing. This usually means the REST API fields are not correctly registered in your theme's functions.php file, or a caching/security plugin is interfering.\n\n--------------------\nDATA RECEIVED:\n--------------------\n${JSON.stringify(fetchedTag, null, 2)}`;
+          setFetchError(errorDetail);
           toast({
               variant: "destructive",
               title: "Warning: SEO Fields Missing",
-              description: "The application could not fetch the Yoast SEO meta fields from your website. They may not be configured correctly in your theme's functions.php file.",
+              description: "Could not fetch Yoast SEO meta fields. See details in the form.",
           });
+        } else {
+          setSeoTitle(fetchedTag.meta?._yoast_wpseo_title || '');
+          setFocusKeyphrase(fetchedTag.meta?._yoast_wpseo_focuskw || '');
+          setMetaDescription(fetchedTag.meta?._yoast_wpseo_metadesc || '');
         }
-        
-        setSeoTitle(fetchedTag.meta?._yoast_wpseo_title || '');
-        setFocusKeyphrase(fetchedTag.meta?._yoast_wpseo_focuskw || '');
-        setMetaDescription(fetchedTag.meta?._yoast_wpseo_metadesc || '');
 
       } catch (error: any) {
         toast({ variant: "destructive", title: "Error Loading Tag", description: `Could not load tag data: ${error.message}` });
@@ -275,17 +281,20 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                 </CardContent>
             </Card>
 
-            {saveError && (
+            {(saveError || fetchError) && (
               <Alert variant="destructive" className="mt-6">
-                <AlertTitle>Save Error Details</AlertTitle>
+                <AlertTitle>{saveError ? 'Save Error Details' : 'Fetch Error Details'}</AlertTitle>
                 <AlertDescription>
                   <Textarea
                     readOnly
-                    value={saveError}
+                    value={saveError || fetchError || ''}
                     className="h-72 font-mono text-xs bg-destructive/5 text-destructive-foreground mt-2 whitespace-pre-wrap"
                   />
                   <p className="text-xs text-destructive-foreground/80 mt-2">
-                    This error usually means the meta fields are not correctly registered in your WordPress theme's <code>functions.php</code> file, or there is a server-side caching issue.
+                    {fetchError
+                      ? "This error usually means the meta fields are not correctly registered in your WordPress theme's functions.php file, or there is a server-side caching/security issue."
+                      : "This error usually means the meta fields are not correctly registered in your WordPress theme's functions.php file, or there is a server-side caching issue."
+                    }
                   </p>
                 </AlertDescription>
               </Alert>
