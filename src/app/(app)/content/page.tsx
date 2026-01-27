@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -625,13 +626,14 @@ function SearchInsights() {
     const [isLoading, setIsLoading] = useState(true);
     const [queries, setQueries] = useState<SearchQuery[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [dateRange, setDateRange] = useState('30');
 
     useEffect(() => {
         async function fetchSearchData() {
             setIsLoading(true);
             setError(null);
             try {
-                const res = await fetch('/api/search-console');
+                const res = await fetch(`/api/search-console?days=${dateRange}`);
                 const data = await res.json();
                 if (!res.ok) {
                     throw new Error(data.error || 'Failed to fetch Search Console data.');
@@ -649,16 +651,30 @@ function SearchInsights() {
             }
         }
         fetchSearchData();
-    }, [toast]);
+    }, [toast, dateRange]);
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center">
-                    <TrendingUp className="mr-2 h-5 w-5" />
-                    Search Insights
-                </CardTitle>
-                <CardDescription>Top search queries from Google Search Console for the last 30 days. Use these insights to create new products or blog posts.</CardDescription>
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                    <div>
+                        <CardTitle className="flex items-center">
+                            <TrendingUp className="mr-2 h-5 w-5" />
+                            Search Insights
+                        </CardTitle>
+                        <CardDescription>Top search queries from Google Search Console.</CardDescription>
+                    </div>
+                     <Select value={dateRange} onValueChange={setDateRange}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Select date range" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="7">Last 7 Days</SelectItem>
+                            <SelectItem value="30">Last 30 Days</SelectItem>
+                            <SelectItem value="90">Last 90 Days</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </CardHeader>
             <CardContent>
                 {isLoading ? (
@@ -689,7 +705,7 @@ function SearchInsights() {
                                     </TableRow>
                                 )) : (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="h-24 text-center">No query data available.</TableCell>
+                                        <TableCell colSpan={3} className="h-24 text-center">No query data available for this period.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>

@@ -1,8 +1,8 @@
 import { google } from 'googleapis';
 
-function get30DaysAgo(): string {
+function getStartDate(daysAgo: number): string {
     const date = new Date();
-    date.setDate(date.getDate() - 30);
+    date.setDate(date.getDate() - daysAgo);
     return date.toISOString().split('T')[0];
 }
 
@@ -10,7 +10,7 @@ function getToday(): string {
     return new Date().toISOString().split('T')[0];
 }
 
-export async function getGscTopQueries() {
+export async function getGscTopQueries(days: number = 30) {
     const { GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GSC_SITE_URL } = process.env;
 
     if (!GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY || !GSC_SITE_URL) {
@@ -32,7 +32,7 @@ export async function getGscTopQueries() {
         const res = await searchconsole.searchanalytics.query({
             siteUrl: GSC_SITE_URL,
             requestBody: {
-                startDate: get30DaysAgo(),
+                startDate: getStartDate(days),
                 endDate: getToday(),
                 dimensions: ['query'],
                 rowLimit: 50, // get more data for analysis

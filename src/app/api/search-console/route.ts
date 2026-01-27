@@ -4,7 +4,12 @@ import { getGscTopQueries } from '@/lib/gsc-api';
 
 export async function GET(req: NextRequest) {
     try {
-        const queries = await getGscTopQueries();
+        const { searchParams } = new URL(req.url);
+        const daysParam = searchParams.get('days');
+        const days = daysParam ? parseInt(daysParam, 10) : undefined;
+        
+        // Pass the `days` value to the function. It will default to 30 if undefined.
+        const queries = await getGscTopQueries(days);
         
         if (queries === null) {
             // If GSC isn't configured, return an empty array instead of an error.
