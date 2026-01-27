@@ -22,7 +22,7 @@ async function handleResponse(response: Response, errorMessage: string) {
                 message = errorBody.message;
             }
         } catch (e) {
-            // Not a JSON response
+             message = await response.text();
         }
         console.error("WooCommerce API Error:", message);
         throw new Error(message);
@@ -43,7 +43,7 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
             message = errorBody.message;
         }
     } catch(e) {
-        // Not a JSON response
+        message = await response.text();
     }
     console.error("WooCommerce API Error:", message);
     throw new Error(message);
@@ -148,13 +148,13 @@ export async function deleteCategory(id: number, force: boolean = true): Promise
 export async function uploadImage(imageName: string, imageData: string): Promise<{id: number, src: string}> {
     const user = process.env.WOOCOMMERCE_CONSUMER_KEY;
     const pass = process.env.WOOCOMMERCE_CONSUMER_SECRET;
-    const wcApiUrl = process.env.WOOCOMMERCE_API_URL;
     
-    if(!wcApiUrl || !user || !pass) {
-        throw new Error("WordPress API credentials or URL for media upload are not set.");
+    // Use the main URL and derive the WP API URL from it
+    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
+    if(!siteUrl || !user || !pass) {
+        throw new Error("WordPress site URL or API credentials for media upload are not set.");
     }
     
-    const siteUrl = wcApiUrl.replace('/wp-json/wc/v3', '');
     const wpApiUrl = `${siteUrl}/wp-json/wp/v2`;
 
     const mimeTypeMatch = imageData.match(/^data:(image\/[a-z]+);base64,/);
@@ -215,7 +215,7 @@ export async function updateProductTag(
         name?: string; 
         slug?: string; 
         description?: string; 
-        meta?: { [key: string]: any }
+        meta?: { [key: string]: any };
     }
 ): Promise<WooTag> {
     const headers = getAuthHeaders();

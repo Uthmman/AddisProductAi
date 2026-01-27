@@ -25,7 +25,7 @@ const TagFormSchema = z.object({
 type TagFormValues = z.infer<typeof TagFormSchema>;
 
 type AIGeneratedContent = {
-    title?: string;
+    title: string;
     description: string;
     focusKeyphrase: string;
     metaDescription: string;
@@ -38,7 +38,6 @@ type TagFormProps = {
 
 export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const { toast } = useToast();
-  const [tag, setTag] = useState<WooTag | null>(null);
   const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -53,7 +52,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
 
   useEffect(() => {
     if (!tagId) {
-      setTag(null);
       form.reset({ name: '', slug: '', description: '' });
       setSeoTitle('');
       setFocusKeyphrase('');
@@ -71,15 +69,16 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         }
         const fetchedTag: WooTag = await response.json();
         
-        setTag(fetchedTag);
         form.reset({
           name: fetchedTag.name,
           slug: fetchedTag.slug,
           description: fetchedTag.description,
         });
+        
         setSeoTitle(fetchedTag.meta?._yoast_wpseo_title || '');
         setFocusKeyphrase(fetchedTag.meta?._yoast_wpseo_focuskw || '');
         setMetaDescription(fetchedTag.meta?._yoast_wpseo_metadesc || '');
+
       } catch (error: any) {
         toast({ variant: "destructive", title: "Error Loading Tag", description: `Could not load tag data: ${error.message}` });
       } finally {
@@ -154,7 +153,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
 
       const savedTag: WooTag = await response.json();
-      
       const newTagId = savedTag.id;
       
       // Verification step
@@ -164,12 +162,12 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       const verifiedTag: WooTag = await verifyResponse.json();
       
-      // Check if any of the meta fields we tried to save are missing or different in the verified data.
-      if (!verifiedTag || 
-          (meta._yoast_wpseo_title && verifiedTag.meta?._yoast_wpseo_title !== meta._yoast_wpseo_title) ||
-          (meta._yoast_wpseo_focuskw && verifiedTag.meta?._yoast_wpseo_focuskw !== meta._yoast_wpseo_focuskw) ||
-          (meta._yoast_wpseo_metadesc && verifiedTag.meta?._yoast_wpseo_metadesc !== meta._yoast_wpseo_metadesc)
-      ) {
+      let verificationPassed = true;
+      if (seoTitle !== (verifiedTag.meta?._yoast_wpseo_title || '')) verificationPassed = false;
+      if (focusKeyphrase !== (verifiedTag.meta?._yoast_wpseo_focuskw || '')) verificationPassed = false;
+      if (metaDescription !== (verifiedTag.meta?._yoast_wpseo_metadesc || '')) verificationPassed = false;
+      
+      if (!verificationPassed) {
           throw new Error("Verification failed. The server accepted the update, but the SEO data was not saved correctly. Please check your WordPress `functions.php` file to ensure the Yoast meta fields are registered with the REST API.");
       }
 

@@ -18,7 +18,6 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
     return NextResponse.json(tag);
   } catch (error: any) {
-    console.error(error);
     return NextResponse.json({ message: error.message || 'Failed to fetch tag' }, { status: 500 });
   }
 }
@@ -35,7 +34,6 @@ export async function PUT(request: NextRequest, { params }: Params) {
     const updatedTag = await wooCommerceApi.updateProductTag(id, body);
     return NextResponse.json(updatedTag);
   } catch (error: any) {
-    console.error(error);
     return NextResponse.json({ message: error.message || 'Failed to update tag' }, { status: 500 });
   }
 }
@@ -50,7 +48,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     const deletedTag = await wooCommerceApi.deleteProductTag(id, true);
     return NextResponse.json(deletedTag);
   } catch (error: any) {
-    console.error(error);
     return NextResponse.json({ message: error.message || 'Failed to delete tag' }, { status: 500 });
   }
 }

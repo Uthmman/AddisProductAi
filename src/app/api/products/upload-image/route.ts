@@ -57,14 +57,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     // Log the detailed error from the underlying API call
-    console.error('Image upload failed:', {
-      message: error.message,
-      statusCode: error.response?.status,
-      body: error.response?.data,
-    });
+    console.error('Image upload failed:', error);
     
-    const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred during image upload.';
-    const statusCode = error.response?.status || 500;
+    const errorMessage = error.message || 'An unexpected error occurred during image upload.';
+    const statusCode = 500;
 
     return NextResponse.json({ message: errorMessage }, { status: statusCode });
   }
