@@ -24,7 +24,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 const PostGeneratorSchema = z.object({
@@ -764,6 +764,8 @@ function ContentPageInner() {
             <Button variant="outline"><PanelLeft className="mr-2 h-4 w-4" /> Menu</Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-[250px] p-4">
+            <SheetTitle className="sr-only">Content Tools Menu</SheetTitle>
+            <SheetDescription className="sr-only">Select a content tool from the menu.</SheetDescription>
              <h2 className="text-lg font-semibold mb-4">Content Tools</h2>
              {renderSidebar()}
           </SheetContent>

@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { PanelLeft, Package } from 'lucide-react';
 import { Button } from './ui/button';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from './ui/sheet';
 import { MainNav } from './main-nav';
 
 export default function Header() {
@@ -18,6 +18,8 @@ export default function Header() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="sm:max-w-xs">
+          <SheetTitle className="sr-only">Menu</SheetTitle>
+          <SheetDescription className="sr-only">Main navigation menu</SheetDescription>
           <nav className="grid gap-6 text-lg font-medium">
             <Link
               href="/dashboard"
