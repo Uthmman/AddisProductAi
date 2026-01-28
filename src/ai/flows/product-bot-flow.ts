@@ -1,4 +1,3 @@
-
 import { ai, generate } from '@/ai/genkit';
 import { z } from 'zod';
 import { generateWooCommerceProductContent } from './generate-woocommerce-product-content';
@@ -10,6 +9,7 @@ import { getGscTopQueries } from '@/lib/gsc-api';
 import { generateSocialMediaPost } from './generate-social-media-post';
 import { sendAlbumToChannel } from '@/lib/telegram-api';
 import { appCache } from '@/lib/cache';
+import { urlToDataUri } from '@/lib/utils';
 
 const ProductBotInputSchema = z.object({
   chatId: z.string(),
@@ -38,7 +38,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 
     try {
         // This is the initial message when loading an existing product for editing.
-        if (editProductId && !newMessage && productState.image_ids.length === 0) {
+        if (editProductId && !newMessage && (!productState.image_ids || productState.image_ids.length === 0)) {
             const product = await getProduct(parseInt(editProductId, 10));
             if (!product) {
                 return { 
@@ -79,7 +79,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             };
         }
 
-        if (!newMessage && productState.image_ids.length === 0) {
+        if (!newMessage && (!productState.image_ids || productState.image_ids.length === 0)) {
              return { 
                 text: "Hi there! I can help you create a new product. What's the name, price, and Amharic name? You can also upload photos or ask me for product suggestions based on search data.",
                 productState
@@ -124,14 +124,30 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                     return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
                 }
 
-                // Construct the image data for the AI. Prioritize original, clean images from cache.
-                const images_data = productState.image_ids.map((id, index) => {
+                // Construct the image data for the AI. Prioritize original, clean images from cache,
+                // otherwise fall back to fetching the public URL.
+                const imagePromises = (productState.image_ids || []).map(async (id, index) => {
                     const originalDataUri = appCache.get<string>(`original_image_${chatId}_${id}`);
-                    // If clean version from cache exists, use it. Otherwise, fall back to the public (potentially watermarked) URL.
-                    return originalDataUri || productState.image_srcs[index];
+                    if (originalDataUri) {
+                        return originalDataUri;
+                    }
+                    const imageUrl = (productState.image_srcs || [])[index];
+                    if (imageUrl && imageUrl.startsWith('http')) {
+                        try {
+                            // Fetch the public URL and convert it to a data URI for the AI
+                            return await urlToDataUri(imageUrl);
+                        } catch (error) {
+                            console.error(`Failed to convert image URL to data URI: ${imageUrl}`, error);
+                            return null;
+                        }
+                    }
+                    return null;
                 });
 
-                if (images_data.filter(Boolean).length === 0) {
+                const images_data = (await Promise.all(imagePromises)).filter(Boolean) as string[];
+
+
+                if (images_data.length === 0) {
                     return "I can't optimize because there are no valid images for this product. Please try uploading them again.";
                 }
 

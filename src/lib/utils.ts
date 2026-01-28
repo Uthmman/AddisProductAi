@@ -108,3 +108,13 @@ export function applyWatermark(originalImageSrc: string, watermarkImageSrc: stri
     originalImage.src = originalImageSrc;
   });
 }
+
+export async function urlToDataUri(url: string): Promise<string> {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch image from ${url}: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const buffer = Buffer.from(await blob.arrayBuffer());
+    return `data:${blob.type};base64,${buffer.toString('base64')}`;
+}
