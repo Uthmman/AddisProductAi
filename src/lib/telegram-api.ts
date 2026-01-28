@@ -205,7 +205,7 @@ export async function processTelegramUpdate(update: any) {
 
     // 1. Load or initialize state from cache
     const cacheKey = `product_bot_state_${chatId}`;
-    let productState: ProductBotState = appCache.get<ProductBotState>(cacheKey) || { image_ids: [], image_srcs: [] };
+    let productState: ProductBotState = appCache.get<ProductBotState>(cacheKey) || { image_ids: [], image_srcs: [], original_image_data_uris: {} };
 
 
     // 2. Handle Photo Uploads
@@ -243,14 +243,15 @@ export async function processTelegramUpdate(update: any) {
             const imageName = `telegram_upload_${chatId}_${Date.now()}.jpg`;
             const wooImage = await uploadImage(imageName, imageToUploadUri);
             
-            // IMPORTANT: Cache the ORIGINAL, clean data URI for the AI to use later.
-            // The cache key is tied to the chat and the new image ID. It will expire in 10 minutes.
-            appCache.set(`original_image_${chatId}_${wooImage.id}`, originalDataUri);
-
             // Update state with the new image ID and its public URL
             if (!productState.image_ids.includes(wooImage.id)) {
                 productState.image_ids.push(wooImage.id);
                 productState.image_srcs.push(wooImage.src);
+                // Also store the original data URI in the state object
+                if (!productState.original_image_data_uris) {
+                    productState.original_image_data_uris = {};
+                }
+                productState.original_image_data_uris[wooImage.id] = originalDataUri;
             }
 
         } catch (error: any) {
@@ -300,6 +301,3 @@ export async function processTelegramUpdate(update: any) {
         await sendMessage(chatId, "I'm sorry, I encountered an internal error. Please try again.");
     }
 }
-
-    
-    

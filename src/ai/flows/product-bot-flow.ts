@@ -1,3 +1,4 @@
+
 import { ai, generate } from '@/ai/genkit';
 import { z } from 'zod';
 import { generateWooCommerceProductContent } from './generate-woocommerce-product-content';
@@ -30,6 +31,7 @@ export type ProductBotOutput = z.infer<typeof ProductBotOutputSchema>;
 const getInitialState = (): ProductBotState => ({
     image_ids: [],
     image_srcs: [],
+    original_image_data_uris: {},
 });
 
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
@@ -56,6 +58,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 amharic_name: product.meta_data.find(m => m.key === 'amharic_name')?.value || "",
                 image_ids: product.images.map(img => img.id),
                 image_srcs: product.images.map(img => img.src),
+                original_image_data_uris: {}, // This will be populated by the fallback if needed
                 aiContent: {
                     name: product.name,
                     sku: product.sku,
@@ -123,29 +126,31 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 if (!productState.raw_name || !productState.price_etb || !productState.image_srcs || productState.image_srcs.length === 0) {
                     return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
                 }
+                
+                let images_data: string[] = [];
 
-                // Construct the image data for the AI. Prioritize original, clean images from cache,
-                // otherwise fall back to fetching the public URL.
-                const imagePromises = (productState.image_ids || []).map(async (id, index) => {
-                    const originalDataUri = appCache.get<string>(`original_image_${chatId}_${id}`);
-                    if (originalDataUri) {
-                        return originalDataUri;
-                    }
-                    const imageUrl = (productState.image_srcs || [])[index];
-                    if (imageUrl && imageUrl.startsWith('http')) {
-                        try {
-                            // Fetch the public URL and convert it to a data URI for the AI
-                            return await urlToDataUri(imageUrl);
-                        } catch (error) {
-                            console.error(`Failed to convert image URL to data URI: ${imageUrl}`, error);
-                            return null;
+                // Primary method: Use original data URIs stored in the state.
+                if (productState.original_image_data_uris && Object.keys(productState.original_image_data_uris).length > 0) {
+                     images_data = (productState.image_ids || [])
+                        .map(id => productState.original_image_data_uris?.[id])
+                        .filter(Boolean) as string[];
+                }
+
+                // Fallback method: If original data is missing (e.g., in an "edit" flow), fetch from the public URLs.
+                if (images_data.length === 0 && productState.image_ids && productState.image_ids.length > 0) {
+                    const imagePromises = productState.image_srcs.map(async (url) => {
+                         if (url && url.startsWith('http')) {
+                            try {
+                                return await urlToDataUri(url);
+                            } catch (error) {
+                                console.error(`Failed to convert image URL to data URI: ${url}`, error);
+                                return null;
+                            }
                         }
-                    }
-                    return null;
-                });
-
-                const images_data = (await Promise.all(imagePromises)).filter(Boolean) as string[];
-
+                        return null;
+                    });
+                    images_data = (await Promise.all(imagePromises)).filter(Boolean) as string[];
+                }
 
                 if (images_data.length === 0) {
                     return "I can't optimize because there are no valid images for this product. Please try uploading them again.";
@@ -335,6 +340,3 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         };
     }
 }
-
-    
-    

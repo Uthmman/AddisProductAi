@@ -90,4 +90,5 @@ export interface ProductBotState {
     image_ids: number[];
     image_srcs: string[];
     aiContent?: Partial<AIProductContent>;
+    original_image_data_uris?: { [id: number]: string };
 }

@@ -47,6 +47,7 @@ interface ChatSession {
 const getInitialProductState = (): ProductBotState => ({
   image_ids: [],
   image_srcs: [],
+  original_image_data_uris: {},
 });
 
 export default function BotPageClient() {
@@ -175,10 +176,14 @@ export default function BotPageClient() {
   useEffect(() => {
     if (isClient && storageKey && sessions.length > 0) {
       try {
-        const sessionsToSave = sessions.map(s => ({
-          ...s,
-          messages: s.messages.filter(m => !m.isLoading && m.type === 'text')
-        }));
+        const sessionsToSave = sessions.map(s => {
+          const stateToSave: ProductBotState = { ...s.productState, original_image_data_uris: {} };
+          return {
+            ...s,
+            messages: s.messages.filter(m => !m.isLoading && m.type === 'text'),
+            productState: stateToSave
+          }
+        });
         localStorage.setItem(storageKey, JSON.stringify(sessionsToSave));
       } catch (e: any) {
         if (e.name === 'QuotaExceededError') {
@@ -361,6 +366,10 @@ export default function BotPageClient() {
                 if (!newProductState.image_ids.includes(uploadedImage.id)) {
                     newProductState.image_ids.push(uploadedImage.id);
                     newProductState.image_srcs.push(uploadedImage.src);
+                    if (!newProductState.original_image_data_uris) {
+                        newProductState.original_image_data_uris = {};
+                    }
+                    newProductState.original_image_data_uris[uploadedImage.id] = src;
                 }
                 return { ...s, messages: newMessages, productState: newProductState };
             }));
