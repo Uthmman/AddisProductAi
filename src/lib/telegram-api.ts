@@ -2,7 +2,8 @@ import { productBotFlow } from '@/ai/flows/product-bot-flow';
 import { uploadImage } from '@/lib/woocommerce-api';
 import { getSettings } from '@/lib/settings-api';
 import Jimp from 'jimp';
-import type { Settings } from './types';
+import type { Settings, ProductBotState } from './types';
+import { appCache } from '@/lib/cache';
 
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -201,12 +202,14 @@ export async function processTelegramUpdate(update: any) {
     const text = message.text;
     const photos = message.photo;
 
-    let uploadedImageInfo: Array<{ id: number; src: string }> | undefined = undefined;
+    // 1. Load or initialize state from cache
+    const cacheKey = `product_bot_state_${chatId}`;
+    let productState: ProductBotState = appCache.get<ProductBotState>(cacheKey) || { image_ids: [], image_srcs: [] };
 
-    // 1. Handle Photo Uploads
+
+    // 2. Handle Photo Uploads
     if (photos && photos.length > 0) {
         try {
-            // Acknowledge receipt
             await sendMessage(chatId, "Processing your photo...");
 
             // Get the highest resolution photo
@@ -230,7 +233,7 @@ export async function processTelegramUpdate(update: any) {
                 } catch (watermarkError) {
                     console.error("Failed to apply watermark to Telegram upload:", watermarkError);
                     // Non-fatal, just inform the user and proceed
-                    await sendMessage(chatId, "I couldn't apply the watermark due to an error, but I'll proceed with the original image.");
+                    await sendMessage(chatId, "I couldn't apply the watermark, but I'll proceed with the original image.");
                 }
             }
 
@@ -239,11 +242,16 @@ export async function processTelegramUpdate(update: any) {
             const imageName = `telegram_upload_${chatId}_${Date.now()}.jpg`;
             const wooImage = await uploadImage(imageName, dataUri);
 
-            uploadedImageInfo = [{ id: wooImage.id, src: wooImage.src }];
+            // Update state with new image
+            if (!productState.image_ids.includes(wooImage.id)) {
+                productState.image_ids.push(wooImage.id);
+                productState.image_srcs.push(wooImage.src);
+            }
+
         } catch (error: any) {
             console.error("Error processing Telegram photo:", error);
             await sendMessage(chatId, `I'm sorry, I had trouble with that image. Error: ${error.message}`);
-            return;
+            return; // Exit if photo processing fails
         }
     }
 
@@ -252,17 +260,34 @@ export async function processTelegramUpdate(update: any) {
         await sendMessage(chatId, "Thinking...");
     }
 
-    // 2. Call the Product Bot Flow
+    // 3. Call the Product Bot Flow
     try {
+        // The bot needs to know if an image was just uploaded to provide the right response.
+        const botFlowMessage = (photos && photos.length > 0) ? '[Image Uploaded]' : text;
+
         const botResponse = await productBotFlow({
             chatId: String(chatId),
-            newMessage: text,
-            images: uploadedImageInfo,
+            newMessage: botFlowMessage,
+            productState: productState, // Pass the loaded/updated state
         });
 
-        // 3. Send the response back to the user
+        // 4. Send the response back to the user
         if (botResponse && botResponse.text) {
             await sendMessage(chatId, botResponse.text);
+        }
+
+        // 5. Save the updated state back to the cache
+        if (botResponse && botResponse.productState) {
+            // If the product was saved successfully, the state is reset.
+            // Check for a success message to know when to clear the cache.
+            const successKeywords = ["Success! I've updated the product", "Success! I've created the product"];
+            const isSuccess = successKeywords.some(keyword => botResponse.text.includes(keyword));
+
+            if (isSuccess) {
+                appCache.del(cacheKey);
+            } else {
+                appCache.set(cacheKey, botResponse.productState);
+            }
         }
 
     } catch (error: any) {
@@ -270,3 +295,5 @@ export async function processTelegramUpdate(update: any) {
         await sendMessage(chatId, "I'm sorry, I encountered an internal error. Please try again.");
     }
 }
+
+    

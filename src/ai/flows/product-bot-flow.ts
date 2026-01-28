@@ -119,8 +119,15 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 outputSchema: z.any(),
             },
             async () => {
-                if (!productState.raw_name || !productState.price_etb || productState.image_srcs.length === 0) {
+                if (!productState.raw_name || !productState.price_etb || !productState.image_srcs || productState.image_srcs.length === 0) {
                     return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
+                }
+
+                // Filter out any null/empty strings from image_srcs before passing to AI
+                const validImageSrcs = productState.image_srcs.filter(src => typeof src === 'string' && src.length > 0);
+
+                if (validImageSrcs.length === 0) {
+                    return "I can't optimize because there are no valid images for this product. Please try uploading them again.";
                 }
 
                 const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
@@ -131,7 +138,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                     material: productState.material || '',
                     amharic_name: productState.amharic_name || '',
                     focus_keywords: productState.focus_keywords || '',
-                    images_data: productState.image_srcs,
+                    images_data: validImageSrcs,
                     availableCategories,
                     settings,
                     primaryCategory,
@@ -268,7 +275,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     Your process depends on whether you are creating a new product or editing an existing one (indicated by 'editProductId').
 
     **IF CREATING A NEW PRODUCT (no 'editProductId'):**
-    1.  **Gather Information / Suggest Products**: Your primary goal is to collect the product's **Name**, **Price**, and at least one **Image**.
+    1.  **Gather Information / Suggest Products**: Your primary goal is to collect the product's **Name**, **Price**, **Amharic Name**, and at least one **Image**.
         - If the user uploads an image, the message will be "[Image Uploaded]". Acknowledge it and ask for the remaining details.
         - The user might provide multiple details in one message (e.g., 'a beautiful handmade cotton dress for kids, price is 1500 birr'). You must analyze the message and call 'updateProductDetailsTool' with all the information you can extract.
         - If any of these core details are missing, ask the user for them clearly.
@@ -306,3 +313,5 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         };
     }
 }
+
+    
