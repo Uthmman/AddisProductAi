@@ -42,6 +42,42 @@ interface ChatSession {
   createdAt: number;
 }
 
+// Helper function to safely save sessions to localStorage, handling quota errors.
+function saveSessionsToLocalStorage(key: string, sessions: ChatSession[], toast: (options: any) => void) {
+  if (typeof window === 'undefined' || !key) return;
+
+  let dataToSave = [...sessions];
+  let saved = false;
+
+  while (!saved && dataToSave.length > 0) {
+    try {
+      localStorage.setItem(key, JSON.stringify(dataToSave));
+      saved = true;
+    } catch (e: any) {
+      if (e.name === 'QuotaExceededError' && dataToSave.length > 1) {
+        console.warn("LocalStorage quota exceeded. Removing oldest chat session to make space.");
+        toast({
+          title: "Chat History Full",
+          description: "Removing the oldest chat session to make space.",
+          variant: "destructive",
+        });
+        // Sort by creation date (ascending) and remove the oldest.
+        dataToSave.sort((a, b) => a.createdAt - b.createdAt).shift();
+      } else {
+        console.error("Failed to save sessions to localStorage:", e);
+        toast({
+          title: "Storage Error",
+          description: "Could not save your chat history.",
+          variant: "destructive",
+        });
+        // Break the loop to prevent an infinite loop on other errors.
+        break;
+      }
+    }
+  }
+}
+
+
 export default function TelegramMiniAppPage() {
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
@@ -94,12 +130,16 @@ export default function TelegramMiniAppPage() {
   // Save sessions to localStorage
   useEffect(() => {
     if (isClient && storageKey && sessions.length > 0) {
-      localStorage.setItem(storageKey, JSON.stringify(sessions));
+      saveSessionsToLocalStorage(storageKey, sessions, toast);
     }
     if (isClient && storageKey && activeSessionId) {
-       localStorage.setItem(`${storageKey}_last_active`, activeSessionId);
+       try {
+        localStorage.setItem(`${storageKey}_last_active`, activeSessionId);
+      } catch (e) {
+        console.error("Failed to save active session ID to localStorage:", e);
+      }
     }
-  }, [sessions, activeSessionId, isClient, storageKey]);
+  }, [sessions, activeSessionId, isClient, storageKey, toast]);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
