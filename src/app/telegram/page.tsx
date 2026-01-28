@@ -46,19 +46,28 @@ interface ChatSession {
 function saveSessionsToLocalStorage(key: string, sessions: ChatSession[], toast: (options: any) => void) {
   if (typeof window === 'undefined' || !key) return;
 
-  let dataToSave = [...sessions];
+  // Create a sanitized version for storage by removing image messages.
+  // This prevents large base64 strings from being stored.
+  const sanitizedSessions = sessions.map(session => ({
+    ...session,
+    messages: session.messages.filter(msg => msg.type !== 'image'),
+  }));
+
+  let dataToSave = sanitizedSessions;
   let saved = false;
 
   while (!saved && dataToSave.length > 0) {
     try {
+      // Attempt to save the sanitized data.
       localStorage.setItem(key, JSON.stringify(dataToSave));
       saved = true;
     } catch (e: any) {
+      // Fallback for if even the text-only history is too large.
       if (e.name === 'QuotaExceededError' && dataToSave.length > 1) {
-        console.warn("LocalStorage quota exceeded. Removing oldest chat session to make space.");
+        console.warn("LocalStorage quota exceeded for text history. Removing oldest chat session.");
         toast({
           title: "Chat History Full",
-          description: "Removing the oldest chat session to make space.",
+          description: "Removing the oldest chat session to make space for new ones.",
           variant: "destructive",
         });
         // Sort by creation date (ascending) and remove the oldest.
@@ -70,8 +79,7 @@ function saveSessionsToLocalStorage(key: string, sessions: ChatSession[], toast:
           description: "Could not save your chat history.",
           variant: "destructive",
         });
-        // Break the loop to prevent an infinite loop on other errors.
-        break;
+        break; // Prevent infinite loop on other errors.
       }
     }
   }
