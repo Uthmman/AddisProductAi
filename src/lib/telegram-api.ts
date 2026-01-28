@@ -1,3 +1,4 @@
+
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
 import { uploadImage } from '@/lib/woocommerce-api';
 import { getSettings } from '@/lib/settings-api';
@@ -220,29 +221,33 @@ export async function processTelegramUpdate(update: any) {
             const fileInfo = await getFile(fileId);
             if (!fileInfo.ok) throw new Error(fileInfo.description || "Could not get file info.");
 
-            // Download the file and convert to data URI
-            let dataUri = await downloadFile(fileInfo.result.file_path);
+            // Download the original, clean file
+            const originalDataUri = await downloadFile(fileInfo.result.file_path);
 
             // Apply watermark if configured
             const settings = await getSettings();
+            let imageToUploadUri = originalDataUri;
+
             if (settings.watermarkImageUrl && settings.watermarkImageUrl.startsWith('data:image')) {
                  try {
                     console.log("Applying watermark to Telegram upload...");
-                    dataUri = await applyWatermarkServerSide(dataUri, settings.watermarkImageUrl, settings);
+                    imageToUploadUri = await applyWatermarkServerSide(originalDataUri, settings.watermarkImageUrl, settings);
                     console.log("Watermark applied successfully.");
                 } catch (watermarkError) {
                     console.error("Failed to apply watermark to Telegram upload:", watermarkError);
-                    // Non-fatal, just inform the user and proceed
                     await sendMessage(chatId, "I couldn't apply the watermark, but I'll proceed with the original image.");
                 }
             }
 
-
-            // Upload to WooCommerce
+            // Upload the (potentially watermarked) image to WooCommerce
             const imageName = `telegram_upload_${chatId}_${Date.now()}.jpg`;
-            const wooImage = await uploadImage(imageName, dataUri);
+            const wooImage = await uploadImage(imageName, imageToUploadUri);
+            
+            // IMPORTANT: Cache the ORIGINAL, clean data URI for the AI to use later.
+            // The cache key is tied to the chat and the new image ID. It will expire in 10 minutes.
+            appCache.set(`original_image_${chatId}_${wooImage.id}`, originalDataUri);
 
-            // Update state with new image
+            // Update state with the new image ID and its public URL
             if (!productState.image_ids.includes(wooImage.id)) {
                 productState.image_ids.push(wooImage.id);
                 productState.image_srcs.push(wooImage.src);
@@ -296,4 +301,5 @@ export async function processTelegramUpdate(update: any) {
     }
 }
 
+    
     

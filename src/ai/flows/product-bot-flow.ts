@@ -9,6 +9,7 @@ import { suggestProductsTool } from '../tools/suggest-products-tool';
 import { getGscTopQueries } from '@/lib/gsc-api';
 import { generateSocialMediaPost } from './generate-social-media-post';
 import { sendAlbumToChannel } from '@/lib/telegram-api';
+import { appCache } from '@/lib/cache';
 
 const ProductBotInputSchema = z.object({
   chatId: z.string(),
@@ -123,22 +124,27 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                     return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
                 }
 
-                // Filter out any null/empty strings from image_srcs before passing to AI
-                const validImageSrcs = productState.image_srcs.filter(src => typeof src === 'string' && src.length > 0);
+                // Construct the image data for the AI. Prioritize original, clean images from cache.
+                const images_data = productState.image_ids.map((id, index) => {
+                    const originalDataUri = appCache.get<string>(`original_image_${chatId}_${id}`);
+                    // If clean version from cache exists, use it. Otherwise, fall back to the public (potentially watermarked) URL.
+                    return originalDataUri || productState.image_srcs[index];
+                });
 
-                if (validImageSrcs.length === 0) {
+                if (images_data.filter(Boolean).length === 0) {
                     return "I can't optimize because there are no valid images for this product. Please try uploading them again.";
                 }
 
                 const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
                 const gscData = await getGscTopQueries();
+
                 const aiContent = await generateWooCommerceProductContent({
                     raw_name: productState.raw_name,
                     price_etb: productState.price_etb,
                     material: productState.material || '',
                     amharic_name: productState.amharic_name || '',
                     focus_keywords: productState.focus_keywords || '',
-                    images_data: validImageSrcs,
+                    images_data: images_data,
                     availableCategories,
                     settings,
                     primaryCategory,
@@ -314,4 +320,5 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     }
 }
 
+    
     

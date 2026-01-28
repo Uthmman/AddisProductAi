@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useTransition, useCallback, useMemo } from "react";
@@ -224,7 +225,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
     setGeneratingField(field);
     try {
-        // The client now sends original image sources (data URI for new, URL for existing)
+        // The client sends original image sources (data URI for new, URL for existing) to the AI
         const imagesData = await Promise.all(
             images.map(image => image.src)
         );
@@ -322,14 +323,21 @@ export default function ProductForm({ product }: ProductFormProps) {
             if (image.file) {
                 imageBase64 = await fileToBase64(image.file);
             } else {
-                // If it's a URL (from Google Photos), it needs to be fetched server-side
-                // The ai-optimize route already does this, we re-use that logic
-                // For direct save, we'll let the upload-image API handle it
-                imageBase64 = image.src;
+                imageBase64 = image.src; // Pass URL directly to upload-image API
             }
-
-            if (applyWatermark && settings?.watermarkImageUrl && !image.src.startsWith('http')) { // Don't watermark URLs client-side
-              imageBase64 = await applyWatermarkUtil(imageBase64, settings.watermarkImageUrl, settings);
+            
+            // Apply watermark on the client-side if enabled, before sending to the uploader.
+            if (applyWatermark && settings?.watermarkImageUrl && !imageBase64.startsWith('http')) {
+              try {
+                imageBase64 = await applyWatermarkUtil(imageBase64, settings.watermarkImageUrl, settings);
+              } catch (watermarkError) {
+                 console.error("Client-side watermarking failed, uploading original.", watermarkError);
+                 toast({
+                    variant: "destructive",
+                    title: "Watermark Failed",
+                    description: "Could not apply watermark, uploading original image.",
+                 });
+              }
             }
 
             const response = await fetch('/api/products/upload-image', {
@@ -757,3 +765,5 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
+
+    
