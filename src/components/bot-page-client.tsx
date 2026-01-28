@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useGooglePicker } from '@/hooks/use-google-picker';
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { ProductBotState } from '@/lib/types';
 
 
 interface Message {
@@ -36,51 +37,14 @@ interface ChatSession {
   id: string;
   title: string;
   messages: Message[];
+  productState: ProductBotState;
   createdAt: number;
 }
 
-// Helper function to safely save sessions to localStorage, handling quota errors.
-function saveSessionsToLocalStorage(key: string, sessions: ChatSession[], toast: (options: any) => void) {
-  if (typeof window === 'undefined' || !key) return;
-
-  // Create a sanitized version for storage by removing image messages.
-  // This prevents large base64 strings from being stored.
-  const sanitizedSessions = sessions.map(session => ({
-    ...session,
-    messages: session.messages.filter(msg => msg.type !== 'image'),
-  }));
-
-  let dataToSave = sanitizedSessions;
-  let saved = false;
-
-  while (!saved && dataToSave.length > 0) {
-    try {
-      // Attempt to save the sanitized data.
-      localStorage.setItem(key, JSON.stringify(dataToSave));
-      saved = true;
-    } catch (e: any) {
-      // Fallback for if even the text-only history is too large.
-      if (e.name === 'QuotaExceededError' && dataToSave.length > 1) {
-        console.warn("LocalStorage quota exceeded for text history. Removing oldest chat session.");
-        toast({
-          title: "Chat History Full",
-          description: "Removing the oldest chat session to make space for new ones.",
-          variant: "destructive",
-        });
-        // Sort by creation date (ascending) and remove the oldest.
-        dataToSave.sort((a, b) => a.createdAt - b.createdAt).shift();
-      } else {
-        console.error("Failed to save sessions to localStorage:", e);
-        toast({
-          title: "Storage Error",
-          description: "Could not save your chat history.",
-          variant: "destructive",
-        });
-        break; // Prevent infinite loop on other errors.
-      }
-    }
-  }
-}
+const getInitialProductState = (): ProductBotState => ({
+  image_ids: [],
+  image_srcs: [],
+});
 
 export default function BotPageClient() {
   const { toast } = useToast();
@@ -94,7 +58,6 @@ export default function BotPageClient() {
   const [isClient, setIsClient] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [stagedImages, setStagedImages] = useState<Array<{ src: string; file: File }>>([]);
   const [isInitializingEdit, setIsInitializingEdit] = useState(false);
 
 
@@ -102,11 +65,12 @@ export default function BotPageClient() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   const handlePickerSelect = (data: any[]) => {
-    const newImages = data.map(photo => ({
-      src: photo.url,
-      file: new File([], `google_photo_${photo.id || Date.now()}.jpg`, { type: 'image/jpeg' }),
-    }));
-    setStagedImages(prev => [...prev, ...newImages]);
+     if (isLoading || !activeSession) return;
+     const photos = data.map(photo => ({
+        file: new File([], `google_photo_${photo.id || Date.now()}.jpg`, { type: 'image/jpeg' }),
+        src: photo.url
+     }));
+     handleImageUpload(photos);
   };
 
   const { openPicker, isPickerLoading } = useGooglePicker({
@@ -124,28 +88,35 @@ export default function BotPageClient() {
   useEffect(() => {
     if (isClient && storageKey) {
       setIsLoading(true);
-      const storedSessions = localStorage.getItem(storageKey);
-      if (storedSessions) {
-        setSessions(JSON.parse(storedSessions));
-        const lastActiveId = localStorage.getItem(`${storageKey}_last_active`);
-        if (lastActiveId) {
-            setActiveSessionId(lastActiveId);
-        } else if (JSON.parse(storedSessions).length > 0) {
-            setActiveSessionId(JSON.parse(storedSessions)[0].id);
+      try {
+        const storedSessions = localStorage.getItem(storageKey);
+        if (storedSessions) {
+          setSessions(JSON.parse(storedSessions));
+          const lastActiveId = localStorage.getItem(`${storageKey}_last_active`);
+          if (lastActiveId) {
+              setActiveSessionId(lastActiveId);
+          } else if (JSON.parse(storedSessions).length > 0) {
+              setActiveSessionId(JSON.parse(storedSessions)[0].id);
+          } else {
+              handleNewChat(true);
+          }
         } else {
-            handleNewChat(true);
+          handleNewChat(true); // create initial chat
         }
-      } else {
-        handleNewChat(true); // create initial chat
+      } catch (error) {
+        console.error("Failed to load from localStorage, resetting sessions.", error);
+        localStorage.removeItem(storageKey);
+        handleNewChat(true);
+      } finally {
+        setIsLoading(false);
       }
-       setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClient, storageKey]);
 
   // Handle initializing an edit session from URL param
   useEffect(() => {
-    if (!isClient || !storageKey) return;
+    if (!isClient || !storageKey || !activeSessionId) return;
     
     const editProductId = searchParams.get('editProductId');
 
@@ -156,6 +127,7 @@ export default function BotPageClient() {
         id: `session_edit_${editProductId}_${Date.now()}`,
         title: 'Loading Product...',
         messages: [],
+        productState: getInitialProductState(),
         createdAt: Date.now(),
       };
       
@@ -166,24 +138,20 @@ export default function BotPageClient() {
       fetch('/api/telegram/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chatId: newSession.id, editProductId: editProductId }),
+          body: JSON.stringify({ chatId: newSession.id, editProductId: editProductId, productState: newSession.productState }),
       })
-      .then(res => {
-          if (!res.ok) {
-            return res.json().then(err => { throw new Error(err.text || "Failed to initialize edit session.")});
-          }
-          return res.json();
-      })
+      .then(res => res.json())
       .then(data => {
-          const botMessage: Message = { role: 'model', type: 'text', content: data.text };
-          updateSessionTitle(newSession.id, `Edit: ${data.productName}`);
-          appendToSessionMessages(newSession.id, [botMessage]);
+          if (data.productName) {
+            updateSessionTitle(newSession.id, `Edit: ${data.productName}`);
+          }
+          handleBotResponse(newSession.id, data);
       })
       .catch(error => {
           toast({
               variant: 'destructive',
               title: 'Error Initializing Edit',
-              description: error.message,
+              description: error.message || "Could not load product for editing.",
           });
       })
       .finally(() => {
@@ -193,22 +161,21 @@ export default function BotPageClient() {
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClient, storageKey, searchParams]);
+  }, [isClient, storageKey, searchParams, activeSessionId]); // Depends on activeSessionId to ensure it runs after initial load
 
   // Save sessions to localStorage
   useEffect(() => {
     if (isClient && storageKey && sessions.length > 0) {
-      saveSessionsToLocalStorage(storageKey, sessions, toast);
+      localStorage.setItem(storageKey, JSON.stringify(sessions));
     }
     if (isClient && storageKey && activeSessionId) {
        try {
         localStorage.setItem(`${storageKey}_last_active`, activeSessionId);
       } catch (e) {
-        // This is less likely to fail, but good to have.
         console.error("Failed to save active session ID to localStorage:", e);
       }
     }
-  }, [sessions, activeSessionId, isClient, storageKey, toast]);
+  }, [sessions, activeSessionId, isClient, storageKey]);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
@@ -220,21 +187,16 @@ export default function BotPageClient() {
     }
   }, [messages]);
 
-  const updateSessionMessages = (sessionId: string, newMessages: Message[]) => {
-    setSessions(prevSessions =>
-      prevSessions.map(session =>
-        session.id === sessionId ? { ...session, messages: newMessages } : session
-      )
+  const handleBotResponse = (sessionId: string, response: { text: string; productState: ProductBotState; }) => {
+     const botMessage: Message = { role: 'model', type: 'text', content: response.text };
+     setSessions(prevSessions =>
+        prevSessions.map(session =>
+            session.id === sessionId 
+            ? { ...session, messages: [...session.messages, botMessage], productState: response.productState } 
+            : session
+        )
     );
-  };
-
-  const appendToSessionMessages = (sessionId: string, messagesToAppend: Message[]) => {
-      setSessions(prevSessions =>
-          prevSessions.map(session =>
-              session.id === sessionId ? { ...session, messages: [...session.messages, ...messagesToAppend] } : session
-          )
-      );
-  };
+  }
   
   const updateSessionTitle = (sessionId: string, title: string) => {
     setSessions(prevSessions =>
@@ -252,16 +214,10 @@ export default function BotPageClient() {
         fetch('/api/telegram/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId: activeSessionId }),
+            body: JSON.stringify({ chatId: activeSessionId, productState: activeSession.productState }),
         })
-        .then(res => {
-            if (!res.ok) throw new Error("Failed to get welcome message.");
-            return res.json();
-        })
-        .then(data => {
-            const botMessage: Message = { role: 'model', type: 'text', content: data.text };
-            appendToSessionMessages(activeSessionId, [botMessage]);
-        })
+        .then(res => res.json())
+        .then(data => handleBotResponse(activeSessionId, data))
         .catch(error => {
             toast({
                 variant: 'destructive',
@@ -277,61 +233,40 @@ export default function BotPageClient() {
   }, [activeSession]);
 
 
-  const handleSendMessage = async () => {
-    if ((!input && stagedImages.length === 0) || isLoading || !activeSessionId) return;
+  const handleSendMessage = async (messageText?: string) => {
+    const text = messageText ?? input;
+    if (isLoading || !activeSessionId || !activeSession) return;
+    if (!text) return;
 
-    const userMessages: Message[] = [];
-    if (input) {
-        userMessages.push({ role: 'user', type: 'text', content: input });
-    }
-    stagedImages.forEach(img => {
-        userMessages.push({ role: 'user', type: 'image', content: img.src });
-    });
-
-    appendToSessionMessages(activeSessionId, userMessages);
-
-    const firstUserMessage = !messages.some(m => m.role === 'user');
-    if (firstUserMessage && input && !activeSessionId.startsWith('session_edit_')) {
-        updateSessionTitle(activeSessionId, input.substring(0, 30));
-    }
-
-    const textToSend = input;
-    const imagesToUpload = [...stagedImages];
-
-    setInput('');
-    setStagedImages([]);
+    const userMessage: Message = { role: 'user', type: 'text', content: text };
+    
+    // Optimistically update UI
+    setSessions(prevSessions =>
+        prevSessions.map(s => s.id === activeSessionId ? {...s, messages: [...s.messages, userMessage]} : s)
+    );
+    
+    if (input) setInput('');
     setIsLoading(true);
 
     try {
-        let uploadedImageInfo: Array<{ id: number; src: string }> | undefined = undefined;
-        if (imagesToUpload.length > 0) {
-            toast({ description: `Uploading ${imagesToUpload.length} image(s)...` });
-            const uploadPromises = imagesToUpload.map(async (image) => {
-                const uploadResponse = await fetch('/api/products/upload-image', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image_data: image.src, image_name: image.file.name }),
-                });
-                if (!uploadResponse.ok) throw await uploadResponse.json();
-                return uploadResponse.json();
-            });
-
-            const uploadedImages = await Promise.all(uploadPromises);
-            toast({ title: "Success!", description: `${uploadedImages.length} image(s) uploaded.` });
-            uploadedImageInfo = uploadedImages.map(img => ({ id: img.id, src: img.src }));
-        }
-
         const response = await fetch('/api/telegram/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId: activeSessionId, newMessage: textToSend, images: uploadedImageInfo }),
+            body: JSON.stringify({ 
+                chatId: activeSessionId, 
+                newMessage: text,
+                productState: activeSession.productState 
+            }),
         });
-
         const data = await response.json();
         if (!response.ok) throw data;
 
-        const botMessage: Message = { role: 'model', type: 'text', content: data.text };
-        appendToSessionMessages(activeSessionId, [botMessage]);
+        handleBotResponse(activeSessionId, data);
+        
+        const isFirstUserMessage = activeSession.messages.filter(m => m.role === 'user').length === 0;
+        if (isFirstUserMessage && text && !activeSessionId.startsWith('session_edit_')) {
+            updateSessionTitle(activeSessionId, text.substring(0, 30));
+        }
 
     } catch (error: any) {
         toast({
@@ -344,56 +279,79 @@ export default function BotPageClient() {
     }
   };
   
-  const handleActionClick = async (text: string) => {
-    if (isLoading || !activeSessionId) return;
-    
-    const userMessage: Message = { role: 'user', type: 'text', content: text };
-    appendToSessionMessages(activeSessionId, [userMessage]);
-    
-    setIsLoading(true);
-    try {
-        const response = await fetch('/api/telegram/chat', {
+  const handleActionClick = (text: string) => {
+    handleSendMessage(text);
+  };
+  
+  const handleImageUpload = async (files: (File | {src: string, file: File})[]) => {
+      if (isLoading || !activeSession) return;
+      
+      setIsLoading(true);
+      toast({ description: `Uploading ${files.length} image(s)...` });
+
+      try {
+        const uploadPromises = files.map(async (fileOrObj) => {
+          const file = fileOrObj instanceof File ? fileOrObj : fileOrObj.file;
+          const src = fileOrObj instanceof File ? await fileToBase64(file) : fileOrObj.src;
+
+          const res = await fetch('/api/products/upload-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId: activeSessionId, newMessage: text }),
+            body: JSON.stringify({ image_data: src, image_name: file.name }),
+          });
+          if (!res.ok) throw await res.json();
+          return res.json();
         });
-        const data = await response.json();
-        if (!response.ok) throw data;
+
+        const uploadedImages = await Promise.all(uploadPromises);
+
+        const newImageMessages: Message[] = uploadedImages.map(img => ({
+            role: 'user', type: 'image', content: img.src
+        }));
         
-        const botMessage: Message = { role: 'model', type: 'text', content: data.text };
-        appendToSessionMessages(activeSessionId, [botMessage]);
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: error.message || 'Could not communicate with the bot.',
+        const updatedProductState = { ...activeSession.productState };
+        uploadedImages.forEach(img => {
+            if (!updatedProductState.image_ids.includes(img.id)) {
+              updatedProductState.image_ids.push(img.id);
+              updatedProductState.image_srcs.push(img.src);
+            }
         });
-    } finally {
-        setIsLoading(false);
+
+        setSessions(prev => prev.map(s => s.id === activeSessionId 
+            ? {...s, messages: [...s.messages, ...newImageMessages], productState: updatedProductState }
+            : s
+        ));
+
+        toast({ title: 'Success!', description: `${uploadedImages.length} image(s) uploaded.` });
+        
+        // Notify the bot that images were uploaded
+        await handleSendMessage('[Image Uploaded]');
+
+      } catch (error: any) {
+        toast({
+              variant: 'destructive',
+              title: 'Upload Error',
+              description: error.message || 'An error occurred while uploading images.',
+          });
+      } finally {
+          setIsLoading(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+  };
+  
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleImageUpload(Array.from(files));
     }
   };
-  
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const imageFiles = await Promise.all(Array.from(files).map(async file => ({
-        src: await fileToBase64(file),
-        file
-    })));
-    setStagedImages(prev => [...prev, ...imageFiles]);
-    if(fileInputRef.current) fileInputRef.current.value = '';
-  };
-  
-  const removeStagedImage = (index: number) => {
-    setStagedImages(prev => prev.filter((_, i) => i !== index));
-  };
-
 
   const handleNewChat = (makeActive = true) => {
     const newSession: ChatSession = {
       id: `session_web_${Date.now()}`,
       title: 'New Chat',
       messages: [],
+      productState: getInitialProductState(),
       createdAt: Date.now(),
     };
     setSessions(prev => [newSession, ...prev]);
@@ -500,7 +458,7 @@ export default function BotPageClient() {
                     <div className="space-y-4">
                     {messages.map((msg, index) => {
                         const isBot = msg.role === 'model';
-                        const showOptimizeButton = isBot && msg.content.includes("Should I go ahead and AI-optimize this content?");
+                        const showOptimizeButton = isBot && msg.content.includes("AI Optimize Now");
                         const showCreateButtons = isBot && (msg.content.includes("create the product, or save it as a draft?") || msg.content.includes("save the changes, or save it as a draft?"));
 
                         return (
@@ -511,11 +469,11 @@ export default function BotPageClient() {
                                     </Avatar>
                                 )}
                                 <div
-                                    className={`max-w-xs md:max-w-md rounded-lg p-3 text-sm whitespace-pre-wrap ${
+                                    className={`max-w-xs md:max-w-md rounded-lg text-sm ${
                                     msg.role === 'user'
-                                        ? (msg.type === 'image' ? 'p-1 bg-transparent' : 'bg-primary text-primary-foreground')
-                                        : 'bg-muted'
-                                    }`}
+                                        ? (msg.type === 'image' ? 'p-0 bg-transparent' : 'p-3 bg-primary text-primary-foreground')
+                                        : 'p-3 bg-muted'
+                                    } whitespace-pre-wrap`}
                                 >
                                     {msg.type === 'text' ? (
                                         <div>
@@ -562,25 +520,8 @@ export default function BotPageClient() {
                     </div>
                 </CardContent>
                 <div className="border-t p-4">
-                    {stagedImages.length > 0 && (
-                        <div className="p-2 border-b mb-4 flex flex-wrap gap-2">
-                            {stagedImages.map((image, index) => (
-                                <div key={index} className="relative">
-                                    <Image src={image.src} alt="Staged image" width={64} height={64} className="rounded-md object-cover h-16 w-16" />
-                                    <Button
-                                        variant="destructive"
-                                        size="icon"
-                                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full z-10"
-                                        onClick={() => removeStagedImage(index)}
-                                    >
-                                        <XIcon className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                     <div className="flex items-center gap-2">
-                        <Input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSelect} className="hidden" multiple />
+                        <Input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileSelect} className="hidden" multiple />
                         <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
                             <Paperclip className="h-4 w-4" />
                         </Button>
@@ -594,7 +535,7 @@ export default function BotPageClient() {
                             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                             disabled={isLoading}
                         />
-                        <Button onClick={handleSendMessage} disabled={isLoading || (!input && stagedImages.length === 0)}>
+                        <Button onClick={() => handleSendMessage()} disabled={isLoading || !input}>
                             <Send className="h-4 w-4" />
                         </Button>
                     </div>

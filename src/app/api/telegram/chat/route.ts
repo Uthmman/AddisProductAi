@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
 import { z } from 'zod';
+import { ProductBotState } from '@/lib/types';
 
 const InputSchema = z.object({
   chatId: z.string(),
   newMessage: z.string().optional(),
-  images: z.array(z.object({
-      id: z.number(),
-      src: z.string()
-  })).optional(),
+  productState: z.any(), // Using any() because Zod struggles with complex recursive types in client<->server
   editProductId: z.string().optional(),
 });
 

@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ProductBotState } from '@/lib/types';
+
 
 declare global {
   interface Window {
@@ -39,52 +41,14 @@ interface ChatSession {
   id: string;
   title: string;
   messages: Message[];
+  productState: ProductBotState;
   createdAt: number;
 }
 
-// Helper function to safely save sessions to localStorage, handling quota errors.
-function saveSessionsToLocalStorage(key: string, sessions: ChatSession[], toast: (options: any) => void) {
-  if (typeof window === 'undefined' || !key) return;
-
-  // Create a sanitized version for storage by removing image messages.
-  // This prevents large base64 strings from being stored.
-  const sanitizedSessions = sessions.map(session => ({
-    ...session,
-    messages: session.messages.filter(msg => msg.type !== 'image'),
-  }));
-
-  let dataToSave = sanitizedSessions;
-  let saved = false;
-
-  while (!saved && dataToSave.length > 0) {
-    try {
-      // Attempt to save the sanitized data.
-      localStorage.setItem(key, JSON.stringify(dataToSave));
-      saved = true;
-    } catch (e: any) {
-      // Fallback for if even the text-only history is too large.
-      if (e.name === 'QuotaExceededError' && dataToSave.length > 1) {
-        console.warn("LocalStorage quota exceeded for text history. Removing oldest chat session.");
-        toast({
-          title: "Chat History Full",
-          description: "Removing the oldest chat session to make space for new ones.",
-          variant: "destructive",
-        });
-        // Sort by creation date (ascending) and remove the oldest.
-        dataToSave.sort((a, b) => a.createdAt - b.createdAt).shift();
-      } else {
-        console.error("Failed to save sessions to localStorage:", e);
-        toast({
-          title: "Storage Error",
-          description: "Could not save your chat history.",
-          variant: "destructive",
-        });
-        break; // Prevent infinite loop on other errors.
-      }
-    }
-  }
-}
-
+const getInitialProductState = (): ProductBotState => ({
+  image_ids: [],
+  image_srcs: [],
+});
 
 export default function TelegramMiniAppPage() {
   const { toast } = useToast();
@@ -96,8 +60,6 @@ export default function TelegramMiniAppPage() {
   const [isClient, setIsClient] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [stagedImages, setStagedImages] = useState<Array<{ src: string; file: File }>>([]);
-
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -138,7 +100,7 @@ export default function TelegramMiniAppPage() {
   // Save sessions to localStorage
   useEffect(() => {
     if (isClient && storageKey && sessions.length > 0) {
-      saveSessionsToLocalStorage(storageKey, sessions, toast);
+       localStorage.setItem(storageKey, JSON.stringify(sessions));
     }
     if (isClient && storageKey && activeSessionId) {
        try {
@@ -147,7 +109,7 @@ export default function TelegramMiniAppPage() {
         console.error("Failed to save active session ID to localStorage:", e);
       }
     }
-  }, [sessions, activeSessionId, isClient, storageKey, toast]);
+  }, [sessions, activeSessionId, isClient, storageKey]);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
@@ -159,13 +121,26 @@ export default function TelegramMiniAppPage() {
     }
   }, [messages]);
 
-  const appendToSessionMessages = (sessionId: string, messagesToAppend: Message[]) => {
+  const updateSessionState = (sessionId: string, newMessages: Message[], newState: ProductBotState) => {
     setSessions(prevSessions =>
         prevSessions.map(session =>
-            session.id === sessionId ? { ...session, messages: [...session.messages, ...messagesToAppend] } : session
+            session.id === sessionId 
+            ? { ...session, messages: [...session.messages, ...newMessages], productState: newState } 
+            : session
         )
     );
   };
+
+  const handleBotResponse = (sessionId: string, response: { text: string; productState: ProductBotState; }) => {
+     const botMessage: Message = { role: 'model', type: 'text', content: response.text };
+     setSessions(prevSessions =>
+        prevSessions.map(session =>
+            session.id === sessionId 
+            ? { ...session, messages: [...session.messages, botMessage], productState: response.productState } 
+            : session
+        )
+    );
+  }
 
   // Fetch initial welcome message for a new chat
   useEffect(() => {
@@ -174,16 +149,13 @@ export default function TelegramMiniAppPage() {
         fetch('/api/telegram/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId: activeSessionId }),
+            body: JSON.stringify({ chatId: activeSessionId, productState: activeSession.productState }),
         })
         .then(res => {
             if (!res.ok) throw new Error("Failed to get welcome message.");
             return res.json();
         })
-        .then(data => {
-            const botMessage: Message = { role: 'model', type: 'text', content: data.text };
-            appendToSessionMessages(activeSessionId, [botMessage]);
-        })
+        .then(data => handleBotResponse(activeSessionId, data))
         .catch(error => {
             toast({
                 variant: 'destructive',
@@ -207,62 +179,38 @@ export default function TelegramMiniAppPage() {
     );
   };
 
-  const handleSendMessage = async () => {
-    if ((!input && stagedImages.length === 0) || isLoading || !activeSessionId) return;
+  const handleSendMessage = async (messageText?: string) => {
+    const text = messageText ?? input;
+    if (!text || isLoading || !activeSessionId || !activeSession) return;
 
-    // 1. Optimistic UI update
-    const userMessages: Message[] = [];
-    if (input) {
-        userMessages.push({ role: 'user', type: 'text', content: input });
-    }
-    stagedImages.forEach(img => {
-        userMessages.push({ role: 'user', type: 'image', content: img.src });
-    });
+    const userMessage: Message = { role: 'user', type: 'text', content: text };
+    const tempUpdatedMessages = [...activeSession.messages, userMessage];
 
-    appendToSessionMessages(activeSessionId, userMessages);
+    setSessions(prevSessions =>
+        prevSessions.map(s => s.id === activeSessionId ? {...s, messages: tempUpdatedMessages} : s)
+    );
     
-    const firstUserMessage = !messages.some(m => m.role === 'user');
-    if (firstUserMessage && input) {
-        updateSessionTitle(activeSessionId, input.substring(0, 30));
-    }
-
-    const textToSend = input;
-    const imagesToUpload = [...stagedImages];
-
-    setInput('');
-    setStagedImages([]);
+    if (input) setInput('');
     setIsLoading(true);
 
     try {
-        // 2. Upload images
-        let uploadedImageInfo: Array<{ id: number; src: string }> | undefined = undefined;
-        if (imagesToUpload.length > 0) {
-            toast({ description: `Uploading ${imagesToUpload.length} image(s)...` });
-            const uploadPromises = imagesToUpload.map(async (image) => {
-                const uploadResponse = await fetch('/api/products/upload-image', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image_data: image.src, image_name: image.file.name }),
-                });
-                if (!uploadResponse.ok) throw await uploadResponse.json();
-                return uploadResponse.json();
-            });
-            const uploadedImages = await Promise.all(uploadPromises);
-            toast({ title: "Success!", description: `${uploadedImages.length} image(s) uploaded.` });
-            uploadedImageInfo = uploadedImages.map(img => ({ id: img.id, src: img.src }));
-        }
-
-        // 3. Send to bot backend
         const response = await fetch('/api/telegram/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId: activeSessionId, newMessage: textToSend, images: uploadedImageInfo }),
+            body: JSON.stringify({ 
+                chatId: activeSessionId, 
+                newMessage: text,
+                productState: activeSession.productState 
+            }),
         });
         const data = await response.json();
         if (!response.ok) throw data;
 
-        const botMessage: Message = { role: 'model', type: 'text', content: data.text };
-        appendToSessionMessages(activeSessionId, [botMessage]);
+        handleBotResponse(activeSessionId, data);
+        
+        if (activeSession.messages.length <= 1 && text) {
+            updateSessionTitle(activeSessionId, text.substring(0, 30));
+        }
 
     } catch (error: any) {
         toast({
@@ -270,61 +218,78 @@ export default function TelegramMiniAppPage() {
             title: 'Error',
             description: error.message || 'An error occurred while sending the message.',
         });
+         setSessions(prevSessions =>
+            prevSessions.map(s => s.id === activeSessionId ? {...s, messages: activeSession.messages } : s)
+        );
     } finally {
         setIsLoading(false);
     }
   };
   
-  const handleActionClick = async (text: string) => {
-    if (isLoading || !activeSessionId) return;
-
-    const userMessage: Message = { role: 'user', type: 'text', content: text };
-    appendToSessionMessages(activeSessionId, [userMessage]);
-
-    setIsLoading(true);
-    try {
-        const response = await fetch('/api/telegram/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId: activeSessionId, newMessage: text }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw data;
-
-        const botMessage: Message = { role: 'model', type: 'text', content: data.text };
-        appendToSessionMessages(activeSessionId, [botMessage]);
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: error.message || 'Could not communicate with the bot.',
-        });
-    } finally {
-        setIsLoading(false);
-    }
+  const handleActionClick = (text: string) => {
+    handleSendMessage(text);
   };
   
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isLoading || !activeSession) return;
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const imageFiles = await Promise.all(Array.from(files).map(async file => ({
-        src: await fileToBase64(file),
-        file
-    })));
-    setStagedImages(prev => [...prev, ...imageFiles]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-  
-  const removeStagedImage = (index: number) => {
-    setStagedImages(prev => prev.filter((_, i) => i !== index));
-  };
+    
+    setIsLoading(true);
+    toast({ description: `Uploading ${files.length} image(s)...` });
 
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const base64 = await fileToBase64(file);
+        const res = await fetch('/api/products/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_data: base64, image_name: file.name }),
+        });
+        if (!res.ok) throw await res.json();
+        return res.json();
+      });
+
+      const uploadedImages = await Promise.all(uploadPromises);
+
+      const newImageMessages: Message[] = uploadedImages.map(img => ({
+          role: 'user', type: 'image', content: img.src
+      }));
+      
+      const updatedProductState = { ...activeSession.productState };
+      uploadedImages.forEach(img => {
+          updatedProductState.image_ids.push(img.id);
+          updatedProductState.image_srcs.push(img.src);
+      });
+
+      setSessions(prev => prev.map(s => s.id === activeSessionId 
+          ? {...s, messages: [...s.messages, ...newImageMessages], productState: updatedProductState }
+          : s
+      ));
+
+      toast({ title: 'Success!', description: `${uploadedImages.length} image(s) uploaded.` });
+      
+      // Notify the bot that images were uploaded
+      await handleSendMessage('[Image Uploaded]');
+
+    } catch (error: any) {
+       toast({
+            variant: 'destructive',
+            title: 'Upload Error',
+            description: error.message || 'An error occurred while uploading images.',
+        });
+    } finally {
+        setIsLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleNewChat = (makeActive = true) => {
     const newSession: ChatSession = {
       id: `session_${Date.now()}`,
       title: 'New Chat',
       messages: [],
+      productState: getInitialProductState(),
       createdAt: Date.now(),
     };
     setSessions(prev => [newSession, ...prev]);
@@ -430,7 +395,7 @@ export default function TelegramMiniAppPage() {
                 <div className="space-y-4">
                   {messages.map((msg, index) => {
                       const isBot = msg.role === 'model';
-                      const showOptimizeButton = isBot && msg.content.includes("Should I go ahead and AI-optimize this content?");
+                      const showOptimizeButton = isBot && msg.content.includes("AI Optimize Now");
                       const showCreateButtons = isBot && msg.content.includes("create the product, or save it as a draft?");
 
                       return (
@@ -490,23 +455,6 @@ export default function TelegramMiniAppPage() {
                 </div>
             </CardContent>
             <div className="border-t p-4 bg-background">
-                {stagedImages.length > 0 && (
-                    <div className="p-2 border-b mb-4 flex flex-wrap gap-2">
-                        {stagedImages.map((image, index) => (
-                            <div key={index} className="relative">
-                                <Image src={image.src} alt="Staged image" width={64} height={64} className="rounded-md object-cover h-16 w-16" />
-                                <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full z-10"
-                                    onClick={() => removeStagedImage(index)}
-                                >
-                                    <XIcon className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
-                )}
               <div className="flex items-center gap-2">
                   <Input
                       type="file"
@@ -526,7 +474,7 @@ export default function TelegramMiniAppPage() {
                       onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                       disabled={isLoading}
                   />
-                  <Button onClick={handleSendMessage} disabled={isLoading || (!input && stagedImages.length === 0)}>
+                  <Button onClick={() => handleSendMessage()} disabled={isLoading || !input}>
                       <Send className="h-4 w-4" />
                   </Button>
               </div>
@@ -560,5 +508,3 @@ export default function TelegramMiniAppPage() {
     </div>
   );
 }
-
-    

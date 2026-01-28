@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadImage } from '@/lib/woocommerce-api';
+import { getSettings } from '@/lib/settings-api';
+import { Settings } from '@/lib/types';
+import Jimp from 'jimp';
 import { z } from 'zod';
 
 const UploadSchema = z.object({
@@ -28,6 +31,59 @@ async function urlToDataUri(url: string): Promise<string> {
     return `data:${blob.type};base64,${buffer.toString('base64')}`;
 }
 
+async function applyWatermarkServerSide(originalImageDataUri: string, watermarkImageDataUri: string, options: Partial<Settings> = {}): Promise<string> {
+    const {
+        watermarkPlacement = 'bottom-right',
+        watermarkScale = 40,
+        watermarkOpacity = 0.7,
+        watermarkPadding = 5
+    } = options;
+
+    const originalImageBuffer = Buffer.from(originalImageDataUri.split(';base64,').pop()!, 'base64');
+    const originalImage = await Jimp.read(originalImageBuffer);
+
+    const watermarkImageBuffer = Buffer.from(watermarkImageDataUri.split(';base64,').pop()!, 'base64');
+    const watermarkImage = await Jimp.read(watermarkImageBuffer);
+
+    const scale = watermarkScale / 100;
+    const padding = watermarkPadding / 100;
+
+    watermarkImage.resize(originalImage.getWidth() * scale, Jimp.AUTO);
+    watermarkImage.opacity(watermarkOpacity);
+
+    const paddingX = originalImage.getWidth() * padding;
+    const paddingY = originalImage.getHeight() * padding;
+
+    let x = 0, y = 0;
+
+    switch (watermarkPlacement) {
+        case 'bottom-right':
+            x = originalImage.getWidth() - watermarkImage.getWidth() - paddingX;
+            y = originalImage.getHeight() - watermarkImage.getHeight() - paddingY;
+            break;
+        case 'bottom-left':
+            x = paddingX;
+            y = originalImage.getHeight() - watermarkImage.getHeight() - paddingY;
+            break;
+        case 'top-right':
+            x = originalImage.getWidth() - watermarkImage.getWidth() - paddingX;
+            y = paddingY;
+            break;
+        case 'top-left':
+            x = paddingX;
+            y = paddingY;
+            break;
+        case 'center':
+            x = (originalImage.getWidth() - watermarkImage.getWidth()) / 2;
+            y = (originalImage.getHeight() - watermarkImage.getHeight()) / 2;
+            break;
+    }
+
+    originalImage.composite(watermarkImage, x, y);
+
+    return await originalImage.getBase64Async(Jimp.MIME_JPEG);
+}
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,6 +105,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: "Could not process the provided image URL." }, { status: 400 });
         }
     }
+
+    // Apply watermark if configured
+    const settings = await getSettings();
+    if (settings.watermarkImageUrl && settings.watermarkImageUrl.startsWith('data:image')) {
+        try {
+            console.log("Applying watermark to uploaded image...");
+            image_data = await applyWatermarkServerSide(image_data, settings.watermarkImageUrl, settings);
+            console.log("Watermark applied successfully.");
+        } catch (watermarkError) {
+            console.error("Failed to apply watermark:", watermarkError);
+            // Non-fatal, just proceed with original image. Could optionally inform the user.
+        }
+    }
     
     // Directly pass the raw base64 data URI and name to the uploadImage function
     const uploadedImage = await uploadImage(image_name, image_data);
@@ -65,5 +134,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: errorMessage }, { status: statusCode });
   }
 }
-
-    

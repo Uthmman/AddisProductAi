@@ -79,3 +79,15 @@ export interface Settings {
     watermarkOpacity?: number;
     watermarkPadding?: number;
 }
+
+export interface ProductBotState {
+    editProductId?: number;
+    raw_name?: string;
+    price_etb?: number;
+    material?: string;
+    focus_keywords?: string;
+    amharic_name?: string;
+    image_ids: number[];
+    image_srcs: string[];
+    aiContent?: Partial<AIProductContent>;
+}
