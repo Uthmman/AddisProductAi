@@ -147,13 +147,12 @@ export async function deleteCategory(id: number, force: boolean = true): Promise
 }
 
 export async function uploadImage(imageName: string, imageData: string): Promise<{id: number, src: string}> {
-    const user = process.env.WOOCOMMERCE_CONSUMER_KEY;
-    const pass = process.env.WOOCOMMERCE_CONSUMER_SECRET;
+    const user = process.env.WORDPRESS_AUTH_USER;
+    const pass = process.env.WORDPRESS_AUTH_PASS;
     
-    // Use the main URL and derive the WP API URL from it
     const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
     if(!siteUrl || !user || !pass) {
-        throw new Error("WordPress site URL or API credentials for media upload are not set.");
+        throw new Error("WordPress site URL or Application Password for media upload are not set in environment variables.");
     }
     
     const wpApiUrl = `${siteUrl}/wp-json/wp/v2`;
