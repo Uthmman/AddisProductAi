@@ -3,11 +3,24 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { PanelLeft, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import Header from '@/components/header';
 import { MainNav } from '@/components/main-nav';
+
+const Header = dynamic(() => import('@/components/header'), { 
+  ssr: false,
+  loading: () => (
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      <Button size="icon" variant="outline" className="sm:hidden" disabled>
+        <PanelLeft className="h-5 w-5" />
+        <span className="sr-only">Toggle Menu</span>
+      </Button>
+    </header>
+  ),
+});
+
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
