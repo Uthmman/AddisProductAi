@@ -177,7 +177,7 @@ export default function BotPageClient() {
       try {
         const sessionsToSave = sessions.map(s => ({
           ...s,
-          messages: s.messages.filter(m => !m.isLoading) // Don't save messages that are still loading
+          messages: s.messages.filter(m => !m.isLoading && m.type === 'text')
         }));
         localStorage.setItem(storageKey, JSON.stringify(sessionsToSave));
       } catch (e: any) {
@@ -558,7 +558,13 @@ export default function BotPageClient() {
                                         </div>
                                     ) : (
                                         <>
-                                            <Image src={msg.content} alt="Uploaded image" width={200} height={200} className={cn("rounded-md", (msg.isLoading || msg.error) && "opacity-50")} />
+                                            {msg.content ? (
+                                                <Image src={msg.content} alt="Uploaded image" width={200} height={200} className={cn("rounded-md", (msg.isLoading || msg.error) && "opacity-50")} />
+                                            ) : (
+                                                <div className="w-[200px] h-[200px] flex items-center justify-center bg-muted rounded-md">
+                                                    <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                                                </div>
+                                            )}
                                             {msg.isLoading && (
                                                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
                                                     <Loader2 className="h-8 w-8 animate-spin text-white" />
