@@ -1,6 +1,4 @@
 
-'use server';
-
 /**
  * @fileOverview This file defines a Genkit flow to generate WooCommerce product content optimized for the Addis Ababa market.
  *

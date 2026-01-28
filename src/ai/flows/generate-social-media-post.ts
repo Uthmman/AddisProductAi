@@ -1,6 +1,4 @@
 
-'use server';
-
 /**
  * @fileOverview Defines a Genkit flow to generate social media posts for products.
  *

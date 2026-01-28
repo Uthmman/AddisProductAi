@@ -1,5 +1,4 @@
 
-'use server';
 import { z } from 'zod';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 import { generateTagSeoFlow } from './generate-tag-seo-flow';

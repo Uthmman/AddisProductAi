@@ -1,6 +1,4 @@
 
-'use server';
-
 /**
  * @fileOverview This file defines a Genkit flow to generate a blog post.
  * The flow takes a topic and generates a title and content for a blog post,
