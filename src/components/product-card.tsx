@@ -31,18 +31,18 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
           </div>
         </CardHeader>
         <CardContent className="p-3 flex-grow">
-            <CardTitle className="text-sm sm:text-base font-bold line-clamp-2 group-hover:text-primary transition-colors">{product.name}</CardTitle>
+            <CardTitle className="text-base font-bold line-clamp-2 group-hover:text-primary transition-colors">{product.name}</CardTitle>
         </CardContent>
       </Link>
-      <CardFooter className="p-2 sm:p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm sm:text-base font-semibold text-foreground">
+      <CardFooter className="p-3 flex flex-col items-start gap-2">
+        <p className="text-base font-semibold text-foreground">
           {formatCurrency(product.price)}
         </p>
-        <TooltipProvider>
-          <div className="flex w-full justify-end sm:w-auto">
+        <div className="w-full flex justify-end">
+          <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9" asChild>
                   <Link href={`/products/${product.id}`}>
                     <Edit className="h-4 w-4" />
                   </Link>
@@ -55,7 +55,7 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
             
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9" asChild>
                   <Link href={`/bot?editProductId=${product.id}`}>
                     <MessageSquare className="h-4 w-4" />
                   </Link>
@@ -68,7 +68,7 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8 sm:h-9 sm:w-9" onClick={() => onDelete(product)}>
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-9 w-9" onClick={() => onDelete(product)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -76,9 +76,8 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
                 <p>Delete Product</p>
               </TooltipContent>
             </Tooltip>
-
-          </div>
-        </TooltipProvider>
+          </TooltipProvider>
+        </div>
       </CardFooter>
     </Card>
   );
