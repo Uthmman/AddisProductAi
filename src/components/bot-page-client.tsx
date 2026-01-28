@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { fileToBase64, cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -31,6 +31,9 @@ interface Message {
   role: 'user' | 'model';
   type: 'text' | 'image';
   content: string;
+  tempId?: string;
+  isLoading?: boolean;
+  error?: string;
 }
 
 interface ChatSession {
@@ -65,7 +68,7 @@ export default function BotPageClient() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   const handlePickerSelect = (data: any[]) => {
-     if (isLoading || !activeSession) return;
+     if (!activeSession) return;
      const photos = data.map(photo => ({
         file: new File([], `google_photo_${photo.id || Date.now()}.jpg`, { type: 'image/jpeg' }),
         src: photo.url
@@ -91,12 +94,17 @@ export default function BotPageClient() {
       try {
         const storedSessions = localStorage.getItem(storageKey);
         if (storedSessions) {
-          setSessions(JSON.parse(storedSessions));
+          const parsedSessions: ChatSession[] = JSON.parse(storedSessions).map((s: ChatSession) => ({
+            ...s,
+            messages: s.messages.map(m => ({ ...m, tempId: undefined, isLoading: false, error: undefined }))
+          }));
+          setSessions(parsedSessions);
+
           const lastActiveId = localStorage.getItem(`${storageKey}_last_active`);
           if (lastActiveId) {
               setActiveSessionId(lastActiveId);
-          } else if (JSON.parse(storedSessions).length > 0) {
-              setActiveSessionId(JSON.parse(storedSessions)[0].id);
+          } else if (parsedSessions.length > 0) {
+              setActiveSessionId(parsedSessions[0].id);
           } else {
               handleNewChat(true);
           }
@@ -166,7 +174,28 @@ export default function BotPageClient() {
   // Save sessions to localStorage
   useEffect(() => {
     if (isClient && storageKey && sessions.length > 0) {
-      localStorage.setItem(storageKey, JSON.stringify(sessions));
+      try {
+        const sessionsToSave = sessions.map(s => ({
+          ...s,
+          messages: s.messages.filter(m => !m.isLoading) // Don't save messages that are still loading
+        }));
+        localStorage.setItem(storageKey, JSON.stringify(sessionsToSave));
+      } catch (e: any) {
+        if (e.name === 'QuotaExceededError') {
+          console.warn('LocalStorage quota exceeded. Removing oldest session.');
+          const sortedSessions = [...sessions].sort((a,b) => a.createdAt - b.createdAt);
+          const oldestSessionId = sortedSessions[0]?.id;
+          if(oldestSessionId) {
+            setSessions(prev => prev.filter(s => s.id !== oldestSessionId));
+            toast({
+              title: "Storage space low",
+              description: "Removed the oldest chat session to make space.",
+            });
+          }
+        } else {
+          console.error("Failed to save to localStorage:", e);
+        }
+      }
     }
     if (isClient && storageKey && activeSessionId) {
        try {
@@ -175,7 +204,7 @@ export default function BotPageClient() {
         console.error("Failed to save active session ID to localStorage:", e);
       }
     }
-  }, [sessions, activeSessionId, isClient, storageKey]);
+  }, [sessions, activeSessionId, isClient, storageKey, toast]);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const messages = activeSession?.messages || [];
@@ -284,59 +313,91 @@ export default function BotPageClient() {
   };
   
   const handleImageUpload = async (files: (File | {src: string, file: File})[]) => {
-      if (isLoading || !activeSession) return;
-      
-      setIsLoading(true);
-      toast({ description: `Uploading ${files.length} image(s)...` });
+    if (!activeSessionId || !activeSession) return;
 
-      try {
-        const uploadPromises = files.map(async (fileOrObj) => {
-          const file = fileOrObj instanceof File ? fileOrObj : fileOrObj.file;
-          const src = fileOrObj instanceof File ? await fileToBase64(file) : fileOrObj.src;
+    const filesToUpload = await Promise.all(files.map(async (fileOrObj) => {
+        const file = fileOrObj instanceof File ? fileOrObj : fileOrObj.file;
+        const localPreviewUrl = file.size > 0 ? await fileToBase64(file) : (fileOrObj instanceof File ? '' : fileOrObj.src);
+        const tempId = `upload-${Date.now()}-${Math.random()}`;
+        return { fileOrObj, tempId, localPreviewUrl };
+    }));
 
-          const res = await fetch('/api/products/upload-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image_data: src, image_name: file.name }),
-          });
-          if (!res.ok) throw await res.json();
-          return res.json();
-        });
+    const placeholderMessages: Message[] = filesToUpload.map(({ tempId, localPreviewUrl }) => ({
+        role: 'user',
+        type: 'image',
+        content: localPreviewUrl,
+        tempId,
+        isLoading: true,
+    }));
 
-        const uploadedImages = await Promise.all(uploadPromises);
+    // Add placeholders to UI
+    setSessions(prev => prev.map(s => s.id === activeSessionId
+        ? { ...s, messages: [...s.messages, ...placeholderMessages] }
+        : s
+    ));
 
-        const newImageMessages: Message[] = uploadedImages.map(img => ({
-            role: 'user', type: 'image', content: img.src
-        }));
-        
-        const updatedProductState = { ...activeSession.productState };
-        uploadedImages.forEach(img => {
-            if (!updatedProductState.image_ids.includes(img.id)) {
-              updatedProductState.image_ids.push(img.id);
-              updatedProductState.image_srcs.push(img.src);
-            }
-        });
+    const uploadResults = await Promise.all(filesToUpload.map(async ({ fileOrObj, tempId }) => {
+        try {
+            const file = fileOrObj instanceof File ? fileOrObj : fileOrObj.file;
+            const src = fileOrObj instanceof File ? await fileToBase64(file) : fileOrObj.src;
 
-        setSessions(prev => prev.map(s => s.id === activeSessionId 
-            ? {...s, messages: [...s.messages, ...newImageMessages], productState: updatedProductState }
-            : s
-        ));
+            const res = await fetch('/api/products/upload-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image_data: src, image_name: file.name }),
+            });
+            const uploadedImage = await res.json();
+            if (!res.ok) throw uploadedImage;
 
-        toast({ title: 'Success!', description: `${uploadedImages.length} image(s) uploaded.` });
-        
-        // Notify the bot that images were uploaded
-        await handleSendMessage('[Image Uploaded]');
+            // Update placeholder on success
+            setSessions(prev => prev.map(s => {
+                if (s.id !== activeSessionId) return s;
+                const newMessages = s.messages.map(m => 
+                    m.tempId === tempId 
+                    ? { ...m, content: uploadedImage.src, isLoading: false, tempId: undefined } 
+                    : m
+                );
+                const newProductState = { ...s.productState };
+                if (!newProductState.image_ids.includes(uploadedImage.id)) {
+                    newProductState.image_ids.push(uploadedImage.id);
+                    newProductState.image_srcs.push(uploadedImage.src);
+                }
+                return { ...s, messages: newMessages, productState: newProductState };
+            }));
+            
+            return { success: true, image: uploadedImage };
+        } catch (error: any) {
+            // Update placeholder on error
+            setSessions(prev => prev.map(s => {
+                if (s.id !== activeSessionId) return s;
+                const newMessages = s.messages.map(m => 
+                    m.tempId === tempId 
+                    ? { ...m, isLoading: false, error: error.message || 'Upload failed' } 
+                    : m
+                );
+                return { ...s, messages: newMessages };
+            }));
+            return { success: false, error: error.message || 'Upload failed' };
+        }
+    }));
+    
+    const successfulUploads = uploadResults.filter(r => r.success);
+    if (successfulUploads.length > 0) {
+      toast({ title: 'Success!', description: `${successfulUploads.length} of ${files.length} image(s) uploaded.` });
+      // Notify the bot that images were uploaded
+      await handleSendMessage('[Image Uploaded]');
+    }
 
-      } catch (error: any) {
+    const failedUploads = uploadResults.filter(r => !r.success);
+    if (failedUploads.length > 0) {
         toast({
-              variant: 'destructive',
-              title: 'Upload Error',
-              description: error.message || 'An error occurred while uploading images.',
-          });
-      } finally {
-          setIsLoading(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-      }
+            variant: 'destructive',
+            title: 'Upload Error',
+            description: `${failedUploads.length} image(s) failed to upload.`,
+        });
+    }
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
   
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -462,7 +523,7 @@ export default function BotPageClient() {
                         const showCreateButtons = isBot && (msg.content.includes("create the product, or save it as a draft?") || msg.content.includes("save the changes, or save it as a draft?"));
 
                         return (
-                            <div key={index} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                            <div key={msg.tempId || index} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                                 {isBot && (
                                     <Avatar className="h-8 w-8">
                                         <AvatarFallback><Bot size={18} /></AvatarFallback>
@@ -473,7 +534,7 @@ export default function BotPageClient() {
                                     msg.role === 'user'
                                         ? (msg.type === 'image' ? 'p-0 bg-transparent' : 'p-3 bg-primary text-primary-foreground')
                                         : 'p-3 bg-muted'
-                                    } whitespace-pre-wrap`}
+                                    } whitespace-pre-wrap relative`}
                                 >
                                     {msg.type === 'text' ? (
                                         <div>
@@ -496,7 +557,20 @@ export default function BotPageClient() {
                                             )}
                                         </div>
                                     ) : (
-                                        <Image src={msg.content} alt="Uploaded image" width={200} height={200} className="rounded-md" />
+                                        <>
+                                            <Image src={msg.content} alt="Uploaded image" width={200} height={200} className={cn("rounded-md", (msg.isLoading || msg.error) && "opacity-50")} />
+                                            {msg.isLoading && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
+                                                    <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                                </div>
+                                            )}
+                                            {msg.error && (
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/70 rounded-md p-2 text-destructive-foreground text-center">
+                                                    <AlertCircle className="h-6 w-6 mb-1" />
+                                                    <p className="text-xs font-bold">Upload Failed</p>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                                 {msg.role === 'user' && msg.type === 'text' && (
