@@ -34,12 +34,12 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
             <CardTitle className="text-sm sm:text-base font-bold line-clamp-2 group-hover:text-primary transition-colors">{product.name}</CardTitle>
         </CardContent>
       </Link>
-      <CardFooter className="p-2 sm:p-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <CardFooter className="p-2 sm:p-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm sm:text-base font-semibold text-foreground">
           {formatCurrency(product.price)}
         </p>
         <TooltipProvider>
-          <div className="flex items-center self-end sm:self-auto">
+          <div className="flex w-full justify-end sm:w-auto">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" asChild>
