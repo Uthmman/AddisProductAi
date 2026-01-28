@@ -357,7 +357,7 @@ export default function BotPageClient() {
                     ? { ...m, content: uploadedImage.src, isLoading: false, tempId: undefined } 
                     : m
                 );
-                const newProductState = { ...s.productState };
+                const newProductState: ProductBotState = { ...getInitialProductState(), ...s.productState };
                 if (!newProductState.image_ids.includes(uploadedImage.id)) {
                     newProductState.image_ids.push(uploadedImage.id);
                     newProductState.image_srcs.push(uploadedImage.src);

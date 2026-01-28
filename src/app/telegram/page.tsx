@@ -285,7 +285,7 @@ export default function TelegramMiniAppPage() {
             setSessions(prev => prev.map(s => {
                 if (s.id !== activeSessionId) return s;
                 const newMessages = s.messages.map(m => m.tempId === tempId ? { ...m, content: uploadedImage.src, isLoading: false, tempId: undefined } : m);
-                const newProductState = { ...s.productState };
+                const newProductState: ProductBotState = { ...getInitialProductState(), ...s.productState };
                 if (!newProductState.image_ids.includes(uploadedImage.id)) {
                     newProductState.image_ids.push(uploadedImage.id);
                     newProductState.image_srcs.push(uploadedImage.src);
