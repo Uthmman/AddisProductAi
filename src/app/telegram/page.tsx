@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, AlertCircle, Image as ImageIcon, Droplet, Save } from 'lucide-react';
+import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, AlertCircle, Image as ImageIcon, Droplet, Save, RefreshCw } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { fileToBase64, cn, urlToDataUri, applyWatermark } from '@/lib/utils';
 import {
@@ -39,6 +39,9 @@ interface Message {
   content: string;
   tempId?: string;
   error?: string;
+  errorType?: string;
+  retryAfter?: number;
+  lastUserMessage?: string;
 }
 
 interface ChatSession {
@@ -52,6 +55,40 @@ interface ChatSession {
 const getInitialProductState = (): ProductBotState => ({
   images: [],
 });
+
+function RetryAfterButton({ retryAfter, onRetry }: { retryAfter: number, onRetry: () => void }) {
+    const [countdown, setCountdown] = useState(retryAfter);
+    const [isRetrying, setIsRetrying] = useState(false);
+
+    useEffect(() => {
+        if (countdown > 0) {
+            const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [countdown]);
+
+    const handleRetryClick = () => {
+        setIsRetrying(true);
+        onRetry();
+    };
+
+    return (
+        <div className="mt-2">
+            {countdown > 0 ? (
+                <Button size="sm" variant="outline" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Retry in {countdown}s
+                </Button>
+            ) : (
+                <Button size="sm" onClick={handleRetryClick} disabled={isRetrying}>
+                    {isRetrying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Retry Now
+                </Button>
+            )}
+        </div>
+    );
+}
+
 
 export default function TelegramMiniAppPage() {
   const { toast } = useToast();
@@ -182,8 +219,15 @@ export default function TelegramMiniAppPage() {
     }
   }, [messages]);
   
-  const handleBotResponse = (sessionId: string, response: { text: string; productState: ProductBotState; }) => {
-     const botMessage: Message = { role: 'model', type: 'text', content: response.text };
+  const handleBotResponse = (sessionId: string, response: { text: string; productState: ProductBotState; errorType?: string; retryAfter?: number; }, lastUserMessage?: string) => {
+     const botMessage: Message = { 
+        role: 'model', 
+        type: 'text', 
+        content: response.text,
+        errorType: response.errorType,
+        retryAfter: response.retryAfter,
+        lastUserMessage: response.errorType === 'rate_limit' ? lastUserMessage : undefined
+     };
      setSessions(prevSessions =>
         prevSessions.map(session =>
             session.id === sessionId 
@@ -230,17 +274,20 @@ export default function TelegramMiniAppPage() {
     );
   };
 
-  const handleSendMessage = async (messageText?: string) => {
+  const handleSendMessage = async (messageText?: string, isRetry: boolean = false) => {
     const text = messageText ?? input;
-    if (!text || isLoading || isSaving || !activeSessionId || !activeSession) return;
+    if (isLoading || isSaving || !activeSessionId || !activeSession) return;
+    if (!text) return;
 
-    const userMessage: Message = { role: 'user', type: 'text', content: text };
-    
-    setSessions(prevSessions =>
-        prevSessions.map(s => s.id === activeSessionId ? {...s, messages: [...s.messages, userMessage]} : s)
-    );
-    
-    if (input) setInput('');
+    if (!isRetry) {
+        const userMessage: Message = { role: 'user', type: 'text', content: text };
+        
+        setSessions(prevSessions =>
+            prevSessions.map(s => s.id === activeSessionId ? {...s, messages: [...s.messages, userMessage]} : s)
+        );
+        
+        if (input) setInput('');
+    }
     setIsLoading(true);
 
     try {
@@ -253,24 +300,37 @@ export default function TelegramMiniAppPage() {
                 productState: activeSession.productState 
             }),
         });
-        const data = await response.json();
-        if (!response.ok) throw data;
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw errorData;
+        }
 
-        handleBotResponse(activeSessionId, data);
+        const data = await response.json();
+        handleBotResponse(activeSessionId, data, text);
         
         if (activeSession.messages.length <= 1 && text) {
             updateSessionTitle(activeSessionId, text.substring(0, 30));
         }
 
     } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: error.message || 'An error occurred while sending the message.',
-        });
-         setSessions(prevSessions =>
-            prevSessions.map(s => s.id === activeSessionId ? {...s, messages: activeSession.messages } : s)
-        );
+        if (error.errorType === 'rate_limit') {
+            handleBotResponse(activeSessionId, error, text);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: error.message || error.text || 'An error occurred while sending the message.',
+            });
+             if (!isRetry) {
+                setSessions(prev => prev.map(s => {
+                    if (s.id === activeSessionId) {
+                        return { ...s, messages: s.messages.slice(0, -1) };
+                    }
+                    return s;
+                }));
+            }
+        }
     } finally {
         setIsLoading(false);
     }
@@ -278,6 +338,16 @@ export default function TelegramMiniAppPage() {
   
   const handleActionClick = (text: string) => {
     handleSendMessage(text);
+  };
+
+  const handleRetry = (messageToRetry: string, errorMsg: Message) => {
+    if (!activeSessionId) return;
+    setSessions(prev => prev.map(s => 
+        s.id === activeSessionId 
+        ? { ...s, messages: s.messages.filter(m => m !== errorMsg) }
+        : s
+    ));
+    handleSendMessage(messageToRetry, true);
   };
   
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -566,6 +636,12 @@ export default function TelegramMiniAppPage() {
                                                   </div>
                                               </div>
                                           )}
+                                           {msg.errorType === 'rate_limit' && msg.lastUserMessage && (
+                                                <RetryAfterButton 
+                                                    retryAfter={msg.retryAfter || 60} 
+                                                    onRetry={() => handleRetry(msg.lastUserMessage!, msg)}
+                                                />
+                                            )}
                                       </div>
                                   ) : (
                                       <>

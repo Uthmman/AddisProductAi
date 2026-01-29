@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
     }
     
     const botResponse = await productBotFlow(validation.data);
+    
+    if (botResponse.errorType === 'rate_limit') {
+        return NextResponse.json(botResponse, { status: 429 });
+    }
 
     return NextResponse.json(botResponse);
 

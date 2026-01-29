@@ -26,6 +26,8 @@ const ProductBotOutputSchema = z.object({
   text: z.string(),
   productName: z.string().optional(),
   productState: z.custom<ProductBotState>(),
+  errorType: z.string().optional(),
+  retryAfter: z.number().optional(),
 });
 export type ProductBotOutput = z.infer<typeof ProductBotOutputSchema>;
 
@@ -287,6 +289,16 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 
     } catch (error: any) {
         console.error("Genkit Flow Error:", error);
+        if (error.message && error.message.includes('429 Too Many Requests')) {
+            const retryMatch = error.message.match(/Please retry in ([\d.]+)s/);
+            const retrySeconds = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 60;
+            return {
+                text: `The AI is a bit busy right now. Please wait about ${retrySeconds} seconds.`,
+                productState,
+                errorType: 'rate_limit',
+                retryAfter: retrySeconds,
+            };
+        }
         return { 
             text: `I'm sorry, an internal error occurred: ${error.message}`,
             productState 
