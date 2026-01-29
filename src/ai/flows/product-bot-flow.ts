@@ -101,14 +101,14 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         ]);
 
         // This is the core logic for optimization. It's extracted so it can be called directly or by the tool.
-        async function performAIOptimization(): Promise<string> {
-            if (!productState.raw_name || !productState.price_etb || !productState.images || productState.images.length === 0) {
+        async function performAIOptimization(currentState: ProductBotState): Promise<string> {
+            if (!currentState.raw_name || !currentState.price_etb || !currentState.images || currentState.images.length === 0) {
                 return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
             }
             
             let images_data: string[] = [];
             // For AI optimization, we need data URIs. For existing products, this means fetching from the URL.
-            const imagePromises = productState.images.map(async (img) => {
+            const imagePromises = currentState.images.map(async (img) => {
                 if (img.dataUri) {
                     return img.dataUri;
                 }
@@ -133,11 +133,11 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             const gscData = await getGscTopQueries();
 
             const aiContent = await generateWooCommerceProductContent({
-                raw_name: productState.raw_name,
-                price_etb: productState.price_etb,
-                material: productState.material || '',
-                amharic_name: productState.amharic_name || '',
-                focus_keywords: productState.focus_keywords || '',
+                raw_name: currentState.raw_name,
+                price_etb: currentState.price_etb,
+                material: currentState.material || '',
+                amharic_name: currentState.amharic_name || '',
+                focus_keywords: currentState.focus_keywords || '',
                 images_data: images_data,
                 availableCategories,
                 settings,
@@ -146,9 +146,10 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 gscData: gscData ?? undefined,
             });
             
+            // This modifies the productState in the outer scope, which will be returned by the flow.
             productState.aiContent = aiContent;
             
-            const previewText = productState.editProductId 
+            const previewText = currentState.editProductId 
               ? "I've generated the AI content. Please use the buttons to save the changes or save as a draft."
               : "Here's a preview of the product content I generated:\n" +
                 `**Name**: ${aiContent.name || ''}\n` +
@@ -186,7 +187,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 inputSchema: z.object({}),
                 outputSchema: z.any(),
             },
-            performAIOptimization
+            () => performAIOptimization(productState) // Pass state explicitly
         );
         
         const postProductToTelegramTool = ai.defineTool(
@@ -237,15 +238,13 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             }
         );
         
-        // NEW LOGIC: Check for optimization confirmation before calling the main LLM to save an API call.
         const optimizationConfirmationKeywords = ['yes', 'proceed', 'run optimization', 'ai optimize now', 'optimize'];
         const isOptimizationConfirmation = newMessage && optimizationConfirmationKeywords.includes(newMessage.toLowerCase().trim());
         
-        // This is a confirmation only if the bot is expecting it (all data present, but no AI content yet).
         const isReadyForOptimization = productState.raw_name && productState.price_etb && productState.images && productState.images.length > 0 && !productState.aiContent;
         
         if (isOptimizationConfirmation && isReadyForOptimization) {
-            const responseText = await performAIOptimization();
+            const responseText = await performAIOptimization(productState);
             return { text: responseText, productState };
         }
         
