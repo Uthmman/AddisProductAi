@@ -10,7 +10,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, Image as ImageIcon, AlertCircle, Droplet, Save } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { fileToBase64, cn, urlToDataUri } from '@/lib/utils';
+import { fileToBase64, cn, urlToDataUri, applyWatermark } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AlertDialog,
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useGooglePicker } from '@/hooks/use-google-picker';
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { ProductBotState, Settings, BotImageState } from '@/lib/types';
+import { ProductBotState, Settings, BotImageState, WooCategory } from '@/lib/types';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 
@@ -65,6 +65,7 @@ export default function BotPageClient() {
   const [isInitializingEdit, setIsInitializingEdit] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [watermarkOnSave, setWatermarkOnSave] = useState(true);
+  const [availableCategories, setAvailableCategories] = useState<WooCategory[]>([]);
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,21 +87,30 @@ export default function BotPageClient() {
   useEffect(() => {
     setIsClient(true);
     setUserId('webapp_user_123');
-     async function fetchSettings() {
+     async function fetchInitialData() {
       try {
-        const res = await fetch('/api/settings');
-        if (res.ok) {
-          const data: Settings = await res.json();
+        const [settingsRes, categoriesRes] = await Promise.all([
+          fetch('/api/settings'),
+          fetch('/api/products/categories?all=true')
+        ]);
+        
+        if (settingsRes.ok) {
+          const data: Settings = await settingsRes.json();
           setSettings(data);
           if (!data?.watermarkImageUrl) {
             setWatermarkOnSave(false);
           }
         }
+        
+        if (categoriesRes.ok) {
+          setAvailableCategories(await categoriesRes.json());
+        }
+
       } catch (error) {
-        console.error("Failed to fetch settings", error);
+        console.error("Failed to fetch initial data", error);
       }
     }
-    fetchSettings();
+    fetchInitialData();
   }, []);
 
   const storageKey = userId ? `chat_sessions_${userId}` : null;
@@ -417,21 +427,86 @@ export default function BotPageClient() {
     if (!activeSession) return;
     setIsSaving(true);
     try {
-        const response = await fetch('/api/telegram/save-product', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                productState: activeSession.productState,
-                applyWatermark: watermarkOnSave,
-                status: status
-            }),
+        const { productState } = activeSession;
+        const { aiContent } = productState;
+
+        if (!aiContent) {
+            throw new Error("AI content must be generated before saving.");
+        }
+
+        const imageUploadPromises = productState.images.map(async (image) => {
+            if (image.id) {
+                return { id: image.id, src: image.src, alt: aiContent.images?.find(i => i.alt)?.alt || image.alt || productState.raw_name };
+            }
+
+            let imageToUploadUri = image.dataUri;
+            if (applyWatermark && settings?.watermarkImageUrl) {
+                try {
+                    imageToUploadUri = await applyWatermark(image.dataUri, settings.watermarkImageUrl, settings);
+                } catch (watermarkError: any) {
+                    console.error("Watermark application failed:", watermarkError.message);
+                }
+            }
+
+            const uploadResponse = await fetch('/api/products/upload-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image_data: imageToUploadUri, image_name: image.fileName }),
+            });
+            
+            if (!uploadResponse.ok) {
+                const errorData = await uploadResponse.json();
+                throw new Error(errorData.message || `Image upload failed for ${image.fileName}`);
+            }
+
+            const uploadedImage = await uploadResponse.json();
+            const aiAlt = aiContent.images?.find(i => i.alt)?.alt;
+            return { id: uploadedImage.id, src: uploadedImage.src, alt: aiAlt || productState.raw_name };
         });
 
-        const data = await response.json();
-        if (!response.ok) throw data;
+        const finalImages = await Promise.all(imageUploadPromises);
+        
+        const finalCategories = aiContent.categories?.map(c => {
+            const existing = availableCategories.find(cat => cat.name.toLowerCase() === c.toLowerCase());
+            return existing ? { id: existing.id } : { name: c };
+        }) || [];
 
-        toast({ title: 'Success!', description: data.message });
-        handleNewChat(true); // Start a new chat after successful save
+        const finalData = {
+            name: aiContent.name || productState.raw_name,
+            sku: aiContent.sku,
+            slug: aiContent.slug,
+            regular_price: (aiContent.regular_price || productState.price_etb)?.toString(),
+            description: aiContent.description,
+            short_description: aiContent.short_description,
+            categories: finalCategories,
+            tags: aiContent.tags?.map(tag => ({ name: tag })),
+            images: finalImages,
+            attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
+            meta_data: aiContent.meta_data,
+            status: status,
+        };
+        
+        const url = productState.editProductId ? `/api/products/${productState.editProductId}` : '/api/products';
+        const method = productState.editProductId ? 'PUT' : 'POST';
+
+        const saveResponse = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(finalData),
+        });
+
+        if (!saveResponse.ok) {
+            const errorData = await saveResponse.json();
+            throw new Error(errorData.message || 'Failed to save product');
+        }
+        const savedProduct = await saveResponse.json();
+        
+        const message = productState.editProductId
+          ? `Success! Product '${savedProduct.name}' updated.`
+          : `Success! Product '${savedProduct.name}' created as a ${status}.`;
+
+        toast({ title: 'Success!', description: message });
+        handleNewChat(true);
 
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Save Failed', description: error.message || 'An unexpected error occurred.' });
