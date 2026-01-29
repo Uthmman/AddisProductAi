@@ -163,6 +163,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                 }
             } else {
                  console.error("Failed to fetch settings");
+                 setSettings({}); // Set to empty object on failure to prevent buttons from being permanently disabled
             }
 
         } catch (error) {
@@ -172,6 +173,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                 description: "Could not load product categories, tags, or settings.",
                 variant: "destructive"
             });
+            setSettings({}); // Set to empty object on error
         }
     }
     fetchInitialData();
@@ -519,7 +521,7 @@ export default function ProductForm({ product }: ProductFormProps) {
               size="icon"
               className="h-7 w-7 text-accent/70 hover:text-accent hidden sm:inline-flex"
               onClick={form.handleSubmit((values) => handleGenerate(values, field))}
-              disabled={generatingField !== null}
+              disabled={generatingField !== null || settings === null}
             >
               {generatingField === field ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             </Button>
@@ -535,7 +537,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         size="sm"
         className="sm:hidden"
         onClick={form.handleSubmit((values) => handleGenerate(values, field))}
-        disabled={generatingField !== null}
+        disabled={generatingField !== null || settings === null}
       >
         {generatingField === field ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
         Generate
@@ -616,7 +618,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                     )} />
                 </CardContent>
             </Card>
-            <Button type="button" size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={form.handleSubmit((values) => handleGenerate(values, 'all'))} disabled={generatingField !== null}>
+            <Button type="button" size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={form.handleSubmit((values) => handleGenerate(values, 'all'))} disabled={generatingField !== null || settings === null}>
               {generatingField === 'all' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               AI Optimize All Fields
             </Button>
