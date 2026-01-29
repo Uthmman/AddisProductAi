@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, AlertCircle, Image as ImageIcon, Droplet } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { fileToBase64, cn } from '@/lib/utils';
+import { fileToBase64, cn, applyWatermark, urlToDataUri } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductBotState } from '@/lib/types';
+import { ProductBotState, Settings } from '@/lib/types';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 
 declare global {
@@ -64,6 +66,8 @@ export default function TelegramMiniAppPage() {
   const [isClient, setIsClient] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [applyWatermark, setApplyWatermark] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -82,6 +86,22 @@ export default function TelegramMiniAppPage() {
        console.error("Failed to initialize Telegram WebApp:", error);
        setUserId('dev_user_123');
     }
+
+    async function fetchSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data: Settings = await res.json();
+          setSettings(data);
+          if (!data?.watermarkImageUrl) {
+            setApplyWatermark(false);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch settings", error);
+      }
+    }
+    fetchSettings();
   }, []);
 
   const storageKey = userId ? `chat_sessions_${userId}` : null;
@@ -278,11 +298,21 @@ export default function TelegramMiniAppPage() {
 
     const uploadResults = await Promise.all(filesToUpload.map(async ({ file, tempId }) => {
         try {
-            const base64 = await fileToBase64(file);
+            const cleanDataUri = await fileToBase64(file);
+            let imageToUploadUri = cleanDataUri;
+
+            if (settings?.watermarkImageUrl && applyWatermark) {
+              try {
+                imageToUploadUri = await applyWatermark(cleanDataUri, settings.watermarkImageUrl, settings);
+              } catch (watermarkError) {
+                 toast({ variant: "destructive", title: "Watermark Failed", description: "Uploading original image." });
+              }
+            }
+
             const res = await fetch('/api/products/upload-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image_data: base64, image_name: file.name }),
+                body: JSON.stringify({ image_data: imageToUploadUri, image_name: file.name }),
             });
             const uploadedImage = await res.json();
             if (!res.ok) throw uploadedImage;
@@ -297,7 +327,7 @@ export default function TelegramMiniAppPage() {
                     if (!newProductState.original_image_data_uris) {
                         newProductState.original_image_data_uris = {};
                     }
-                    newProductState.original_image_data_uris[uploadedImage.id] = base64;
+                    newProductState.original_image_data_uris[uploadedImage.id] = cleanDataUri;
                 }
                 return { ...s, messages: newMessages, productState: newProductState };
             }));
@@ -432,8 +462,9 @@ export default function TelegramMiniAppPage() {
                 <div className="space-y-4">
                   {messages.map((msg, index) => {
                       const isBot = msg.role === 'model';
-                      const showOptimizeButton = isBot && msg.content.includes("AI Optimize Now");
-                      const showCreateButtons = isBot && msg.content.includes("create the product, or save it as a draft?");
+                      const showOptimizeButton = isBot && msg.content.includes("Ready to run AI optimization?");
+                      const showCreateButtons = isBot && (msg.content.includes("create the product, or save it as a draft?") || msg.content.includes("save the changes, or save it as a draft?"));
+
 
                       return (
                           <div key={msg.tempId || index} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
@@ -462,8 +493,10 @@ export default function TelegramMiniAppPage() {
                                           )}
                                           {showCreateButtons && !isLoading && (
                                               <div className="mt-2 flex flex-wrap gap-2">
-                                                  <Button size="sm" onClick={() => handleActionClick('Create Product')}>Create Product</Button>
-                                                  <Button size="sm" variant="outline" onClick={() => handleActionClick('Save as Draft')}>Save as Draft</Button>
+                                                    <Button size="sm" onClick={() => handleActionClick(activeSession.id.startsWith('session_edit_') ? 'Save Changes' : 'Create Product')}>
+                                                      {activeSession.id.startsWith('session_edit_') ? 'Save Changes' : 'Create Product'}
+                                                    </Button>
+                                                    <Button size="sm" variant="outline" onClick={() => handleActionClick('Save as Draft')}>Save as Draft</Button>
                                               </div>
                                           )}
                                       </div>
@@ -511,6 +544,17 @@ export default function TelegramMiniAppPage() {
                 </div>
             </CardContent>
             <div className="border-t p-4 bg-background">
+              {settings?.watermarkImageUrl && (
+                <div className="flex items-center space-x-2 justify-end mb-2">
+                    <Switch
+                        id="watermark-toggle"
+                        checked={applyWatermark}
+                        onCheckedChange={setApplyWatermark}
+                        disabled={!settings.watermarkImageUrl}
+                    />
+                    <Label htmlFor="watermark-toggle" className="text-xs cursor-pointer flex items-center gap-1"><Droplet className="h-3 w-3" /> Apply Watermark</Label>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                   <Input
                       type="file"
