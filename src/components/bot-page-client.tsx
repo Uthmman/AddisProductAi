@@ -344,7 +344,7 @@ export default function BotPageClient() {
   }, [activeSession]);
 
 
-  const handleSendMessage = async (messageText?: string, isRetry: boolean = false) => {
+  const handleSendMessage = async (messageText?: string, isRetry: boolean = false, stateOverride?: ProductBotState) => {
     const text = messageText ?? input;
     if (isLoading || isSaving || !activeSessionId || !activeSession) return;
     if (!text) return;
@@ -361,6 +361,8 @@ export default function BotPageClient() {
     }
     setIsLoading(true);
 
+    const stateForApi = stateOverride || activeSession.productState;
+
     try {
         const response = await fetch('/api/telegram/chat', {
             method: 'POST',
@@ -368,7 +370,7 @@ export default function BotPageClient() {
             body: JSON.stringify({ 
                 chatId: activeSessionId, 
                 newMessage: text,
-                productState: activeSession.productState 
+                productState: stateForApi
             }),
         });
 
@@ -440,20 +442,21 @@ export default function BotPageClient() {
         dataUri, fileName
     }));
 
+    const nextProductState: ProductBotState = {
+      ...activeSession.productState,
+      images: [...(activeSession.productState?.images || []), ...newImageStates]
+    };
+
     setSessions(prev => prev.map(s => {
       if (s.id !== activeSessionId) return s;
       return {
         ...s,
         messages: [...s.messages, ...placeholderMessages],
-        productState: {
-          ...s.productState,
-          images: [...(s.productState?.images || []), ...newImageStates]
-        }
+        productState: nextProductState
       };
     }));
     
-    // Notify the bot that images were uploaded. This is now the end of the upload process on the client.
-    await handleSendMessage('[Image Uploaded]');
+    await handleSendMessage('[Image Uploaded]', false, nextProductState);
 
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -815,5 +818,3 @@ export default function BotPageClient() {
     </div>
   );
 }
-
-    

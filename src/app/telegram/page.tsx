@@ -274,7 +274,7 @@ export default function TelegramMiniAppPage() {
     );
   };
 
-  const handleSendMessage = async (messageText?: string, isRetry: boolean = false) => {
+  const handleSendMessage = async (messageText?: string, isRetry: boolean = false, stateOverride?: ProductBotState) => {
     const text = messageText ?? input;
     if (isLoading || isSaving || !activeSessionId || !activeSession) return;
     if (!text) return;
@@ -290,6 +290,8 @@ export default function TelegramMiniAppPage() {
     }
     setIsLoading(true);
 
+    const stateForApi = stateOverride || activeSession.productState;
+
     try {
         const response = await fetch('/api/telegram/chat', {
             method: 'POST',
@@ -297,7 +299,7 @@ export default function TelegramMiniAppPage() {
             body: JSON.stringify({ 
                 chatId: activeSessionId, 
                 newMessage: text,
-                productState: activeSession.productState 
+                productState: stateForApi 
             }),
         });
         
@@ -369,17 +371,21 @@ export default function TelegramMiniAppPage() {
         dataUri, fileName
     }));
 
+    const nextProductState: ProductBotState = {
+      ...activeSession.productState,
+      images: [...(activeSession.productState.images || []), ...newImageStates]
+    };
+
     setSessions(prev => prev.map(s => s.id === activeSessionId
         ? { 
             ...s, 
             messages: [...s.messages, ...placeholderMessages],
-            productState: { ...s.productState, images: [...s.productState.images, ...newImageStates] }
+            productState: nextProductState
         }
         : s
     ));
     
-    // Notify the bot that images were uploaded
-    await handleSendMessage('[Image Uploaded]');
+    await handleSendMessage('[Image Uploaded]', false, nextProductState);
 
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
