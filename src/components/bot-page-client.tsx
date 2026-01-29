@@ -139,7 +139,7 @@ export default function BotPageClient() {
         }
         
         if (categoriesRes.ok) {
-          setAvailableCategories(await categoriesRes.json());
+            setAvailableCategories(await categoriesRes.json());
         }
 
       } catch (error) {
@@ -239,18 +239,21 @@ export default function BotPageClient() {
   useEffect(() => {
     if (isClient && storageKey && sessions.length > 0) {
       try {
-        const sessionsToSave = sessions.map(s => ({
-            ...s,
-            // Do not save image data URIs to localStorage to avoid exceeding quota
-            productState: {
-                ...s.productState,
-                images: s.productState.images.map(img => ({
-                    ...img,
-                    dataUri: ''
-                }))
-            },
-            messages: s.messages.filter(m => m.type === 'text')
-        }));
+        const sessionsToSave = sessions.map(s => {
+            const images = s.productState?.images || [];
+            return {
+                ...s,
+                // Do not save image data URIs to localStorage to avoid exceeding quota
+                productState: {
+                    ...s.productState,
+                    images: images.map(img => ({
+                        ...img,
+                        dataUri: ''
+                    }))
+                },
+                messages: s.messages.filter(m => m.type === 'text')
+            };
+        });
         localStorage.setItem(storageKey, JSON.stringify(sessionsToSave));
       } catch (e: any) {
         if (e.name === 'QuotaExceededError') {
@@ -437,14 +440,17 @@ export default function BotPageClient() {
         dataUri, fileName
     }));
 
-    setSessions(prev => prev.map(s => s.id === activeSessionId
-        ? { 
-            ...s, 
-            messages: [...s.messages, ...placeholderMessages],
-            productState: { ...s, productState: { ...s.productState, images: [...s.productState.images, ...newImageStates] } }
+    setSessions(prev => prev.map(s => {
+      if (s.id !== activeSessionId) return s;
+      return {
+        ...s,
+        messages: [...s.messages, ...placeholderMessages],
+        productState: {
+          ...s.productState,
+          images: [...(s.productState?.images || []), ...newImageStates]
         }
-        : s
-    ));
+      };
+    }));
     
     // Notify the bot that images were uploaded. This is now the end of the upload process on the client.
     await handleSendMessage('[Image Uploaded]');
@@ -809,3 +815,5 @@ export default function BotPageClient() {
     </div>
   );
 }
+
+    
