@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, AlertCircle, Image as ImageIcon, Droplet } from 'lucide-react';
+import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, AlertCircle, Image as ImageIcon, Droplet, Save } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { fileToBase64, cn, applyWatermark, urlToDataUri } from '@/lib/utils';
+import { fileToBase64, cn, urlToDataUri } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ProductBotState, Settings } from '@/lib/types';
+import { ProductBotState, Settings, BotImageState } from '@/lib/types';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
@@ -38,7 +38,6 @@ interface Message {
   type: 'text' | 'image';
   content: string;
   tempId?: string;
-  isLoading?: boolean;
   error?: string;
 }
 
@@ -51,9 +50,7 @@ interface ChatSession {
 }
 
 const getInitialProductState = (): ProductBotState => ({
-  image_ids: [],
-  image_srcs: [],
-  original_image_data_uris: {},
+  images: [],
 });
 
 export default function TelegramMiniAppPage() {
@@ -63,11 +60,12 @@ export default function TelegramMiniAppPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [applyWatermark, setApplyWatermark] = useState(true);
+  const [watermarkOnSave, setWatermarkOnSave] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -94,7 +92,7 @@ export default function TelegramMiniAppPage() {
           const data: Settings = await res.json();
           setSettings(data);
           if (!data?.watermarkImageUrl) {
-            setApplyWatermark(false);
+            setWatermarkOnSave(false);
           }
         }
       } catch (error) {
@@ -113,7 +111,7 @@ export default function TelegramMiniAppPage() {
       if (storedSessions) {
         const parsedSessions: ChatSession[] = JSON.parse(storedSessions).map((s: ChatSession) => ({
           ...s,
-          messages: s.messages.map(m => ({...m, tempId: undefined, isLoading: undefined, error: undefined}))
+          messages: s.messages.map(m => ({...m, tempId: undefined, error: undefined}))
         }));
         setSessions(parsedSessions);
         const lastActiveId = localStorage.getItem(`${storageKey}_last_active`);
@@ -129,14 +127,14 @@ export default function TelegramMiniAppPage() {
   useEffect(() => {
     if (isClient && storageKey && sessions.length > 0) {
       try {
-        const sessionsToSave = sessions.map(s => {
-          const stateToSave: ProductBotState = { ...s.productState, original_image_data_uris: {} };
-          return {
+        const sessionsToSave = sessions.map(s => ({
             ...s,
-            messages: s.messages.filter(m => !m.isLoading && m.type === 'text'),
-            productState: stateToSave
-          }
-        });
+            productState: {
+                ...s.productState,
+                images: s.productState.images.map(img => ({ ...img, dataUri: '' }))
+            },
+            messages: s.messages.filter(m => m.type === 'text')
+        }));
        localStorage.setItem(storageKey, JSON.stringify(sessionsToSave));
       } catch (e: any) {
         if (e.name === 'QuotaExceededError') {
@@ -224,7 +222,7 @@ export default function TelegramMiniAppPage() {
 
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText ?? input;
-    if (!text || isLoading || !activeSessionId || !activeSession) return;
+    if (!text || isLoading || isSaving || !activeSessionId || !activeSession) return;
 
     const userMessage: Message = { role: 'user', type: 'text', content: text };
     
@@ -277,79 +275,61 @@ export default function TelegramMiniAppPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const filesToUpload = await Promise.all(Array.from(files).map(async (file) => {
-        const localPreviewUrl = await fileToBase64(file);
+    const filesToProcess = await Promise.all(Array.from(files).map(async (file) => {
+        const dataUri = await fileToBase64(file);
         const tempId = `upload-${Date.now()}-${Math.random()}`;
-        return { file, tempId, localPreviewUrl };
+        return { dataUri, fileName: file.name, tempId };
     }));
 
-    const placeholderMessages: Message[] = filesToUpload.map(({ tempId, localPreviewUrl }) => ({
-        role: 'user',
-        type: 'image',
-        content: localPreviewUrl,
-        tempId,
-        isLoading: true,
+    const placeholderMessages: Message[] = filesToProcess.map(({ dataUri, tempId }) => ({
+        role: 'user', type: 'image', content: dataUri, tempId
+    }));
+    
+    const newImageStates: BotImageState[] = filesToProcess.map(({dataUri, fileName}) => ({
+        dataUri, fileName
     }));
 
     setSessions(prev => prev.map(s => s.id === activeSessionId
-        ? { ...s, messages: [...s.messages, ...placeholderMessages] }
+        ? { 
+            ...s, 
+            messages: [...s.messages, ...placeholderMessages],
+            productState: { ...s.productState, images: [...s.productState.images, ...newImageStates] }
+        }
         : s
     ));
-
-    const uploadResults = await Promise.all(filesToUpload.map(async ({ file, tempId }) => {
-        try {
-            const cleanDataUri = await fileToBase64(file);
-            let imageToUploadUri = cleanDataUri;
-
-            if (settings?.watermarkImageUrl && applyWatermark) {
-              try {
-                imageToUploadUri = await applyWatermark(cleanDataUri, settings.watermarkImageUrl, settings);
-              } catch (watermarkError) {
-                 toast({ variant: "destructive", title: "Watermark Failed", description: "Uploading original image." });
-              }
-            }
-
-            const res = await fetch('/api/products/upload-image', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image_data: imageToUploadUri, image_name: file.name }),
-            });
-            const uploadedImage = await res.json();
-            if (!res.ok) throw uploadedImage;
-
-            setSessions(prev => prev.map(s => {
-                if (s.id !== activeSessionId) return s;
-                const newMessages = s.messages.map(m => m.tempId === tempId ? { ...m, content: uploadedImage.src, isLoading: false, tempId: undefined } : m);
-                const newProductState: ProductBotState = { ...getInitialProductState(), ...s.productState };
-                if (!newProductState.image_ids.includes(uploadedImage.id)) {
-                    newProductState.image_ids.push(uploadedImage.id);
-                    newProductState.image_srcs.push(uploadedImage.src);
-                    if (!newProductState.original_image_data_uris) {
-                        newProductState.original_image_data_uris = {};
-                    }
-                    newProductState.original_image_data_uris[uploadedImage.id] = cleanDataUri;
-                }
-                return { ...s, messages: newMessages, productState: newProductState };
-            }));
-            return { success: true, image: uploadedImage };
-        } catch (error: any) {
-            setSessions(prev => prev.map(s => {
-                if (s.id !== activeSessionId) return s;
-                const newMessages = s.messages.map(m => m.tempId === tempId ? { ...m, isLoading: false, error: error.message || 'Upload failed' } : m);
-                return { ...s, messages: newMessages };
-            }));
-            return { success: false, error: error.message || 'Upload failed' };
-        }
-    }));
     
-    const successfulUploads = uploadResults.filter(r => r.success);
-    if (successfulUploads.length > 0) {
-        toast({ title: 'Success!', description: `${successfulUploads.length} image(s) uploaded.` });
-        await handleSendMessage('[Image Uploaded]');
-    }
+    // Notify the bot that images were uploaded
+    await handleSendMessage('[Image Uploaded]');
 
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  const handleSaveProduct = async (status: 'publish' | 'draft') => {
+    if (!activeSession) return;
+    setIsSaving(true);
+    try {
+        const response = await fetch('/api/telegram/save-product', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                productState: activeSession.productState,
+                applyWatermark: watermarkOnSave,
+                status: status
+            }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw data;
+
+        toast({ title: 'Success!', description: data.message });
+        handleNewChat(true); // Start a new chat after successful save
+
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Save Failed', description: error.message || 'An unexpected error occurred.' });
+    } finally {
+        setIsSaving(false);
+    }
+  }
 
   const handleNewChat = (makeActive = true) => {
     const newSession: ChatSession = {
@@ -463,7 +443,7 @@ export default function TelegramMiniAppPage() {
                   {messages.map((msg, index) => {
                       const isBot = msg.role === 'model';
                       const showOptimizeButton = isBot && msg.content.includes("Ready to run AI optimization?");
-                      const showCreateButtons = isBot && (msg.content.includes("create the product, or save it as a draft?") || msg.content.includes("save the changes, or save it as a draft?"));
+                      const showSaveButtons = isBot && (msg.content.includes("create the product, or save it as a draft?") || msg.content.includes("save the changes, or save it as a draft?"));
 
 
                       return (
@@ -483,7 +463,7 @@ export default function TelegramMiniAppPage() {
                                   {msg.type === 'text' ? (
                                       <div>
                                           <div dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br />').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-                                          {showOptimizeButton && !isLoading && (
+                                          {showOptimizeButton && !isLoading && !isSaving && (
                                               <div className="mt-2">
                                                   <Button size="sm" onClick={() => handleActionClick('AI Optimize Now')}>
                                                       <Sparkles className="mr-2 h-4 w-4" />
@@ -491,33 +471,40 @@ export default function TelegramMiniAppPage() {
                                                   </Button>
                                               </div>
                                           )}
-                                          {showCreateButtons && !isLoading && (
-                                              <div className="mt-2 flex flex-wrap gap-2">
-                                                    <Button size="sm" onClick={() => handleActionClick(activeSession.id.startsWith('session_edit_') ? 'Save Changes' : 'Create Product')}>
-                                                      {activeSession.id.startsWith('session_edit_') ? 'Save Changes' : 'Create Product'}
-                                                    </Button>
-                                                    <Button size="sm" variant="outline" onClick={() => handleActionClick('Save as Draft')}>Save as Draft</Button>
+                                          {showSaveButtons && !isLoading && !isSaving && (
+                                              <div className="mt-4 pt-4 border-t space-y-3">
+                                                 {settings?.watermarkImageUrl && (
+                                                    <div className="flex items-center space-x-2 justify-start">
+                                                        <Switch id="watermark-toggle" checked={watermarkOnSave} onCheckedChange={setWatermarkOnSave} />
+                                                        <Label htmlFor="watermark-toggle" className="text-xs cursor-pointer flex items-center gap-1"><Droplet className="h-3 w-3" /> Apply Watermark</Label>
+                                                    </div>
+                                                  )}
+                                                  <div className="flex flex-wrap gap-2">
+                                                      <Button size="sm" onClick={() => handleSaveProduct(activeSession.id.startsWith('session_edit_') ? 'publish' : 'publish')}>
+                                                          <Save className="mr-2 h-4 w-4" />
+                                                          {activeSession.id.startsWith('session_edit_') ? 'Save Changes' : 'Create Product'}
+                                                      </Button>
+                                                      <Button size="sm" variant="outline" onClick={() => handleSaveProduct('draft')}>
+                                                          <Save className="mr-2 h-4 w-4" />
+                                                          Save as Draft
+                                                      </Button>
+                                                  </div>
                                               </div>
                                           )}
                                       </div>
                                   ) : (
                                       <>
                                           {msg.content ? (
-                                            <Image src={msg.content} alt="Uploaded image" width={200} height={200} className={cn("rounded-md", (msg.isLoading || msg.error) && "opacity-50")} />
+                                            <Image src={msg.content} alt="Uploaded image" width={200} height={200} className={cn("rounded-md", msg.error && "opacity-50")} />
                                           ) : (
                                             <div className="w-[200px] h-[200px] flex items-center justify-center bg-muted rounded-md">
                                                 <ImageIcon className="h-10 w-10 text-muted-foreground" />
                                             </div>
                                           )}
-                                          {msg.isLoading && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-md">
-                                                <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                            </div>
-                                          )}
                                           {msg.error && (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/70 rounded-md p-2 text-destructive-foreground text-center">
                                                 <AlertCircle className="h-6 w-6 mb-1" />
-                                                <p className="text-xs font-bold">Upload Failed</p>
+                                                <p className="text-xs font-bold">{msg.error}</p>
                                             </div>
                                           )}
                                       </>
@@ -531,30 +518,20 @@ export default function TelegramMiniAppPage() {
                           </div>
                       )
                   })}
-                  {isLoading && (messages.length === 0 || messages[messages.length - 1]?.role === 'user') && (
+                  {(isLoading || isSaving) && (messages.length === 0 || messages[messages.length - 1]?.role !== 'model' || !messages[messages.length - 1].content.includes('...')) && (
                        <div className="flex items-end gap-2">
                           <Avatar className="h-8 w-8">
                               <AvatarFallback><Bot size={18} /></AvatarFallback>
                           </Avatar>
                           <div className="max-w-xs md:max-w-md rounded-lg p-3 bg-muted flex items-center">
                               <Loader2 className="h-5 w-5 animate-spin" />
+                              <span className="ml-2 text-sm">{isSaving ? 'Saving...' : 'Thinking...'}</span>
                           </div>
                       </div>
                   )}
                 </div>
             </CardContent>
             <div className="border-t p-4 bg-background">
-              {settings?.watermarkImageUrl && (
-                <div className="flex items-center space-x-2 justify-end mb-2">
-                    <Switch
-                        id="watermark-toggle"
-                        checked={applyWatermark}
-                        onCheckedChange={setApplyWatermark}
-                        disabled={!settings.watermarkImageUrl}
-                    />
-                    <Label htmlFor="watermark-toggle" className="text-xs cursor-pointer flex items-center gap-1"><Droplet className="h-3 w-3" /> Apply Watermark</Label>
-                </div>
-              )}
               <div className="flex items-center gap-2">
                   <Input
                       type="file"
@@ -564,7 +541,7 @@ export default function TelegramMiniAppPage() {
                       className="hidden"
                       multiple
                   />
-                  <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
+                  <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isLoading || isSaving}>
                       <Paperclip className="h-4 w-4" />
                   </Button>
                   <Input
@@ -572,9 +549,9 @@ export default function TelegramMiniAppPage() {
                       onChange={(e) => setInput(e.target.value)}
                       placeholder="Type product details..."
                       onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                      disabled={isLoading}
+                      disabled={isLoading || isSaving}
                   />
-                  <Button onClick={() => handleSendMessage()} disabled={isLoading || !input}>
+                  <Button onClick={() => handleSendMessage()} disabled={isLoading || isSaving || !input}>
                       <Send className="h-4 w-4" />
                   </Button>
               </div>

@@ -80,6 +80,14 @@ export interface Settings {
     watermarkPadding?: number;
 }
 
+export type BotImageState = {
+  dataUri: string; // The raw base64 data URI for new images
+  fileName: string; // The original file name
+  alt?: string;
+  id?: number; // The WooCommerce ID, populated after upload
+  src?: string; // The public URL, populated after upload
+};
+
 export interface ProductBotState {
     editProductId?: number;
     raw_name?: string;
@@ -87,8 +95,6 @@ export interface ProductBotState {
     material?: string;
     focus_keywords?: string;
     amharic_name?: string;
-    image_ids: number[];
-    image_srcs: string[];
+    images: BotImageState[];
     aiContent?: Partial<AIProductContent>;
-    original_image_data_uris?: { [id: number]: string };
 }

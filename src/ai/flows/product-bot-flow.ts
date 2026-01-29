@@ -31,9 +31,7 @@ export type ProductBotOutput = z.infer<typeof ProductBotOutputSchema>;
 
 
 const getInitialState = (): ProductBotState => ({
-    image_ids: [],
-    image_srcs: [],
-    original_image_data_uris: {},
+    images: [],
 });
 
 export async function productBotFlow(input: ProductBotInput): Promise<ProductBotOutput> {
@@ -42,7 +40,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 
     try {
         // This is the initial message when loading an existing product for editing.
-        if (editProductId && !newMessage && (!productState.image_ids || productState.image_ids.length === 0)) {
+        if (editProductId && !newMessage && (!productState.images || productState.images.length === 0)) {
             const product = await getProduct(parseInt(editProductId, 10));
             if (!product) {
                 return { 
@@ -58,9 +56,13 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 material: product.attributes.find(a => a.name === "Material")?.options[0] || "",
                 focus_keywords: product.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value || product.tags.map(t => t.name).join(', ') || "",
                 amharic_name: product.meta_data.find(m => m.key === 'amharic_name')?.value || "",
-                image_ids: product.images.map(img => img.id),
-                image_srcs: product.images.map(img => img.src),
-                original_image_data_uris: {}, // This will be populated by the fallback if needed
+                images: product.images.map(img => ({
+                    id: img.id,
+                    src: img.src,
+                    alt: img.alt,
+                    dataUri: '',
+                    fileName: ''
+                })),
                 aiContent: {
                     name: product.name,
                     sku: product.sku,
@@ -84,7 +86,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             };
         }
 
-        if (!newMessage && (!productState.image_ids || productState.image_ids.length === 0)) {
+        if (!newMessage && (!productState.images || productState.images.length === 0)) {
              return { 
                 text: "Hi there! I can help you create a new product. What's the name, price, and Amharic name? You can also upload photos or ask me for product suggestions based on search data.",
                 productState
@@ -98,32 +100,29 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 
         // This is the core logic for optimization. It's extracted so it can be called directly or by the tool.
         async function performAIOptimization(): Promise<string> {
-            if (!productState.raw_name || !productState.price_etb || !productState.image_srcs || productState.image_srcs.length === 0) {
+            if (!productState.raw_name || !productState.price_etb || !productState.images || productState.images.length === 0) {
                 return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
             }
             
             let images_data: string[] = [];
-            // Primary method: Use original data URIs stored in the state.
-            if (productState.original_image_data_uris && Object.keys(productState.original_image_data_uris).length > 0) {
-                 images_data = (productState.image_ids || [])
-                    .map(id => productState.original_image_data_uris?.[id])
-                    .filter(Boolean) as string[];
-            }
-            // Fallback method: If original data is missing (e.g., in an "edit" flow), fetch from the public URLs.
-            if (images_data.length === 0 && productState.image_ids && productState.image_ids.length > 0) {
-                const imagePromises = productState.image_srcs.map(async (url) => {
-                     if (url && url.startsWith('http')) {
-                        try {
-                            return await urlToDataUri(url);
-                        } catch (error) {
-                            console.error(`Failed to convert image URL to data URI: ${url}`, error);
-                            return null;
-                        }
+            // For AI optimization, we need data URIs. For existing products, this means fetching from the URL.
+            const imagePromises = productState.images.map(async (img) => {
+                if (img.dataUri) {
+                    return img.dataUri;
+                }
+                if (img.src && img.src.startsWith('http')) {
+                    try {
+                        return await urlToDataUri(img.src);
+                    } catch (error) {
+                        console.error(`Failed to convert image URL to data URI: ${img.src}`, error);
+                        return null;
                     }
-                    return null;
-                });
-                images_data = (await Promise.all(imagePromises)).filter(Boolean) as string[];
-            }
+                }
+                return null;
+            });
+
+            images_data = (await Promise.all(imagePromises)).filter(Boolean) as string[];
+
             if (images_data.length === 0) {
                 return "I can't optimize because there are no valid images for this product. Please try uploading them again.";
             }
@@ -148,7 +147,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             productState.aiContent = aiContent;
             
             const previewText = productState.editProductId 
-              ? "I've generated the AI content. Do you want to save the changes, or save it as a draft?"
+              ? "I've generated the AI content. Please use the buttons to save the changes or save as a draft."
               : "Here's a preview of the product content I generated:\n" +
                 `**Name**: ${aiContent.name || ''}\n` +
                 `**Description**: ${aiContent.short_description || aiContent.description?.substring(0, 100) + '...'}\n\n` +
@@ -235,72 +234,13 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 }
             }
         );
-
-        const saveOrUpdateProductTool = ai.defineTool(
-            {
-                name: 'saveOrUpdateProductTool',
-                description: 'Saves or updates the product in WooCommerce. MUST be called after the user confirms the action. The user will confirm by sending "Create Product", "Save as Draft", or "Save Changes".',
-                inputSchema: z.object({
-                    status: z.enum(['publish', 'draft']).describe('Use "publish" if the user says "Create Product" or "Save Changes". Use "draft" if the user says "Save as Draft".'),
-                }),
-                outputSchema: z.any(),
-            },
-            async ({ status }) => {
-                if (!productState.aiContent && !productState.editProductId) {
-                    return "I can't create the product because the AI content hasn't been generated yet. Please provide more details first.";
-                }
-
-                try {
-                    const finalAiContent = productState.aiContent || {};
-
-                    const finalImages = productState.image_ids.map((id, index) => ({
-                        id,
-                        alt: finalAiContent.images?.[index]?.alt || finalAiContent.name,
-                    }));
-
-                    const finalCategories = finalAiContent.categories?.map(c => {
-                        const existing = availableCategories.find(cat => cat.name.toLowerCase() === c.toLowerCase());
-                        return existing ? { id: existing.id } : { name: c };
-                    }) || [];
-
-                    const finalData = {
-                        name: finalAiContent.name || productState.raw_name,
-                        sku: finalAiContent.sku,
-                        slug: finalAiContent.slug,
-                        regular_price: (finalAiContent.regular_price || productState.price_etb)?.toString(),
-                        description: finalAiContent.description,
-                        short_description: finalAiContent.short_description,
-                        categories: finalCategories,
-                        tags: finalAiContent.tags?.map(tag => ({ name: tag })),
-                        images: finalImages,
-                        attributes: finalAiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
-                        meta_data: finalAiContent.meta_data,
-                        status: status,
-                    };
-                    
-                    if (productState.editProductId) {
-                        const product = await updateProduct(productState.editProductId, finalData);
-                        productState = getInitialState(); // Reset state after success
-                        return `Success! I've updated the product '${product.name}'.`;
-                    } else {
-                        const product = await createProduct(finalData);
-                        productState = getInitialState(); // Reset state after success
-                        return `Success! I've created the product '${product.name}' as a ${status}.`;
-                    }
-
-                } catch (error: any) {
-                    console.error("Tool Error: Failed to save/update product:", error);
-                    return `I'm sorry, I failed to save the product. The system reported an error: ${error.message}`;
-                }
-            }
-        );
         
         // NEW LOGIC: Check for optimization confirmation before calling the main LLM to save an API call.
         const optimizationConfirmationKeywords = ['yes', 'proceed', 'run optimization', 'ai optimize now', 'optimize'];
         const isOptimizationConfirmation = newMessage && optimizationConfirmationKeywords.includes(newMessage.toLowerCase().trim());
         
         // This is a confirmation only if the bot is expecting it (all data present, but no AI content yet).
-        const isReadyForOptimization = productState.raw_name && productState.price_etb && productState.image_srcs && productState.image_srcs.length > 0 && !productState.aiContent;
+        const isReadyForOptimization = productState.raw_name && productState.price_etb && productState.images && productState.images.length > 0 && !productState.aiContent;
         
         if (isOptimizationConfirmation && isReadyForOptimization) {
             const responseText = await performAIOptimization();
@@ -311,15 +251,14 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     You are an advanced conversational assistant for creating and editing products. Your goal is to be extremely efficient and clear.
 
     This is the current information you have for the product:
-    ${JSON.stringify(productState, null, 2)}
+    ${JSON.stringify({ ...productState, images: `${productState.images?.length || 0} images` }, null, 2)}
 
     **--> SCENARIO 0: AI content is generated (\`aiContent\` is present):**
-    Your ONLY job is to wait for the user to confirm saving. They will say "Create Product", "Save as Draft", or "Save Changes".
-    When they do, you MUST call \`saveOrUpdateProductTool\` with the correct status ('publish' or 'draft').
-    Do not ask any other questions or re-summarize. Just call the tool.
+    Your ONLY job is to wait. The user will use buttons in the interface to save the product. 
+    If the user types a message asking to save, respond with: "Please use the buttons provided to save the product."
 
-    **--> SCENARIO 1: Core details are present, but AI content is NOT (\`raw_name\`, \`price_etb\`, and \`image_srcs\` are present, but \`aiContent\` is empty):**
-    1.  Your response MUST be a summary of the details. Example: "Here is a summary:\\n- Name: ${productState.raw_name || 'N/A'}\\n- Price: ${productState.price_etb || 'N/A'} ETB\\n- Images: ${productState.image_srcs.length} uploaded".
+    **--> SCENARIO 1: Core details are present, but AI content is NOT (\`raw_name\`, \`price_etb\`, and \`images\` are present, but \`aiContent\` is empty):**
+    1.  Your response MUST be a summary of the details. Example: "Here is a summary:\\n- Name: ${productState.raw_name || 'N/A'}\\n- Price: ${productState.price_etb || 'N/A'} ETB\\n- Images: ${productState.images.length} uploaded".
     2.  You MUST then ask the user to confirm optimization. Example: "Ready to run AI optimization?"
     3.  If the user agrees (e.g., "yes", "optimize", "proceed", "AI Optimize Now"), you MUST call the \`aiOptimizeProductTool\`.
 
@@ -339,7 +278,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         const response = await generate({
             prompt: newMessage || "An image was just uploaded.",
             system: systemPrompt,
-            tools: [updateProductDetailsTool, aiOptimizeProductTool, saveOrUpdateProductTool, suggestProductsTool, postProductToTelegramTool],
+            tools: [updateProductDetailsTool, aiOptimizeProductTool, suggestProductsTool, postProductToTelegramTool],
         });
 
         const responseText = response.text;
