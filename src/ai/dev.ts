@@ -5,7 +5,6 @@ import '@/ai/flows/product-bot-flow.ts';
 import '@/ai/flows/bulk-product-action-flow.ts';
 import '@/ai/flows/suggest-blog-topics-flow.ts';
 import '@/ai/flows/suggest-products-flow.ts';
-import '@/ai/tools/suggest-seo-keywords-tool.ts';
 import '@/ai/flows/generate-tag-seo-flow.ts';
 import '@/ai/flows/bulk-generate-tag-seo-flow.ts';
 import '@/ai/flows/bulk-generate-seo-for-specific-tags-flow.ts';

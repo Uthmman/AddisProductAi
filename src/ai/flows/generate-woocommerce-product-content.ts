@@ -13,7 +13,6 @@
 
 import {ai, generate} from '@/ai/genkit';
 import {z} from 'genkit';
-import { suggestSeoKeywordsTool } from '../tools/suggest-seo-keywords-tool';
 import { getPrompts } from '@/lib/prompts-api';
 import * as handlebars from 'handlebars';
 
@@ -116,7 +115,6 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     const {output} = await generate({
       prompt: renderedPrompt,
       output: { schema: GenerateWooCommerceProductContentOutputSchema },
-      tools: [suggestSeoKeywordsTool],
     });
 
     if (!output) {
