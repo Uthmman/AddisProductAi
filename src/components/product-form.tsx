@@ -55,7 +55,7 @@ type DisplayCategory = {
     name: string;
 };
 
-type GeneratingField = 'all' | 'name' | 'sku' | 'slug' | 'description' | 'short_description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | 'regular_price' | null;
+type GeneratingField = 'all' | 'name' | 'description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | 'regular_price' | null;
 
 type SaveAction = 'publish' | 'draft';
 
@@ -297,12 +297,12 @@ export default function ProductForm({ product }: ProductFormProps) {
             description: `AI-optimized content for ${field} has been populated.`,
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
         toast({
             variant: "destructive",
             title: "Generation Failed",
-            description: `There was an error generating content for ${field}. Please try again.`,
+            description: error.message || `There was an error generating content for ${field}. Please try again.`,
         });
     } finally {
         setGeneratingField(null);
@@ -510,7 +510,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
 
 
-  const renderGenButton = (field: GeneratingField) => (
+  const renderGenButton = (field: GeneratingField, label: string) => (
     <>
       <TooltipProvider>
         <Tooltip>
@@ -527,7 +527,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>AI Generate {field}</p>
+            <p>AI Generate {label}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -640,27 +640,23 @@ export default function ProductForm({ product }: ProductFormProps) {
              <Card>
                 <CardHeader>
                     <CardTitle>{product ? 'Product Content Preview' : 'AI Generated Content'}</CardTitle>
-                    <CardDescription>Review and edit the content below. Use the ✨ icon to generate content for a specific field.</CardDescription>
+                    <CardDescription>Review and edit the content below. Use the ✨ icon to generate content for specific field groups.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                    <div className="space-y-2">
-                       <div className="flex justify-between items-center"><Label>Product Name</Label>{renderGenButton('name')}</div>
+                       <div className="flex justify-between items-center"><Label>Product Name, SKU & Slug</Label>{renderGenButton('name', 'Name, SKU & Slug')}</div>
                        <Input value={aiContent.name || ''} onChange={(e) => setAiContent(p => ({...p, name: e.target.value}))} placeholder="AI generated name will appear here..."/>
+                       <Input value={aiContent.sku || ''} onChange={(e) => setAiContent(p => ({ ...p, sku: e.target.value }))} placeholder="AI generated SKU..." className="mt-2" />
+                       <Input value={aiContent.slug || ''} onChange={(e) => setAiContent(p => ({ ...p, slug: e.target.value }))} placeholder="AI generated slug..." className="mt-2" />
                    </div>
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center"><Label>SKU</Label>{renderGenButton('sku')}</div>
-                        <Input value={aiContent.sku || ''} onChange={(e) => setAiContent(p => ({ ...p, sku: e.target.value }))} placeholder="AI generated SKU..." />
-                    </div>
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center"><Label>Slug</Label>{renderGenButton('slug')}</div>
-                        <Input value={aiContent.slug || ''} onChange={(e) => setAiContent(p => ({ ...p, slug: e.target.value }))} placeholder="AI generated slug..." />
-                    </div>
-                    <div className="space-y-2">
-                       <div className="flex justify-between items-center"><Label>Regular Price (ETB)</Label>{renderGenButton('regular_price')}</div>
+                   
+                   <div className="space-y-2">
+                       <div className="flex justify-between items-center"><Label>Regular Price (ETB)</Label>{renderGenButton('regular_price', 'Price')}</div>
                        <Input type="number" value={aiContent.regular_price || ''} onChange={(e) => setAiContent(p => ({ ...p, regular_price: parseFloat(e.target.value) || 0 }))} placeholder="AI generated price..."/>
                    </div>
+
                     <div className="space-y-2">
-                      <div className="flex justify-between items-center"><Label>Categories</Label>{renderGenButton('categories')}</div>
+                      <div className="flex justify-between items-center"><Label>Categories</Label>{renderGenButton('categories', 'Categories')}</div>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" className="w-full justify-start font-normal h-auto min-h-10 text-left">
@@ -706,23 +702,24 @@ export default function ProductForm({ product }: ProductFormProps) {
                             </PopoverContent>
                         </Popover>
                     </div>
+
                    <div className="space-y-2">
-                       <div className="flex justify-between items-center"><Label>Description</Label>{renderGenButton('description')}</div>
+                       <div className="flex justify-between items-center"><Label>Descriptions</Label>{renderGenButton('description', 'Descriptions')}</div>
                        <Textarea value={aiContent.description || ''} onChange={(e) => setAiContent(p => ({...p, description: e.target.value}))} rows={10} placeholder="AI generated description..."/>
+                       <Textarea value={aiContent.short_description || ''} onChange={(e) => setAiContent(p => ({...p, short_description: e.target.value}))} rows={4} placeholder="AI generated short description..." className="mt-2" />
                    </div>
+
                    <div className="space-y-2">
-                       <div className="flex justify-between items-center"><Label>Short Description</Label>{renderGenButton('short_description')}</div>
-                       <Textarea value={aiContent.short_description || ''} onChange={(e) => setAiContent(p => ({...p, short_description: e.target.value}))} rows={4} placeholder="AI generated short description..."/>
-                   </div>
-                    <div className="space-y-2">
-                       <div className="flex justify-between items-center"><Label>Tags</Label>{renderGenButton('tags')}</div>
-                       <Input value={aiContent.tags?.join(', ') || ''} onChange={(e) => setAiContent(p => ({...p, tags: e.target.value.split(',').map(t => t.trim())}))} placeholder="AI generated tags..."/>
-                   </div>
+                        <div className="flex justify-between items-center"><Label>SEO Content (Tags & Meta)</Label>{renderGenButton('tags', 'SEO Content')}</div>
+                        <Input value={aiContent.tags?.join(', ') || ''} onChange={(e) => setAiContent(p => ({...p, tags: e.target.value.split(',').map(t => t.trim())}))} placeholder="AI generated tags..."/>
+                        <Input value={getMetaValue('_yoast_wpseo_focuskw') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_focuskw', e.target.value)} placeholder="AI generated focus keyphrase for SEO..." className="mt-2" />
+                        <Textarea value={getMetaValue('_yoast_wpseo_metadesc') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_metadesc', e.target.value)} rows={3} placeholder="AI generated meta description for SEO..." className="mt-2" />
+                    </div>
                    
                    <div className="space-y-4">
                         <div className="flex justify-between items-center">
                             <Label>Product Gallery & Alt Text</Label>
-                            {renderGenButton('images')}
+                            {renderGenButton('images', 'Alt Text')}
                         </div>
                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                            {images.map((image, index) => (
@@ -738,14 +735,6 @@ export default function ProductForm({ product }: ProductFormProps) {
                        </div>
                    </div>
 
-                   <div className="space-y-2">
-                        <div className="flex justify-between items-center"><Label>Yoast Focus Keyphrase</Label>{renderGenButton('meta_data')}</div>
-                        <Input value={getMetaValue('_yoast_wpseo_focuskw') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_focuskw', e.target.value)} placeholder="AI generated focus keyphrase for SEO..." />
-                    </div>
-                   <div className="space-y-2">
-                        <div className="flex justify-between items-center"><Label>Yoast Meta Description</Label>{renderGenButton('meta_data')}</div>
-                        <Textarea value={getMetaValue('_yoast_wpseo_metadesc') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_metadesc', e.target.value)} rows={3} placeholder="AI generated meta description for SEO..." />
-                    </div>
                 </CardContent>
             </Card>
           </div>
