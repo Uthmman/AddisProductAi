@@ -1,4 +1,6 @@
 
+'use server';
+
 import { ai, generate } from '@/ai/genkit';
 import { z } from 'zod';
 import { generateWooCommerceProductContent } from './generate-woocommerce-product-content';
@@ -94,6 +96,67 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             getAllProductCategories(),
         ]);
 
+        // This is the core logic for optimization. It's extracted so it can be called directly or by the tool.
+        async function performAIOptimization(): Promise<string> {
+            if (!productState.raw_name || !productState.price_etb || !productState.image_srcs || productState.image_srcs.length === 0) {
+                return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
+            }
+            
+            let images_data: string[] = [];
+            // Primary method: Use original data URIs stored in the state.
+            if (productState.original_image_data_uris && Object.keys(productState.original_image_data_uris).length > 0) {
+                 images_data = (productState.image_ids || [])
+                    .map(id => productState.original_image_data_uris?.[id])
+                    .filter(Boolean) as string[];
+            }
+            // Fallback method: If original data is missing (e.g., in an "edit" flow), fetch from the public URLs.
+            if (images_data.length === 0 && productState.image_ids && productState.image_ids.length > 0) {
+                const imagePromises = productState.image_srcs.map(async (url) => {
+                     if (url && url.startsWith('http')) {
+                        try {
+                            return await urlToDataUri(url);
+                        } catch (error) {
+                            console.error(`Failed to convert image URL to data URI: ${url}`, error);
+                            return null;
+                        }
+                    }
+                    return null;
+                });
+                images_data = (await Promise.all(imagePromises)).filter(Boolean) as string[];
+            }
+            if (images_data.length === 0) {
+                return "I can't optimize because there are no valid images for this product. Please try uploading them again.";
+            }
+
+            const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
+            const gscData = await getGscTopQueries();
+
+            const aiContent = await generateWooCommerceProductContent({
+                raw_name: productState.raw_name,
+                price_etb: productState.price_etb,
+                material: productState.material || '',
+                amharic_name: productState.amharic_name || '',
+                focus_keywords: productState.focus_keywords || '',
+                images_data: images_data,
+                availableCategories,
+                settings,
+                primaryCategory,
+                fieldToGenerate: 'all',
+                gscData: gscData ?? undefined,
+            });
+            
+            productState.aiContent = aiContent;
+            
+            const previewText = productState.editProductId 
+              ? "I've generated the AI content. Do you want to save the changes, or save it as a draft?"
+              : "Here's a preview of the product content I generated:\n" +
+                `**Name**: ${aiContent.name || ''}\n` +
+                `**Description**: ${aiContent.short_description || aiContent.description?.substring(0, 100) + '...'}\n\n` +
+                "Do you want me to create the product, or save it as a draft?";
+
+            return previewText;
+        }
+
         const updateProductDetailsTool = ai.defineTool(
             {
                 name: 'updateProductDetailsTool',
@@ -118,72 +181,11 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         const aiOptimizeProductTool = ai.defineTool(
             {
                 name: 'aiOptimizeProductTool',
-                description: 'MUST be called when the user confirms they want to proceed with AI optimization, by responding with messages like "yes", "proceed", "run optimization", or "AI Optimize Now". This tool generates all product fields.',
+                description: 'MUST be called when the user asks to "run AI optimization" or "AI Optimize Now". This tool generates all product fields. Only call this if the name, price, and image are already provided.',
                 inputSchema: z.object({}),
                 outputSchema: z.any(),
             },
-            async () => {
-                if (!productState.raw_name || !productState.price_etb || !productState.image_srcs || productState.image_srcs.length === 0) {
-                    return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
-                }
-                
-                let images_data: string[] = [];
-
-                // Primary method: Use original data URIs stored in the state.
-                if (productState.original_image_data_uris && Object.keys(productState.original_image_data_uris).length > 0) {
-                     images_data = (productState.image_ids || [])
-                        .map(id => productState.original_image_data_uris?.[id])
-                        .filter(Boolean) as string[];
-                }
-
-                // Fallback method: If original data is missing (e.g., in an "edit" flow), fetch from the public URLs.
-                if (images_data.length === 0 && productState.image_ids && productState.image_ids.length > 0) {
-                    const imagePromises = productState.image_srcs.map(async (url) => {
-                         if (url && url.startsWith('http')) {
-                            try {
-                                return await urlToDataUri(url);
-                            } catch (error) {
-                                console.error(`Failed to convert image URL to data URI: ${url}`, error);
-                                return null;
-                            }
-                        }
-                        return null;
-                    });
-                    images_data = (await Promise.all(imagePromises)).filter(Boolean) as string[];
-                }
-
-                if (images_data.length === 0) {
-                    return "I can't optimize because there are no valid images for this product. Please try uploading them again.";
-                }
-
-                const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
-                const gscData = await getGscTopQueries();
-
-                const aiContent = await generateWooCommerceProductContent({
-                    raw_name: productState.raw_name,
-                    price_etb: productState.price_etb,
-                    material: productState.material || '',
-                    amharic_name: productState.amharic_name || '',
-                    focus_keywords: productState.focus_keywords || '',
-                    images_data: images_data,
-                    availableCategories,
-                    settings,
-                    primaryCategory,
-                    fieldToGenerate: 'all',
-                    gscData: gscData ?? undefined,
-                });
-                
-                productState.aiContent = aiContent;
-                
-                const previewText = productState.editProductId 
-                  ? "I've generated the AI content. Do you want to save the changes, or save it as a draft?"
-                  : "Here's a preview of the product content I generated:\n" +
-                    `**Name**: ${aiContent.name || ''}\n` +
-                    `**Description**: ${aiContent.short_description || aiContent.description?.substring(0, 100) + '...'}\n\n` +
-                    "Do you want me to create the product, or save it as a draft?";
-
-                return previewText;
-            }
+            performAIOptimization
         );
         
         const postProductToTelegramTool = ai.defineTool(
@@ -292,7 +294,20 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 }
             }
         );
-
+        
+        // NEW LOGIC: Check for optimization confirmation before calling the main LLM to save an API call.
+        const optimizationConfirmationKeywords = ['yes', 'proceed', 'run optimization', 'ai optimize now', 'optimize'];
+        const isOptimizationConfirmation = newMessage && optimizationConfirmationKeywords.includes(newMessage.toLowerCase().trim());
+        
+        // This is a confirmation only if the bot is expecting it (all data present, but no AI content yet).
+        const isReadyForOptimization = productState.raw_name && productState.price_etb && productState.image_srcs && productState.image_srcs.length > 0 && !productState.aiContent;
+        
+        if (isOptimizationConfirmation && isReadyForOptimization) {
+            const responseText = await performAIOptimization();
+            return { text: responseText, productState };
+        }
+        
+        // The rest of the flow continues if it's not a direct optimization confirmation.
         const systemPrompt = `
     You are an advanced conversational assistant for creating and editing products. Your goal is to guide the user through a clear, efficient, step-by-step process.
 
@@ -340,5 +355,3 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         };
     }
 }
-
-    
