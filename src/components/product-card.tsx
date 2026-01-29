@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -8,6 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { WooProduct } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 
 type ProductCardProps = {
@@ -28,6 +30,9 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
               className="object-cover rounded-t-lg"
               data-ai-hint="product image"
             />
+            {product.status === 'draft' && (
+              <Badge variant="secondary" className="absolute top-2 left-2 z-10">Draft</Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-3 flex-grow">
