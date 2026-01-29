@@ -101,10 +101,10 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     outputSchema: GenerateWooCommerceProductContentOutputSchema,
   },
   async (input) => {
-    // When generating for a single field (not 'images'), only use the first image for context to save tokens.
-    // When generating 'all' or 'images', use all images.
+    // For most generations, use only the first image to save tokens and avoid request size limits.
+    // Only send all images when specifically generating image alt texts.
     const contextInput = { ...input };
-    if (contextInput.fieldToGenerate && contextInput.fieldToGenerate !== 'all' && contextInput.fieldToGenerate !== 'images' && contextInput.images_data.length > 1) {
+    if (contextInput.fieldToGenerate !== 'images' && contextInput.images_data.length > 1) {
         contextInput.images_data = [contextInput.images_data[0]];
     }
 

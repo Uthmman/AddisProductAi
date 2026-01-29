@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWooCommerceProductContent, GenerateWooCommerceProductContentInput } from '@/ai/flows/generate-woocommerce-product-content';
 import { z } from 'zod';
@@ -99,8 +100,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(aiContent);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('AI optimization failed:', error);
-    return NextResponse.json({ message: 'An unexpected error occurred during AI optimization.' }, { status: 500 });
+    return NextResponse.json({ message: error.message || 'An unexpected error occurred during AI optimization.' }, { status: 500 });
   }
 }
