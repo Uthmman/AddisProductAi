@@ -118,6 +118,11 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
       output: { schema: GenerateWooCommerceProductContentOutputSchema },
       tools: [suggestSeoKeywordsTool],
     });
-    return output!;
+
+    if (!output) {
+      throw new Error("The AI model failed to generate a valid response. This may be due to a safety filter or other content restriction.");
+    }
+    
+    return output;
   }
 );

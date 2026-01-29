@@ -31,15 +31,33 @@ export const suggestSeoKeywordsTool = ai.defineTool(
     outputSchema: SuggestSeoKeywordsOutputSchema,
   },
   async (input) => {
-    const prompts = await getPrompts();
-    const promptTemplate = prompts.suggestSeoKeywords;
-    const template = handlebars.compile(promptTemplate);
-    const renderedPrompt = template(input);
-    
-    const { output } = await generate({
-        prompt: renderedPrompt,
-        output: { schema: SuggestSeoKeywordsOutputSchema }
-    });
-    return output!;
+    try {
+        const prompts = await getPrompts();
+        const promptTemplate = prompts.suggestSeoKeywords;
+        const template = handlebars.compile(promptTemplate);
+        const renderedPrompt = template(input);
+        
+        const { output } = await generate({
+            prompt: renderedPrompt,
+            output: { schema: SuggestSeoKeywordsOutputSchema }
+        });
+
+        if (!output) {
+            // If the AI fails, return some sensible defaults instead of crashing.
+            return {
+                focusKeyphrase: input.productName,
+                tags: (input.existingKeywords || "").split(',').map(k => k.trim()).filter(Boolean),
+            };
+        }
+
+        return output;
+    } catch (error: any) {
+        console.error("Error within suggestSeoKeywordsTool:", error);
+        // Fallback in case of an unexpected error during generation
+        return {
+            focusKeyphrase: input.productName,
+            tags: (input.existingKeywords || "").split(',').map(k => k.trim()).filter(Boolean),
+        };
+    }
   }
 );
