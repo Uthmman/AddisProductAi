@@ -33,13 +33,24 @@ const InputSchema = z.object({
 });
 
 async function urlToDataUri(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image from ${url}: ${response.statusText}`);
-  }
-  const blob = await response.blob();
-  const buffer = Buffer.from(await blob.arrayBuffer());
-  return `data:${blob.type};base64,${buffer.toString('base64')}`;
+    // For Google Photos, we need to bypass the redirect to get the actual image
+    if (url.includes('googleusercontent.com')) {
+        const response = await fetch(url, { redirect: 'follow' });
+         if (!response.ok) {
+            throw new Error(`Failed to fetch image from Google Photos URL: ${response.statusText}`);
+        }
+        const blob = await response.blob();
+        const buffer = Buffer.from(await blob.arrayBuffer());
+        return `data:${blob.type};base64,${buffer.toString('base64')}`;
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch image from ${url}: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const buffer = Buffer.from(await blob.arrayBuffer());
+    return `data:${blob.type};base64,${buffer.toString('base64')}`;
 }
 
 
