@@ -40,7 +40,6 @@ interface Message {
   tempId?: string;
   error?: string;
   errorType?: string;
-  retryAfter?: number;
   lastUserMessage?: string;
 }
 
@@ -56,16 +55,8 @@ const getInitialProductState = (): ProductBotState => ({
   images: [],
 });
 
-function RetryAfterButton({ retryAfter, onRetry }: { retryAfter: number, onRetry: () => void }) {
-    const [countdown, setCountdown] = useState(retryAfter);
+function RetryAfterButton({ onRetry }: { onRetry: () => void }) {
     const [isRetrying, setIsRetrying] = useState(false);
-
-    useEffect(() => {
-        if (countdown > 0) {
-            const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-            return () => clearTimeout(timer);
-        }
-    }, [countdown]);
 
     const handleRetryClick = () => {
         setIsRetrying(true);
@@ -74,17 +65,10 @@ function RetryAfterButton({ retryAfter, onRetry }: { retryAfter: number, onRetry
 
     return (
         <div className="mt-2">
-            {countdown > 0 ? (
-                <Button size="sm" variant="outline" disabled>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Retry in {countdown}s
-                </Button>
-            ) : (
-                <Button size="sm" onClick={handleRetryClick} disabled={isRetrying}>
-                    {isRetrying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                    Retry Now
-                </Button>
-            )}
+            <Button size="sm" onClick={handleRetryClick} disabled={isRetrying}>
+                {isRetrying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Retry Now
+            </Button>
         </div>
     );
 }
@@ -219,13 +203,12 @@ export default function TelegramMiniAppPage() {
     }
   }, [messages]);
   
-  const handleBotResponse = (sessionId: string, response: { text: string; productState: ProductBotState; errorType?: string; retryAfter?: number; }, lastUserMessage?: string) => {
+  const handleBotResponse = (sessionId: string, response: { text: string; productState: ProductBotState; errorType?: string; }, lastUserMessage?: string) => {
      const botMessage: Message = { 
         role: 'model', 
         type: 'text', 
         content: response.text,
         errorType: response.errorType,
-        retryAfter: response.retryAfter,
         lastUserMessage: response.errorType === 'rate_limit' ? lastUserMessage : undefined
      };
      setSessions(prevSessions =>
@@ -644,7 +627,6 @@ export default function TelegramMiniAppPage() {
                                           )}
                                            {msg.errorType === 'rate_limit' && msg.lastUserMessage && (
                                                 <RetryAfterButton 
-                                                    retryAfter={msg.retryAfter || 60} 
                                                     onRetry={() => handleRetry(msg.lastUserMessage!, msg)}
                                                 />
                                             )}

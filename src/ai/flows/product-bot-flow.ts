@@ -27,7 +27,6 @@ const ProductBotOutputSchema = z.object({
   productName: z.string().optional(),
   productState: z.custom<ProductBotState>(),
   errorType: z.string().optional(),
-  retryAfter: z.number().optional(),
 });
 export type ProductBotOutput = z.infer<typeof ProductBotOutputSchema>;
 
@@ -103,7 +102,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         // This is the core logic for optimization. It's extracted so it can be called directly or by the tool.
         async function performAIOptimization(currentState: ProductBotState): Promise<string> {
             if (!currentState.raw_name || !currentState.price_etb || !currentState.images || currentState.images.length === 0) {
-                return "I can't optimize yet. I'm still missing the product name, price, or an image. Please provide the missing details.";
+                return "I can't run the AI optimization yet because there are no images uploaded for the product. Please upload images first.";
             }
             
             let images_data: string[] = [];
@@ -295,24 +294,20 @@ ${JSON.stringify({ ...productState, images: `${productState.images?.length || 0}
     } catch (error: any) {
         console.error("Genkit Flow Error:", error);
         if (error.message && error.message.includes('429 Too Many Requests')) {
-            const retryMatch = error.message.match(/Please retry in ([\d.]+)s/);
-            const retrySeconds = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 60;
-            
-            const quotaMatch = error.message.match(/Quota exceeded for metric: ([\w.\/]+), limit: (\d+), model: ([\w-]+)/);
-            let detailedMessage = `The AI is a bit busy right now (Error 429: Too Many Requests). Please wait about ${retrySeconds} seconds.`;
+            const quotaMatch = error.message.match(/Quota exceeded for metric: ([\w.\/]+), limit: (\d+), model: ([\w.-]+)/);
+            let detailedMessage = `The AI service is busy (Error 429: Too Many Requests). Please try again in a moment.`;
 
             if (quotaMatch) {
-                detailedMessage = `The AI service is busy because your current plan exceeded its free tier quota.\n\n`
+                detailedMessage = `The AI service is busy because the free tier quota was exceeded.\n\n`
                                 + `• **Model:** ${quotaMatch[3]}\n`
                                 + `• **Limit:** ${quotaMatch[2]} requests per minute\n\n`
-                                + `This is common during development. Please wait about ${retrySeconds} seconds before retrying.`;
+                                + `This is common during development. Please wait a moment before retrying.`;
             }
 
             return {
                 text: detailedMessage,
                 productState,
                 errorType: 'rate_limit',
-                retryAfter: retrySeconds,
             };
         }
         return { 
