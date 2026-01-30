@@ -297,8 +297,19 @@ ${JSON.stringify({ ...productState, images: `${productState.images?.length || 0}
         if (error.message && error.message.includes('429 Too Many Requests')) {
             const retryMatch = error.message.match(/Please retry in ([\d.]+)s/);
             const retrySeconds = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 60;
+            
+            const quotaMatch = error.message.match(/Quota exceeded for metric: ([\w.\/]+), limit: (\d+), model: ([\w-]+)/);
+            let detailedMessage = `The AI is a bit busy right now (Error 429: Too Many Requests). Please wait about ${retrySeconds} seconds.`;
+
+            if (quotaMatch) {
+                detailedMessage = `The AI service is busy because your current plan exceeded its free tier quota.\n\n`
+                                + `• **Model:** ${quotaMatch[3]}\n`
+                                + `• **Limit:** ${quotaMatch[2]} requests per minute\n\n`
+                                + `This is common during development. Please wait about ${retrySeconds} seconds before retrying.`;
+            }
+
             return {
-                text: `The AI is a bit busy right now. Please wait about ${retrySeconds} seconds.`,
+                text: detailedMessage,
                 productState,
                 errorType: 'rate_limit',
                 retryAfter: retrySeconds,
