@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -127,7 +128,7 @@ function GeneralSettings() {
 
   return (
      <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-24 md:pb-8">
         <Card>
           <CardHeader>
             <CardTitle>Business Information</CardTitle>
@@ -181,10 +182,10 @@ function GeneralSettings() {
             )} />
           </CardContent>
         </Card>
-        <div className="flex justify-end">
-            <Button type="submit" disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save General Settings
+        <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 p-4 backdrop-blur-sm md:static md:mt-8 md:flex md:justify-end md:gap-4 md:border-none md:bg-transparent md:p-0">
+            <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save General Settings
             </Button>
         </div>
       </form>
@@ -329,7 +330,7 @@ function WatermarkSettings() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-24 md:pb-8">
         <Card>
             <CardHeader>
               <CardTitle>Watermark Settings</CardTitle>
@@ -467,10 +468,10 @@ function WatermarkSettings() {
               )}
             </CardContent>
         </Card>
-        <div className="flex justify-end">
-            <Button type="submit" disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Watermark Settings
+        <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 p-4 backdrop-blur-sm md:static md:mt-8 md:flex md:justify-end md:gap-4 md:border-none md:bg-transparent md:p-0">
+            <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Watermark Settings
             </Button>
         </div>
       </form>
@@ -611,7 +612,7 @@ function PromptSettings() {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-24 md:pb-8">
             <Card>
                 <CardHeader>
                 <CardTitle>AI Prompt Templates</CardTitle>
@@ -681,10 +682,10 @@ function PromptSettings() {
                 </Accordion>
                 </CardContent>
             </Card>
-            <div className="flex justify-end">
-                <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Prompts
+            <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 p-4 backdrop-blur-sm md:static md:mt-8 md:flex md:justify-end md:gap-4 md:border-none md:bg-transparent md:p-0">
+                <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto">
+                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Prompts
                 </Button>
             </div>
         </div>
