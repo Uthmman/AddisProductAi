@@ -1,3 +1,4 @@
+'use server';
 
 /**
  * @fileOverview This file defines a Genkit flow to generate WooCommerce product content optimized for the Addis Ababa market.
@@ -100,10 +101,13 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     outputSchema: GenerateWooCommerceProductContentOutputSchema,
   },
   async (input) => {
-    // For most generations, use only the first image to save tokens and avoid request size limits.
-    // Only send all images when specifically generating image alt texts.
+    // For token optimization, only send all images when generating image alt texts or the full product content.
+    // For other single-field generations, one image is usually sufficient context.
     const contextInput = { ...input };
-    if (contextInput.fieldToGenerate !== 'images' && contextInput.images_data.length > 1) {
+    const isGeneratingAllContent = !contextInput.fieldToGenerate || contextInput.fieldToGenerate === 'all';
+    const isGeneratingImageAlts = contextInput.fieldToGenerate === 'images';
+
+    if (!isGeneratingAllContent && !isGeneratingImageAlts && contextInput.images_data.length > 1) {
         contextInput.images_data = [contextInput.images_data[0]];
     }
 
