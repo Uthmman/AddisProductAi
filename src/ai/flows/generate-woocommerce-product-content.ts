@@ -101,19 +101,16 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     outputSchema: GenerateWooCommerceProductContentOutputSchema,
   },
   async (input) => {
-    // For token optimization, only send all images when generating image alt texts or the full product content.
-    // For other single-field generations, one image is usually sufficient context.
-    const contextInput = { ...input };
-    const isGeneratingAllContent = !contextInput.fieldToGenerate || contextInput.fieldToGenerate === 'all';
-    const isGeneratingImageAlts = contextInput.fieldToGenerate === 'images';
-
-    if (!isGeneratingAllContent && !isGeneratingImageAlts && contextInput.images_data.length > 1) {
+    // Pass the total image count to the prompt for alt text generation,
+    // but only send the first image to the AI to save tokens.
+    const contextInput = { ...input, totalImageCount: input.images_data.length };
+    if (contextInput.images_data.length > 1) {
         contextInput.images_data = [contextInput.images_data[0]];
     }
 
     // If the request is to generate 'all' fields, we treat it as if no specific field was requested.
     // This forces Handlebars to use the 'else' block in the prompt, which contains the
-    // comprehensive instruction for generating all fields, avoiding AI confusion.
+    // comprehensive instruction for generating all fields.
     if (contextInput.fieldToGenerate === 'all') {
       contextInput.fieldToGenerate = undefined;
     }
