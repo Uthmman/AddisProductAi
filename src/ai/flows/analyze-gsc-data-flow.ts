@@ -9,6 +9,11 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import * as handlebars from 'handlebars';
+
+handlebars.registerHelper('json', function(context) {
+    return JSON.stringify(context, null, 2);
+});
 
 export const GscAnalysisInputSchema = z.object({
   gscData: z.array(z.object({}).passthrough()).describe('An array of top search queries from Google Search Console.'),
