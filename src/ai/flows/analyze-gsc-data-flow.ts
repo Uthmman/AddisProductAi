@@ -1,8 +1,14 @@
 'use server';
+/**
+ * @fileOverview An AI flow to analyze Google Search Console data.
+ *
+ * - analyzeGscDataFlow - A function that takes GSC data and returns an AI-powered analysis.
+ * - GscAnalysisInput - The input type for the analysis flow.
+ * - GscAnalysisOutput - The return type for the analysis flow.
+ */
 
-import { ai, generate } from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import * as handlebars from 'handlebars';
 
 export const GscAnalysisInputSchema = z.object({
   gscData: z.array(z.object({}).passthrough()).describe('An array of top search queries from Google Search Console.'),
@@ -17,8 +23,17 @@ export const GscAnalysisOutputSchema = z.object({
 });
 export type GscAnalysisOutput = z.infer<typeof GscAnalysisOutputSchema>;
 
-const promptTemplate = `
-You are an expert SEO analyst and e-commerce strategist for a furniture company in Addis Ababa, Ethiopia.
+
+export async function analyzeGscDataFlow(input: GscAnalysisInput): Promise<GscAnalysisOutput> {
+    return analysisFlow(input);
+}
+
+
+const analysisPrompt = ai.definePrompt({
+    name: 'gscAnalysisPrompt',
+    input: { schema: GscAnalysisInputSchema },
+    output: { schema: GscAnalysisOutputSchema },
+    prompt: `You are an expert SEO analyst and e-commerce strategist for a furniture company in Addis Ababa, Ethiopia.
 Your task is to analyze raw data from Google Search Console and distill it into actionable business intelligence.
 
 Based on the provided user query data (clicks, impressions, position), generate a concise analysis that includes:
@@ -31,19 +46,18 @@ The output must be a valid JSON object matching the defined schema.
 
 Raw GSC Data:
 {{{json gscData}}}
-`;
-
-handlebars.registerHelper('json', function(context) {
-    return JSON.stringify(context, null, 2);
+`,
 });
 
-export async function analyzeGscDataFlow(input: GscAnalysisInput): Promise<GscAnalysisOutput> {
-  const template = handlebars.compile(promptTemplate);
-  const renderedPrompt = template(input);
 
-  const { output } = await generate({
-    prompt: renderedPrompt,
-    output: { schema: GscAnalysisOutputSchema },
-  });
-  return output!;
-}
+const analysisFlow = ai.defineFlow(
+    {
+        name: 'gscAnalysisFlow',
+        inputSchema: GscAnalysisInputSchema,
+        outputSchema: GscAnalysisOutputSchema,
+    },
+    async (input) => {
+        const { output } = await analysisPrompt(input);
+        return output!;
+    }
+);
