@@ -107,6 +107,13 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
         contextInput.images_data = [contextInput.images_data[0]];
     }
 
+    // If the request is to generate 'all' fields, we treat it as if no specific field was requested.
+    // This forces Handlebars to use the 'else' block in the prompt, which contains the
+    // comprehensive instruction for generating all fields, avoiding AI confusion.
+    if (contextInput.fieldToGenerate === 'all') {
+      contextInput.fieldToGenerate = undefined;
+    }
+
     const prompts = await getPrompts();
     const promptTemplate = prompts.generateWooCommerceProductContent;
     const template = handlebars.compile(promptTemplate);
