@@ -15,10 +15,6 @@ import { getPrompts } from '@/lib/prompts-api';
 import * as handlebars from 'handlebars';
 import { getGscAnalysis } from '@/lib/gsc-analysis-api';
 
-handlebars.registerHelper('json', function(context) {
-    return JSON.stringify(context, null, 2);
-});
-
 // Define the input schema for the flow
 const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The main topic or title for the blog post.'),
@@ -55,7 +51,14 @@ const generateBlogPostFlow = ai.defineFlow(
     
     const promptTemplate = prompts.generateBlogPost;
     const template = handlebars.compile(promptTemplate);
-    const renderedPrompt = template({ ...input, gscAnalysis });
+
+    const gscAnalysisString = gscAnalysis.summary ? JSON.stringify(gscAnalysis, null, 2) : '';
+    const promptData = { 
+        ...input, 
+        gscAnalysis: gscAnalysis.summary ? { ...gscAnalysis, asString: gscAnalysisString } : null 
+    };
+    
+    const renderedPrompt = template(promptData);
     
     const { output } = await generate({
       prompt: renderedPrompt,

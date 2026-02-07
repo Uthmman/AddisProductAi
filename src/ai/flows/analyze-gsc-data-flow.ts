@@ -9,16 +9,15 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import * as handlebars from 'handlebars';
-
-handlebars.registerHelper('json', function(context) {
-    return JSON.stringify(context, null, 2);
-});
 
 export const GscAnalysisInputSchema = z.object({
   gscData: z.array(z.object({}).passthrough()).describe('An array of top search queries from Google Search Console.'),
 });
 export type GscAnalysisInput = z.infer<typeof GscAnalysisInputSchema>;
+
+const PromptInputSchema = z.object({
+    gscDataString: z.string().describe('A JSON string of top search queries from Google Search Console.'),
+});
 
 export const GscAnalysisOutputSchema = z.object({
   summary: z.string().describe("A high-level summary of the search performance, noting any major trends or user interests."),
@@ -36,7 +35,7 @@ export async function analyzeGscDataFlow(input: GscAnalysisInput): Promise<GscAn
 
 const analysisPrompt = ai.definePrompt({
     name: 'gscAnalysisPrompt',
-    input: { schema: GscAnalysisInputSchema },
+    input: { schema: PromptInputSchema },
     output: { schema: GscAnalysisOutputSchema },
     prompt: `You are an expert SEO analyst and e-commerce strategist for a furniture company in Addis Ababa, Ethiopia.
 Your task is to analyze raw data from Google Search Console and distill it into actionable business intelligence.
@@ -50,7 +49,7 @@ Based on the provided user query data (clicks, impressions, position), generate 
 The output must be a valid JSON object matching the defined schema.
 
 Raw GSC Data:
-{{{json gscData}}}
+{{{gscDataString}}}
 `,
 });
 
@@ -62,7 +61,8 @@ const analysisFlow = ai.defineFlow(
         outputSchema: GscAnalysisOutputSchema,
     },
     async (input) => {
-        const { output } = await analysisPrompt(input);
+        const gscDataString = JSON.stringify(input.gscData, null, 2);
+        const { output } = await analysisPrompt({ gscDataString });
         return output!;
     }
 );

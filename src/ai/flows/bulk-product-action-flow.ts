@@ -4,10 +4,6 @@ import * as wooCommerceApi from '@/lib/woocommerce-api';
 import { getPrompts } from '@/lib/prompts-api';
 import * as handlebars from 'handlebars';
 
-handlebars.registerHelper('json', function(context) {
-    return JSON.stringify(context, null, 2);
-});
-
 const ActionPlanSchema = z.object({
   categorySlug: z.string().describe("The slug of the category to target. Use 'all' for all products."),
   action: z.enum(['set_sale', 'add_tags', 'remove_sale']).describe('The action to perform.'),
@@ -21,7 +17,9 @@ export async function bulkProductActionFlow(request: string) {
   const prompts = await getPrompts();
   const promptTemplate = prompts.bulkProductAction;
   const template = handlebars.compile(promptTemplate);
-  const renderedPrompt = template({ request, categories: allCategories });
+  
+  const categoriesString = JSON.stringify(allCategories, null, 2);
+  const renderedPrompt = template({ request, categoriesString });
 
   const { output: plan } = await generate({
     prompt: renderedPrompt,

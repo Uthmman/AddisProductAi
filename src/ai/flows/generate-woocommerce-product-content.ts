@@ -18,10 +18,6 @@ import { getPrompts } from '@/lib/prompts-api';
 import * as handlebars from 'handlebars';
 import { getGscAnalysis } from '@/lib/gsc-analysis-api';
 
-handlebars.registerHelper('json', function(context) {
-    return JSON.stringify(context, null, 2);
-});
-
 // Define the input schema for the flow
 const GenerateWooCommerceProductContentInputSchema = z.object({
   raw_name: z.string().describe('The raw product name provided by the user.'),
@@ -108,7 +104,7 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     
     // Pass the total image count to the prompt for alt text generation,
     // but only send the first image to the AI to save tokens.
-    const contextInput: any = { ...input, totalImageCount: input.images_data.length, gscAnalysis };
+    const contextInput: any = { ...input, totalImageCount: input.images_data.length };
     if (contextInput.images_data.length > 1) {
         contextInput.images_data = [contextInput.images_data[0]];
     }
@@ -122,7 +118,19 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     
     const promptTemplate = prompts.generateWooCommerceProductContent;
     const template = handlebars.compile(promptTemplate);
-    const renderedPrompt = template(contextInput);
+    
+    const gscAnalysisString = gscAnalysis.summary ? JSON.stringify(gscAnalysis, null, 2) : '';
+    const availableCategoriesString = JSON.stringify(input.availableCategories, null, 2);
+    const existingContentString = input.existingContent ? JSON.stringify(input.existingContent, null, 2) : '';
+
+    const promptData = {
+      ...contextInput,
+      gscAnalysis: gscAnalysis.summary ? { ...gscAnalysis, asString: gscAnalysisString } : null,
+      availableCategoriesString,
+      existingContentString,
+    };
+    
+    const renderedPrompt = template(promptData);
     
     const {output} = await generate({
       prompt: renderedPrompt,

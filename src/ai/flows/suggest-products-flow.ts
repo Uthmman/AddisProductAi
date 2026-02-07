@@ -4,10 +4,6 @@ import { getPrompts } from '@/lib/prompts-api';
 import * as handlebars from 'handlebars';
 import { getGscAnalysis } from '@/lib/gsc-analysis-api';
 
-handlebars.registerHelper('json', function(context) {
-    return JSON.stringify(context, null, 2);
-});
-
 const SuggestProductsInputSchema = z.object({});
 
 const SuggestProductsOutputSchema = z.object({
@@ -28,7 +24,8 @@ export async function suggestProductsFlow(
 
     const promptTemplate = prompts.suggestProducts;
     const template = handlebars.compile(promptTemplate);
-    const renderedPrompt = template({ gscAnalysis });
+    const gscAnalysisString = JSON.stringify(gscAnalysis, null, 2);
+    const renderedPrompt = template({ gscAnalysisString });
     
     const { output } = await generate({
       prompt: renderedPrompt,
