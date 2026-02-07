@@ -13,6 +13,7 @@ import { ai, generate } from '@/ai/genkit';
 import { z } from 'genkit';
 import { getPrompts } from '@/lib/prompts-api';
 import * as handlebars from 'handlebars';
+import { getGscAnalysis } from '@/lib/gsc-analysis-api';
 
 handlebars.registerHelper('json', function(context) {
     return JSON.stringify(context, null, 2);
@@ -21,7 +22,6 @@ handlebars.registerHelper('json', function(context) {
 // Define the input schema for the flow
 const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The main topic or title for the blog post.'),
-  gscData: z.array(z.object({}).passthrough()).optional().describe('An array of top search queries from Google Search Console.'),
   settings: z.any().optional(),
 });
 export type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
@@ -48,10 +48,14 @@ const generateBlogPostFlow = ai.defineFlow(
     outputSchema: GenerateBlogPostOutputSchema,
   },
   async (input) => {
-    const prompts = await getPrompts();
+    const [prompts, gscAnalysis] = await Promise.all([
+        getPrompts(),
+        getGscAnalysis()
+    ]);
+    
     const promptTemplate = prompts.generateBlogPost;
     const template = handlebars.compile(promptTemplate);
-    const renderedPrompt = template(input);
+    const renderedPrompt = template({ ...input, gscAnalysis });
     
     const { output } = await generate({
       prompt: renderedPrompt,

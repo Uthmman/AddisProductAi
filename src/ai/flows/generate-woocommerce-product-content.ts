@@ -16,6 +16,7 @@ import {ai, generate} from '@/ai/genkit';
 import {z} from 'genkit';
 import { getPrompts } from '@/lib/prompts-api';
 import * as handlebars from 'handlebars';
+import { getGscAnalysis } from '@/lib/gsc-analysis-api';
 
 handlebars.registerHelper('json', function(context) {
     return JSON.stringify(context, null, 2);
@@ -60,7 +61,6 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
       name: z.string(),
       slug: z.string(),
   }).optional().describe('The primary category of the product, used for creating inbound links.'),
-  gscData: z.array(z.object({}).passthrough()).optional().describe('An array of top search queries from Google Search Console.'),
 });
 export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooCommerceProductContentInputSchema>;
 
@@ -101,9 +101,14 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     outputSchema: GenerateWooCommerceProductContentOutputSchema,
   },
   async (input) => {
+    const [prompts, gscAnalysis] = await Promise.all([
+        getPrompts(),
+        getGscAnalysis()
+    ]);
+    
     // Pass the total image count to the prompt for alt text generation,
     // but only send the first image to the AI to save tokens.
-    const contextInput = { ...input, totalImageCount: input.images_data.length };
+    const contextInput: any = { ...input, totalImageCount: input.images_data.length, gscAnalysis };
     if (contextInput.images_data.length > 1) {
         contextInput.images_data = [contextInput.images_data[0]];
     }
@@ -114,8 +119,7 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     if (contextInput.fieldToGenerate === 'all') {
       contextInput.fieldToGenerate = undefined;
     }
-
-    const prompts = await getPrompts();
+    
     const promptTemplate = prompts.generateWooCommerceProductContent;
     const template = handlebars.compile(promptTemplate);
     const renderedPrompt = template(contextInput);

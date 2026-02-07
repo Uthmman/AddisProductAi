@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { suggestBlogTopicsFlow } from '@/ai/flows/suggest-blog-topics-flow';
-import { getGscTopQueries } from '@/lib/gsc-api';
+import { getGscAnalysis } from '@/lib/gsc-analysis-api';
 
 export async function GET(request: NextRequest) {
   try {
-    const gscData = await getGscTopQueries();
+    const gscAnalysis = await getGscAnalysis();
     
-    // If GSC isn't configured or returns no data, return empty topics.
-    if (gscData === null || gscData.length === 0) {
-      return NextResponse.json({ topics: [] });
+    // If GSC analysis isn't created yet, return an error.
+    if (!gscAnalysis || !gscAnalysis.summary) {
+      return NextResponse.json({ message: "Search Console data has not been analyzed yet. Please run the analysis on the Content > Search Insights page first." }, { status: 400 });
     }
     
-    const suggestions = await suggestBlogTopicsFlow({ gscData });
+    const suggestions = await suggestBlogTopicsFlow({});
 
     return NextResponse.json(suggestions);
 

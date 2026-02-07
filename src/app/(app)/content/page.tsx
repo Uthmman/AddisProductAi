@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send, Share2, Bot as BotIcon, PanelLeft, FileText, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send, Share2, Bot as BotIcon, PanelLeft, FileText, Check, ChevronsUpDown, BrainCircuit } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WooProduct } from '@/lib/types';
@@ -29,6 +29,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from 
 import { cn } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import type { GscAnalysisOutput } from '@/ai/flows/analyze-gsc-data-flow';
 
 
 const PostGeneratorSchema = z.object({
@@ -674,10 +675,13 @@ function SearchInsights() {
     const [isLoading, setIsLoading] = useState(true);
     const [queries, setQueries] = useState<SearchQuery[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const [dateRange, setDateRange] = useState('30');
+    const [dateRange, setDateRange] = useState('7');
+    const [analysis, setAnalysis] = useState<GscAnalysisOutput | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     useEffect(() => {
-        async function fetchSearchData() {
+        async function fetchData() {
+            // Fetch raw query data
             setIsLoading(true);
             setError(null);
             try {
@@ -697,9 +701,50 @@ function SearchInsights() {
             } finally {
                 setIsLoading(false);
             }
+
+            // Fetch existing analysis
+            try {
+                const analysisRes = await fetch('/api/search-console/analyze');
+                if (analysisRes.ok) {
+                    const data = await analysisRes.json();
+                    if(data.summary) { // check if analysis exists
+                        setAnalysis(data);
+                    }
+                }
+            } catch (err) {
+                console.error("Could not load existing GSC analysis", err);
+            }
         }
-        fetchSearchData();
+        fetchData();
     }, [toast, dateRange]);
+
+    const handleAnalyze = async () => {
+        setIsAnalyzing(true);
+        try {
+            const res = await fetch('/api/search-console/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ days: parseInt(dateRange, 10) })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.message || 'Failed to analyze data.');
+            }
+            setAnalysis(data);
+            toast({
+                title: 'Analysis Complete',
+                description: 'The search data has been analyzed and saved.',
+            });
+        } catch (err: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Analysis Failed',
+                description: err.message,
+            });
+        } finally {
+            setIsAnalyzing(false);
+        }
+    }
 
     return (
         <Card>
@@ -712,16 +757,22 @@ function SearchInsights() {
                         </CardTitle>
                         <CardDescription>Top search queries from Google Search Console.</CardDescription>
                     </div>
-                     <Select value={dateRange} onValueChange={setDateRange}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Select date range" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="7">Last 7 Days</SelectItem>
-                            <SelectItem value="30">Last 30 Days</SelectItem>
-                            <SelectItem value="90">Last 90 Days</SelectItem>
-                        </SelectContent>
-                    </Select>
+                     <div className="flex flex-col sm:flex-row gap-2">
+                         <Select value={dateRange} onValueChange={setDateRange}>
+                            <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectValue placeholder="Select date range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="7">Last 7 Days</SelectItem>
+                                <SelectItem value="30">Last 30 Days</SelectItem>
+                                <SelectItem value="90">Last 90 Days</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button onClick={handleAnalyze} disabled={isAnalyzing || isLoading}>
+                            {isAnalyzing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <BrainCircuit className="mr-2 h-4 w-4"/>}
+                            Analyze Data
+                        </Button>
+                     </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -758,6 +809,36 @@ function SearchInsights() {
                                 )}
                             </TableBody>
                         </Table>
+                    </div>
+                )}
+
+                {(isAnalyzing || analysis) && <Separator className="my-6"/>}
+
+                {isAnalyzing && (
+                     <div className="space-y-4">
+                        <Skeleton className="h-6 w-1/4" />
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-6 w-1/3 mt-4" />
+                        <Skeleton className="h-24 w-full" />
+                    </div>
+                )}
+
+                {analysis && !isAnalyzing && (
+                    <div className="space-y-6">
+                        <h3 className="text-lg font-semibold font-headline">AI Analysis Summary</h3>
+                        <div className="space-y-4 text-sm">
+                            <p className="text-muted-foreground">{analysis.summary}</p>
+                            
+                            <h4 className="font-semibold">Key Insights:</h4>
+                            <ul className="list-disc pl-5 space-y-1">
+                                {analysis.keyInsights.map((insight, i) => <li key={i}>{insight}</li>)}
+                            </ul>
+
+                            <h4 className="font-semibold">Content Opportunities:</h4>
+                            <ul className="list-disc pl-5 space-y-1">
+                                {analysis.contentOpportunities.map((opp, i) => <li key={i}>{opp}</li>)}
+                            </ul>
+                        </div>
                     </div>
                 )}
             </CardContent>

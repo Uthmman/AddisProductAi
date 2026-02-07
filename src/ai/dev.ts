@@ -9,3 +9,4 @@ import '@/ai/flows/generate-tag-seo-flow.ts';
 import '@/ai/flows/bulk-generate-tag-seo-flow.ts';
 import '@/ai/flows/bulk-generate-seo-for-specific-tags-flow.ts';
 import '@/ai/flows/modify-prompt-flow.ts';
+import '@/ai/flows/analyze-gsc-data-flow.ts';

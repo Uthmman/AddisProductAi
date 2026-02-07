@@ -2,14 +2,13 @@ import { ai, generate } from '@/ai/genkit';
 import { z } from 'genkit';
 import { getPrompts } from '@/lib/prompts-api';
 import * as handlebars from 'handlebars';
+import { getGscAnalysis } from '@/lib/gsc-analysis-api';
 
 handlebars.registerHelper('json', function(context) {
     return JSON.stringify(context, null, 2);
 });
 
-const SuggestProductsInputSchema = z.object({
-  gscData: z.array(z.object({}).passthrough()).optional().describe('An array of top search queries from Google Search Console.'),
-});
+const SuggestProductsInputSchema = z.object({});
 
 const SuggestProductsOutputSchema = z.object({
   suggestions: z.array(z.object({
@@ -22,10 +21,14 @@ export type SuggestProductsOutput = z.infer<typeof SuggestProductsOutputSchema>;
 export async function suggestProductsFlow(
   input: z.infer<typeof SuggestProductsInputSchema>
 ): Promise<SuggestProductsOutput> {
-    const prompts = await getPrompts();
+    const [prompts, gscAnalysis] = await Promise.all([
+        getPrompts(),
+        getGscAnalysis()
+    ]);
+
     const promptTemplate = prompts.suggestProducts;
     const template = handlebars.compile(promptTemplate);
-    const renderedPrompt = template(input);
+    const renderedPrompt = template({ gscAnalysis });
     
     const { output } = await generate({
       prompt: renderedPrompt,

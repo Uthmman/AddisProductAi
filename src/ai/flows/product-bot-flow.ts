@@ -129,8 +129,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             }
 
             const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
-            const gscData = await getGscTopQueries();
-
+            
             const aiContent = await generateWooCommerceProductContent({
                 raw_name: currentState.raw_name,
                 price_etb: currentState.price_etb,
@@ -142,7 +141,6 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 settings,
                 primaryCategory,
                 fieldToGenerate: 'all',
-                gscData: gscData ?? undefined,
             });
             
             // This modifies the productState in the outer scope, which will be returned by the flow.
