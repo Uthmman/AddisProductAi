@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { generateWooCommerceProductContent, GenerateWooCommerceProductContentInput } from '@/ai/flows/generate-woocommerce-product-content';
+import { generateWooCommerceProductContent } from '@/ai/flows/generate-woocommerce-product-content';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +30,7 @@ const InputSchema = z.object({
   existingContent: z.any().optional(),
   settings: z.any().optional(),
   primaryCategory: z.any().optional(),
+  totalImageCount: z.number(),
 });
 
 async function urlToDataUri(url: string): Promise<string> {
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Could not process any of the product images." }, { status: 400 });
     }
 
-    const aiInput: GenerateWooCommerceProductContentInput = {
+    const aiInput = {
         ...inputData,
         images_data: validImagesData,
     };

@@ -8,7 +8,6 @@
  * It can also leverage Google Search Console data for more effective keyword strategies.
  *
  * - generateWooCommerceProductContent - The main function that triggers the content generation flow.
- * - GenerateWooCommerceProductContentInput - The input type for the function.
  * - GenerateWooCommerceProductContentOutput - The output type for the function.
  */
 
@@ -28,6 +27,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
   images_data: z.array(z.string()).describe(
     "The product images as an array of data URIs that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
   ),
+  totalImageCount: z.number().describe('The total number of images for which alt text should be generated.'),
   availableCategories: z.array(z.object({id: z.number(), name: z.string(), slug: z.string()})).describe('List of available categories the AI can choose from.'),
   fieldToGenerate: z.enum([
       'all',
@@ -105,7 +105,7 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
     // Pass the total image count to the prompt for alt text generation,
     // but only send the first image to the AI to save tokens.
     const contextInput: any = { ...input, totalImageCount: input.images_data.length };
-    if (contextInput.images_data.length > 1) {
+    if (contextInput.images_data.length > 0) {
         contextInput.images_data = [contextInput.images_data[0]];
     }
 

@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(emptyAnalysis);
     }
 
-    const analysisResult = await analyzeGscDataFlow({ gscData });
+    const analysisResult = await analyzeGscDataFlow(gscData);
 
     await saveGscAnalysis(analysisResult);
 

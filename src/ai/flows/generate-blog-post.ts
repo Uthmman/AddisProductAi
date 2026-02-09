@@ -5,9 +5,9 @@
  * optimized for SEO and engagement in the Addis Ababa, Ethiopia market.
  *
  * - generateBlogPost - The main function that triggers the content generation flow.
- * - GenerateBlogPostInput - The input type for the function.
  * - GenerateBlogPostOutput - The output type for the function.
  */
+'use server';
 
 import { ai, generate } from '@/ai/genkit';
 import { z } from 'zod';
@@ -20,7 +20,7 @@ const GenerateBlogPostInputSchema = z.object({
   topic: z.string().describe('The main topic or title for the blog post.'),
   settings: z.any().optional(),
 });
-export type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
+type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
 
 // Define the output schema for the flow
 const GenerateBlogPostOutputSchema = z.object({
@@ -32,7 +32,7 @@ export type GenerateBlogPostOutput = z.infer<typeof GenerateBlogPostOutputSchema
 
 // Exported function to trigger the flow
 export async function generateBlogPost(
-  input: GenerateBlogPostInput
+  input: { topic: string, settings?: any }
 ): Promise<GenerateBlogPostOutput> {
   return generateBlogPostFlow(input);
 }

@@ -1,21 +1,24 @@
 
+'use server';
+
 import { z } from 'zod';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 import { generateTagSeoFlow } from './generate-tag-seo-flow';
 import { WooTag } from '@/lib/types';
 import { getSettings } from '@/lib/settings-api';
 
-export const BulkGenerateSeoForSpecificTagsInputSchema = z.object({
+const BulkGenerateSeoForSpecificTagsInputSchema = z.object({
   tagNames: z.array(z.string()).describe("The names of the tags to optimize."),
 });
-export type BulkGenerateSeoForSpecificTagsInput = z.infer<typeof BulkGenerateSeoForSpecificTagsInputSchema>;
+type BulkGenerateSeoForSpecificTagsInput = z.infer<typeof BulkGenerateSeoForSpecificTagsInputSchema>;
 
 const BulkGenerateSeoForSpecificTagsOutputSchema = z.object({
   message: z.string().describe("A summary of the actions taken."),
   updatedCount: z.number().describe("The number of tags that were updated."),
 });
+type BulkGenerateSeoForSpecificTagsOutput = z.infer<typeof BulkGenerateSeoForSpecificTagsOutputSchema>;
 
-export async function bulkGenerateSeoForSpecificTagsFlow(input: BulkGenerateSeoForSpecificTagsInput): Promise<z.infer<typeof BulkGenerateSeoForSpecificTagsOutputSchema>> {
+export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: string[]}): Promise<BulkGenerateSeoForSpecificTagsOutput> {
     console.log(`Starting bulk SEO generation for ${input.tagNames.length} specific tags...`);
 
     if (input.tagNames.length === 0) {

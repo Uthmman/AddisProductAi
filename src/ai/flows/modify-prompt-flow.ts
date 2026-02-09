@@ -1,12 +1,14 @@
+'use server';
+
 import { ai, generate } from '@/ai/genkit';
 import { z } from 'zod';
 
-export const ModifyPromptInputSchema = z.object({
+const ModifyPromptInputSchema = z.object({
   request: z.string().describe("The user's request for how to modify the prompt."),
   originalPrompt: z.string().describe("The original prompt template content."),
   promptKey: z.string().describe("The key or name of the prompt being modified, for context."),
 });
-export type ModifyPromptInput = z.infer<typeof ModifyPromptInputSchema>;
+type ModifyPromptInput = z.infer<typeof ModifyPromptInputSchema>;
 
 const ModifyPromptOutputSchema = z.object({
   modifiedPrompt: z.string().describe("The updated prompt template content."),

@@ -3,17 +3,16 @@
  * @fileOverview An AI flow to analyze Google Search Console data.
  *
  * - analyzeGscDataFlow - A function that takes GSC data and returns an AI-powered analysis.
- * - GscAnalysisInput - The input type for the analysis flow.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import type { GscAnalysisOutput } from '@/lib/types';
 
-export const GscAnalysisInputSchema = z.object({
+const GscAnalysisInputSchema = z.object({
   gscData: z.array(z.object({}).passthrough()).describe('An array of top search queries from Google Search Console.'),
 });
-export type GscAnalysisInput = z.infer<typeof GscAnalysisInputSchema>;
+type GscAnalysisInput = z.infer<typeof GscAnalysisInputSchema>;
 
 const PromptInputSchema = z.object({
     gscDataString: z.string().describe('A JSON string of top search queries from Google Search Console.'),
@@ -27,8 +26,8 @@ const GscAnalysisOutputSchema = z.object({
 });
 
 
-export async function analyzeGscDataFlow(input: GscAnalysisInput): Promise<GscAnalysisOutput> {
-    return analysisFlow(input);
+export async function analyzeGscDataFlow(gscData: any[]): Promise<GscAnalysisOutput> {
+    return analysisFlow({ gscData });
 }
 
 

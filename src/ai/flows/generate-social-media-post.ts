@@ -6,9 +6,9 @@
  * then generates compelling post content tailored to that platform.
  *
  * - generateSocialMediaPost - The main function that triggers the flow.
- * - GenerateSocialMediaPostInput - The input type.
  * - GenerateSocialMediaPostOutput - The output type.
  */
+'use server';
 
 import { ai, generate } from '@/ai/genkit';
 import { z } from 'zod';
@@ -28,7 +28,7 @@ const GenerateSocialMediaPostInputSchema = z.object({
   tone: z.enum(['descriptive', 'playful']).describe('The desired tone for the post.'),
   showPrice: z.boolean().optional().describe('Whether to show the price in the post. If false, the price line is omitted entirely. Defaults to false.'),
 });
-export type GenerateSocialMediaPostInput = z.infer<typeof GenerateSocialMediaPostInputSchema>;
+type GenerateSocialMediaPostInput = z.infer<typeof GenerateSocialMediaPostInputSchema>;
 
 // Define the output schema for the flow
 const GenerateSocialMediaPostOutputSchema = z.object({

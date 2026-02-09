@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { modifyPromptFlow, ModifyPromptInputSchema } from '@/ai/flows/modify-prompt-flow';
+import { modifyPromptFlow } from '@/ai/flows/modify-prompt-flow';
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
+
+const ModifyPromptInputSchema = z.object({
+  request: z.string(),
+  originalPrompt: z.string(),
+  promptKey: z.string(),
+});
 
 export async function POST(request: NextRequest) {
   try {

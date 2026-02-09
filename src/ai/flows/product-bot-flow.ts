@@ -20,7 +20,7 @@ const ProductBotInputSchema = z.object({
   productState: z.custom<ProductBotState>(),
   editProductId: z.string().optional(),
 });
-export type ProductBotInput = z.infer<typeof ProductBotInputSchema>;
+type ProductBotInput = z.infer<typeof ProductBotInputSchema>;
 
 const ProductBotOutputSchema = z.object({
   text: z.string(),
@@ -141,6 +141,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 settings,
                 primaryCategory,
                 fieldToGenerate: 'all',
+                totalImageCount: images_data.length,
             });
             
             // This modifies the productState in the outer scope, which will be returned by the flow.
@@ -220,6 +221,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                         topic,
                         tone,
                         settings,
+                        showPrice: true,
                     });
 
                     const imageUrls = product.images.map(img => img.src);
