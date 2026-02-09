@@ -8,7 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 export const GscAnalysisInputSchema = z.object({
   gscData: z.array(z.object({}).passthrough()).describe('An array of top search queries from Google Search Console.'),

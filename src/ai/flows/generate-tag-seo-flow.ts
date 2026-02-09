@@ -1,6 +1,6 @@
 
 import { ai, generate } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { getPrompts } from '@/lib/prompts-api';
 import * as handlebars from 'handlebars';
 

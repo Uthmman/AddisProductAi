@@ -1,6 +1,6 @@
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { suggestProductsFlow } from '@/ai/flows/suggest-products-flow';
 import { getGscAnalysis } from '@/lib/gsc-analysis-api';
 

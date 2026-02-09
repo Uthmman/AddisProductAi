@@ -1,5 +1,5 @@
 import { ai, generate } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 export const ModifyPromptInputSchema = z.object({
   request: z.string().describe("The user's request for how to modify the prompt."),
