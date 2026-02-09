@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -29,7 +27,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from 
 import { cn } from '@/lib/utils';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import type { GscAnalysisOutput } from '@/ai/flows/analyze-gsc-data-flow';
+import type { GscAnalysisOutput } from '@/lib/types';
 
 
 const PostGeneratorSchema = z.object({

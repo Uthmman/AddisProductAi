@@ -4,11 +4,11 @@
  *
  * - analyzeGscDataFlow - A function that takes GSC data and returns an AI-powered analysis.
  * - GscAnalysisInput - The input type for the analysis flow.
- * - GscAnalysisOutput - The return type for the analysis flow.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import type { GscAnalysisOutput } from '@/lib/types';
 
 export const GscAnalysisInputSchema = z.object({
   gscData: z.array(z.object({}).passthrough()).describe('An array of top search queries from Google Search Console.'),
@@ -19,13 +19,12 @@ const PromptInputSchema = z.object({
     gscDataString: z.string().describe('A JSON string of top search queries from Google Search Console.'),
 });
 
-export const GscAnalysisOutputSchema = z.object({
+const GscAnalysisOutputSchema = z.object({
   summary: z.string().describe("A high-level summary of the search performance, noting any major trends or user interests."),
   keyInsights: z.array(z.string()).describe("A list of 3-5 bullet-point insights discovered from the data."),
   contentOpportunities: z.array(z.string()).describe("A list of 3 specific content ideas (e.g., blog posts, product guides) based on user queries."),
   productSuggestions: z.array(z.string()).describe("A list of 2-3 potential new product ideas based on unmet needs or high-interest search terms."),
 });
-export type GscAnalysisOutput = z.infer<typeof GscAnalysisOutputSchema>;
 
 
 export async function analyzeGscDataFlow(input: GscAnalysisInput): Promise<GscAnalysisOutput> {

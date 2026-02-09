@@ -1,4 +1,3 @@
-
 export interface WooProduct {
   id: number;
   name: string;
@@ -97,4 +96,11 @@ export interface ProductBotState {
     amharic_name?: string;
     images: BotImageState[];
     aiContent?: Partial<AIProductContent>;
+}
+
+export interface GscAnalysisOutput {
+  summary: string;
+  keyInsights: string[];
+  contentOpportunities: string[];
+  productSuggestions: string[];
 }

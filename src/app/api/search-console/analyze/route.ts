@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGscTopQueries } from '@/lib/gsc-api';
-import { analyzeGscDataFlow, GscAnalysisOutput } from '@/ai/flows/analyze-gsc-data-flow';
+import { analyzeGscDataFlow } from '@/ai/flows/analyze-gsc-data-flow';
+import type { GscAnalysisOutput } from '@/lib/types';
 import { getGscAnalysis, saveGscAnalysis } from '@/lib/gsc-analysis-api';
 
 export const maxDuration = 120;

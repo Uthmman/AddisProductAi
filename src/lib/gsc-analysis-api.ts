@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { appCache } from '@/lib/cache';
-import { GscAnalysisOutput } from '@/ai/flows/analyze-gsc-data-flow';
+import type { GscAnalysisOutput } from '@/lib/types';
 
 const analysisFilePath = path.join(process.cwd(), 'src', 'lib', 'gsc-analysis.json');
 export const GSC_ANALYSIS_CACHE_KEY = 'gsc_analysis';
