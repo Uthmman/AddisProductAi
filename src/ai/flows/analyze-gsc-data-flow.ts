@@ -33,6 +33,7 @@ Based on the provided user query data (clicks, impressions, position), generate 
 4.  **Product Suggestions**: Identify any gaps or strong interests that suggest potential new products the company could create.
 
 The output must be a valid JSON object matching the defined schema.
+All text in the summary, insights, opportunities, and suggestions MUST be written in clear, simple, and easy-to-understand English that is accessible to a broad audience.
 
 Raw GSC Data:
 ${gscDataString}
