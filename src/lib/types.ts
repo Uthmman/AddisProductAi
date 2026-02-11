@@ -101,6 +101,8 @@ export interface ProductBotState {
 export interface GscAnalysisOutput {
   summary: string;
   keyInsights: string[];
+  mostWantedProducts: string[];
+  topKeywords: string[];
   contentOpportunities: string[];
   productSuggestions: string[];
 }

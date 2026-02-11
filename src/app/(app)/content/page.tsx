@@ -827,15 +827,50 @@ function SearchInsights() {
                         <div className="space-y-4 text-sm">
                             <p className="text-muted-foreground">{analysis.summary}</p>
                             
-                            <h4 className="font-semibold">Key Insights:</h4>
-                            <ul className="list-disc pl-5 space-y-1">
-                                {analysis.keyInsights.map((insight, i) => <li key={i}>{insight}</li>)}
-                            </ul>
+                            {analysis.keyInsights && analysis.keyInsights.length > 0 && (
+                                <>
+                                    <h4 className="font-semibold">Key Insights:</h4>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        {analysis.keyInsights.map((insight, i) => <li key={i}>{insight}</li>)}
+                                    </ul>
+                                </>
+                            )}
+                            
+                            {analysis.mostWantedProducts && analysis.mostWantedProducts.length > 0 && (
+                                <>
+                                    <h4 className="font-semibold">Most Wanted Products:</h4>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        {analysis.mostWantedProducts.map((product, i) => <li key={i}>{product}</li>)}
+                                    </ul>
+                                </>
+                            )}
+                            
+                            {analysis.topKeywords && analysis.topKeywords.length > 0 && (
+                                <>
+                                    <h4 className="font-semibold">Top Keywords for Products:</h4>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        {analysis.topKeywords.map((keyword, i) => <li key={i}>{keyword}</li>)}
+                                    </ul>
+                                </>
+                            )}
 
-                            <h4 className="font-semibold">Content Opportunities:</h4>
-                            <ul className="list-disc pl-5 space-y-1">
-                                {analysis.contentOpportunities.map((opp, i) => <li key={i}>{opp}</li>)}
-                            </ul>
+                            {analysis.contentOpportunities && analysis.contentOpportunities.length > 0 && (
+                                <>
+                                    <h4 className="font-semibold">Content Opportunities:</h4>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        {analysis.contentOpportunities.map((opp, i) => <li key={i}>{opp}</li>)}
+                                    </ul>
+                                </>
+                            )}
+
+                            {analysis.productSuggestions && analysis.productSuggestions.length > 0 && (
+                                <>
+                                    <h4 className="font-semibold">New Product Suggestions:</h4>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        {analysis.productSuggestions.map((suggestion, i) => <li key={i}>{suggestion}</li>)}
+                                    </ul>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

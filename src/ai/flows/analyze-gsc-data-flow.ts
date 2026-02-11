@@ -13,6 +13,8 @@ import type { GscAnalysisOutput } from '@/lib/types';
 const GscAnalysisOutputSchema = z.object({
   summary: z.string().describe("A high-level summary of the search performance, noting any major trends or user interests."),
   keyInsights: z.array(z.string()).describe("A list of 3-5 bullet-point insights discovered from the data."),
+  mostWantedProducts: z.array(z.string()).describe("A list of the top 5-10 most searched for or 'wanted' products based on user queries."),
+  topKeywords: z.array(z.string()).describe("A list of the top SEO keywords to include in product descriptions and tags, derived from user queries."),
   contentOpportunities: z.array(z.string()).describe("A list of 3 specific content ideas (e.g., blog posts, product guides) based on user queries."),
   productSuggestions: z.array(z.string()).describe("A list of 2-3 potential new product ideas based on unmet needs or high-interest search terms."),
 });
@@ -29,11 +31,13 @@ Your task is to analyze raw data from Google Search Console and distill it into 
 Based on the provided user query data (clicks, impressions, position), generate a concise analysis that includes:
 1.  **Summary**: A brief overview of the key trends. What are people looking for most?
 2.  **Key Insights**: What are the most important takeaways from this data? What does it reveal about customer intent?
-3.  **Content Opportunities**: Suggest specific blog post titles or guide ideas that would directly answer these user queries.
-4.  **Product Suggestions**: Identify any gaps or strong interests that suggest potential new products the company could create.
+3.  **Most Wanted Products**: A list of the top 5-10 most searched for products. Infer these directly from user queries (e.g., if you see "sofa price", "sofa" is a wanted product).
+4.  **Top Keywords**: A list of the most important SEO keywords to include in product titles, descriptions, and tags. These should be extracted directly from the user queries.
+5.  **Content Opportunities**: Suggest specific blog post titles or guide ideas that would directly answer these user queries.
+6.  **Product Suggestions**: Identify any gaps or strong interests that suggest potential new products the company could create.
 
 The output must be a valid JSON object matching the defined schema.
-All text in the summary, insights, opportunities, and suggestions MUST be written in clear, simple, and easy-to-understand English that is accessible to a broad audience.
+All text MUST be written in clear, simple, and easy-to-understand English that is accessible to a broad audience.
 
 Raw GSC Data:
 ${gscDataString}
