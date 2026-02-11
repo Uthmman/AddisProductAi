@@ -261,3 +261,26 @@ export async function deleteProductTag(id: number, force: boolean = true): Promi
     });
     return handleResponse(response, `Failed to delete product tag ${id}`);
 }
+
+export async function createPost(postData: { title: string; content: string; status: 'publish' | 'draft' }): Promise<any> {
+    const user = process.env.WORDPRESS_AUTH_USER;
+    const pass = process.env.WORDPRESS_AUTH_PASS;
+    
+    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
+    if(!siteUrl || !user || !pass) {
+        throw new Error("WordPress site URL or Application Password are not set in environment variables.");
+    }
+    
+    const wpApiUrl = `${siteUrl}/wp-json/wp/v2`;
+
+    const response = await fetch(`${wpApiUrl}/posts`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
+    });
+
+    return handleResponse(response, 'Failed to create WordPress post');
+}

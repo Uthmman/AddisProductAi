@@ -188,6 +188,10 @@ function BlogGenerator() {
     form.setValue('topic', topic);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+  
+  const onPostSuccess = () => {
+    setGeneratedPost(null);
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
@@ -221,7 +225,7 @@ function BlogGenerator() {
                 <BlogTopicSuggestions onSelectTopic={handleSelectTopic} />
             </div>
         </div>
-      <GeneratedContentPreview isGenerating={isGenerating} post={generatedPost} />
+      <GeneratedContentPreview isGenerating={isGenerating} post={generatedPost} onPostSuccess={onPostSuccess}/>
     </div>
   );
 }
@@ -450,14 +454,44 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
   );
 }
 
-function GeneratedContentPreview({ isGenerating, post }: { isGenerating: boolean; post: BlogPost | SocialPost | null }) {
+function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGenerating: boolean; post: BlogPost | SocialPost | null, onPostSuccess?: () => void }) {
     const { toast } = useToast();
     const [isPosting, setIsPosting] = useState(false);
+    const [isCreatingPost, setIsCreatingPost] = useState(false);
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
         toast({ description: "Content copied to clipboard!" });
     };
+
+    const handleCreatePost = async () => {
+        if (!post || !('title' in post)) return;
+        
+        setIsCreatingPost(true);
+        try {
+            const response = await fetch('/api/content/create-blog-post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: post.title,
+                    content: post.content,
+                }),
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to create blog post.');
+            }
+            
+            toast({ title: 'Success!', description: 'Blog post has been published to your site.' });
+            onPostSuccess?.();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Post Failed', description: error.message });
+        } finally {
+            setIsCreatingPost(false);
+        }
+    };
+
 
     const handlePostToTelegram = async () => {
         if (!post || !('productId' in post)) return;
@@ -517,6 +551,12 @@ function GeneratedContentPreview({ isGenerating, post }: { isGenerating: boolean
                 <Textarea readOnly value={post.content} className="h-96" />
                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(post.content)}><Copy className="h-4 w-4" /></Button>
               </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+                <Button onClick={handleCreatePost} disabled={isCreatingPost || isPosting}>
+                    {isCreatingPost ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Publish Post
+                </Button>
             </div>
           </div>
         )}
