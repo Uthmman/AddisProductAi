@@ -5,19 +5,11 @@
  * - analyzeGscDataFlow - A function that takes GSC data and returns an AI-powered analysis.
  */
 
-import { ai } from '@/ai/genkit';
+import { generate } from '@/ai/genkit';
 import { z } from 'zod';
 import type { GscAnalysisOutput } from '@/lib/types';
 
-const GscAnalysisInputSchema = z.object({
-  gscData: z.array(z.object({}).passthrough()).describe('An array of top search queries from Google Search Console.'),
-});
-type GscAnalysisInput = z.infer<typeof GscAnalysisInputSchema>;
-
-const PromptInputSchema = z.object({
-    gscDataString: z.string().describe('A JSON string of top search queries from Google Search Console.'),
-});
-
+// This schema defines the output shape we expect from the AI
 const GscAnalysisOutputSchema = z.object({
   summary: z.string().describe("A high-level summary of the search performance, noting any major trends or user interests."),
   keyInsights: z.array(z.string()).describe("A list of 3-5 bullet-point insights discovered from the data."),
@@ -25,17 +17,13 @@ const GscAnalysisOutputSchema = z.object({
   productSuggestions: z.array(z.string()).describe("A list of 2-3 potential new product ideas based on unmet needs or high-interest search terms."),
 });
 
-
+// The main exported function
 export async function analyzeGscDataFlow(gscData: any[]): Promise<GscAnalysisOutput> {
-    return analysisFlow({ gscData });
-}
+    // Convert the array of GSC data into a formatted string for the prompt
+    const gscDataString = JSON.stringify(gscData, null, 2);
 
-
-const analysisPrompt = ai.definePrompt({
-    name: 'gscAnalysisPrompt',
-    input: { schema: PromptInputSchema },
-    output: { schema: GscAnalysisOutputSchema },
-    prompt: `You are an expert SEO analyst and e-commerce strategist for a furniture company in Addis Ababa, Ethiopia.
+    // The prompt that instructs the AI on how to analyze the data
+    const prompt = `You are an expert SEO analyst and e-commerce strategist for a furniture company in Addis Ababa, Ethiopia.
 Your task is to analyze raw data from Google Search Console and distill it into actionable business intelligence.
 
 Based on the provided user query data (clicks, impressions, position), generate a concise analysis that includes:
@@ -47,20 +35,15 @@ Based on the provided user query data (clicks, impressions, position), generate 
 The output must be a valid JSON object matching the defined schema.
 
 Raw GSC Data:
-{{{gscDataString}}}
-`,
-});
+${gscDataString}
+`;
 
-
-const analysisFlow = ai.defineFlow(
-    {
-        name: 'gscAnalysisFlow',
-        inputSchema: GscAnalysisInputSchema,
-        outputSchema: GscAnalysisOutputSchema,
-    },
-    async (input) => {
-        const gscDataString = JSON.stringify(input.gscData, null, 2);
-        const { output } = await analysisPrompt({ gscDataString });
-        return output!;
-    }
-);
+    // Call the AI using the `generate` wrapper, which supplies the model
+    const { output } = await generate({
+      prompt: prompt,
+      output: { schema: GscAnalysisOutputSchema },
+    });
+    
+    // Return the structured output
+    return output!;
+}
