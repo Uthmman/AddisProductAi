@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooTag } from "@/lib/types";
-import { Loader2, Sparkles, Terminal, Copy } from "lucide-react";
+import { Loader2, Sparkles, Terminal, Copy, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Label } from "./ui/label";
@@ -22,6 +22,9 @@ const TagFormSchema = z.object({
   name: z.string().min(2, "Tag name is required."),
   slug: z.string().optional(),
   description: z.string().optional(),
+  seo_title: z.string().optional(),
+  seo_focuskw: z.string().optional(),
+  seo_metadesc: z.string().optional(),
 });
 
 type TagFormValues = z.infer<typeof TagFormSchema>;
@@ -44,24 +47,31 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedSeo, setGeneratedSeo] = useState<AIGeneratedContent | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
 
   const form = useForm<TagFormValues>({
     resolver: zodResolver(TagFormSchema),
-    defaultValues: { name: "", slug: "", description: "" },
+    defaultValues: { 
+        name: "", 
+        slug: "", 
+        description: "",
+        seo_title: "",
+        seo_focuskw: "",
+        seo_metadesc: ""
+    },
   });
 
   useEffect(() => {
     if (!tagId) {
-      form.reset({ name: '', slug: '', description: '' });
-      setGeneratedSeo(null);
+      form.reset({ name: '', slug: '', description: '', seo_title: '', seo_focuskw: '', seo_metadesc: '' });
+      setHasGenerated(false);
       return;
     }
 
     const fetchTagData = async () => {
       setIsFetching(true);
-      setGeneratedSeo(null);
+      setHasGenerated(false);
       try {
         const response = await fetch(`/api/products/tags/${tagId}`);
         if (!response.ok) {
@@ -74,6 +84,9 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           name: fetchedTag.name,
           slug: fetchedTag.slug,
           description: fetchedTag.description,
+          seo_title: fetchedTag.meta?._yoast_wpseo_title || '',
+          seo_focuskw: fetchedTag.meta?._yoast_wpseo_focuskw || '',
+          seo_metadesc: fetchedTag.meta?._yoast_wpseo_metadesc || '',
         });
 
       } catch (error: any) {
@@ -99,7 +112,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     }
     
     setIsGenerating(true);
-    setGeneratedSeo(null);
     try {
       const response = await fetch('/api/tags/ai-optimize', {
         method: 'POST',
@@ -112,9 +124,14 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       
       const content: AIGeneratedContent = await response.json();
-      setGeneratedSeo(content);
+      
       form.setValue('description', content.description);
-      toast({ title: 'Success!', description: 'SEO content has been generated.' });
+      form.setValue('seo_title', content.title);
+      form.setValue('seo_focuskw', content.focusKeyphrase);
+      form.setValue('seo_metadesc', content.metaDescription);
+      
+      setHasGenerated(true);
+      toast({ title: 'Success!', description: 'SEO content has been generated and populated.' });
 
     } catch (error: any) {
       toast({
@@ -138,7 +155,16 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
       const method = tagId ? "PUT" : "POST";
       
-      const submissionData = { ...data };
+      const submissionData = { 
+          name: data.name,
+          slug: data.slug,
+          description: data.description,
+          meta: {
+              _yoast_wpseo_title: data.seo_title,
+              _yoast_wpseo_metadesc: data.seo_metadesc,
+              _yoast_wpseo_focuskw: data.seo_focuskw,
+          }
+      };
 
       const response = await fetch(url, {
         method,
@@ -155,7 +181,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
 
       toast({
         title: "Success!",
-        description: `Tag "${savedTag.name}" has been saved.`,
+        description: `Tag "${savedTag.name}" and SEO data have been saved.`,
       });
       onSuccess();
 
@@ -205,61 +231,50 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             
             <Separator />
 
-            <Card>
+            <Card className={hasGenerated ? "border-primary/50 bg-primary/5" : ""}>
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
-                            <CardTitle>SEO Content</CardTitle>
-                            <CardDescription>Generate SEO content for manual entry.</CardDescription>
+                            <CardTitle className="flex items-center gap-2">
+                                SEO Content 
+                                {hasGenerated && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                            </CardTitle>
+                            <CardDescription>Generated Yoast SEO data for this tag.</CardDescription>
                         </div>
                         <Button type="button" onClick={handleGenerateSeo} disabled={isGenerating}>
                             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                            Generate
+                            AI Generate SEO
                         </Button>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     <Alert variant="default" className="mb-6">
-                        <Terminal className="h-4 w-4" />
-                        <AlertTitle>Manual Step Required</AlertTitle>
-                        <AlertDescription>
-                            The Yoast SEO plugin does not allow its tag data to be updated via the API. Please use the "Generate" button, then copy the content below and paste it into the corresponding Yoast fields in your WordPress admin dashboard for this tag.
-                        </AlertDescription>
-                    </Alert>
-                    
-                    {isGenerating && (
-                      <div className="space-y-4">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-20 w-full" />
-                      </div>
-                    )}
-
-                    {generatedSeo && (
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>Yoast SEO Title</Label>
-                                <div className="relative">
-                                    <Input readOnly value={generatedSeo.title} />
-                                    <Button variant="ghost" size="icon" type="button" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(generatedSeo.title, 'SEO Title')}><Copy className="h-4 w-4" /></Button>
-                                </div>
+                    <FormField control={form.control} name="seo_title" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Yoast SEO Title</FormLabel>
+                            <div className="relative">
+                                <FormControl><Input {...field} /></FormControl>
+                                <Button variant="ghost" size="icon" type="button" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(field.value || '', 'SEO Title')}><Copy className="h-4 w-4" /></Button>
                             </div>
-                             <div className="space-y-2">
-                                <Label>Yoast Focus Keyphrase</Label>
-                                <div className="relative">
-                                    <Input readOnly value={generatedSeo.focusKeyphrase} />
-                                    <Button variant="ghost" size="icon" type="button" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(generatedSeo.focusKeyphrase, 'Focus Keyphrase')}><Copy className="h-4 w-4" /></Button>
-                                </div>
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="seo_focuskw" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Yoast Focus Keyphrase</FormLabel>
+                            <div className="relative">
+                                <FormControl><Input {...field} /></FormControl>
+                                <Button variant="ghost" size="icon" type="button" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(field.value || '', 'Focus Keyphrase')}><Copy className="h-4 w-4" /></Button>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Yoast Meta Description</Label>
-                                <div className="relative">
-                                    <Textarea readOnly value={generatedSeo.metaDescription} rows={3} />
-                                    <Button variant="ghost" size="icon" type="button" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(generatedSeo.metaDescription, 'Meta Description')}><Copy className="h-4 w-4" /></Button>
-                                </div>
+                        </FormItem>
+                    )} />
+                    <FormField control={form.control} name="seo_metadesc" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Yoast Meta Description</FormLabel>
+                            <div className="relative">
+                                <FormControl><Textarea {...field} rows={3} /></FormControl>
+                                <Button variant="ghost" size="icon" type="button" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(field.value || '', 'Meta Description')}><Copy className="h-4 w-4" /></Button>
                             </div>
-                        </div>
-                    )}
+                        </FormItem>
+                    )} />
                 </CardContent>
             </Card>
           </div>
@@ -267,7 +282,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         <div className="flex-shrink-0 flex justify-end pt-4 mt-4 border-t">
           <Button type="submit" disabled={isSaving || isFetching}>
             {(isSaving || isFetching) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {tagId ? "Save Name & Description" : "Create Tag"}
+            {tagId ? "Save All Tag Data" : "Create Tag"}
           </Button>
         </div>
       </form>

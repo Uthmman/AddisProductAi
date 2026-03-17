@@ -1,12 +1,12 @@
 
-import { ai } from '@/ai/genkit';
+'use server';
+
 import { z } from 'zod';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 import { generateTagSeoFlow } from './generate-tag-seo-flow';
 import { WooTag } from '@/lib/types';
 import { getSettings } from '@/lib/settings-api';
 
-// This flow doesn't need input.
 const BulkGenerateTagSeoOutputSchema = z.object({
   message: z.string().describe("A summary of the actions taken."),
   updatedCount: z.number().describe("The number of tags that were updated."),
@@ -39,12 +39,16 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
         try {
             const seoContent = await generateTagSeoFlow({ tagName: tag.name, settings });
             
-            // We can only update the description via the API.
-            // The focus keyphrase and meta description are still a manual copy-paste step for the user.
+            // Now we can update EVERYTHING via the API
             await wooCommerceApi.updateProductTag(tag.id, {
                 description: seoContent.description,
+                meta: {
+                    _yoast_wpseo_title: seoContent.title,
+                    _yoast_wpseo_metadesc: seoContent.metaDescription,
+                    _yoast_wpseo_focuskw: seoContent.focusKeyphrase,
+                }
             });
-            console.log(`Successfully updated tag: ${tag.name}`);
+            console.log(`Successfully updated tag and SEO: ${tag.name}`);
             return true;
         } catch (error) {
             console.error(`Failed to update tag: ${tag.name}`, error);
@@ -58,7 +62,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     console.log(`Finished bulk generation. Updated ${updatedCount} tags.`);
 
     return {
-        message: `Successfully generated SEO descriptions for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
+        message: `Successfully generated descriptions and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
         updatedCount: updatedCount,
     };
 }

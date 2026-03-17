@@ -1,5 +1,4 @@
 import { WooProduct, WooCategory, WooTag } from './types';
-import type { Settings } from './types';
 
 const WOOCOMMERCE_API_URL = process.env.WOOCOMMERCE_API_URL;
 
@@ -209,18 +208,7 @@ export async function getSingleProductTag(id: number): Promise<WooTag | null> {
         return null;
     }
 
-    const tagData = await response.json();
-
-    // The key check: does the returned object have the 'meta' property?
-    if (tagData && typeof tagData.meta === 'undefined') {
-        // Meta field is missing. The server is not configured correctly.
-        // We will augment the tag data with a diagnostic error.
-        tagData.meta = {
-            _internal_error: `The 'meta' field with Yoast SEO data is missing from the API response for this tag. This usually means your WordPress server configuration needs attention. Please check the following:\n\n1. **functions.php**: Ensure the PHP snippet to expose meta fields is in your *active* theme's functions.php file.\n\n2. **Caching**: Clear all server, plugin (e.g., LiteSpeed, WP Rocket), and CDN caches.\n\n3. **Security Plugins**: Temporarily disable plugins like Wordfence to see if they are stripping the 'meta' field from the API response.`
-        };
-    }
-    
-    return tagData;
+    return await response.json();
 }
 
 export async function updateProductTag(
@@ -268,7 +256,7 @@ export async function createPost(postData: { title: string; content: string; sta
     
     const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
     if(!siteUrl || !user || !pass) {
-        throw new Error("WordPress site URL or Application Password are not set in environment variables.");
+        throw new Error("WordPress site URL or Application Password for media upload are not set in environment variables.");
     }
     
     const wpApiUrl = `${siteUrl}/wp-json/wp/v2`;

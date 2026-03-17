@@ -7,11 +7,6 @@ import { generateTagSeoFlow } from './generate-tag-seo-flow';
 import { WooTag } from '@/lib/types';
 import { getSettings } from '@/lib/settings-api';
 
-const BulkGenerateSeoForSpecificTagsInputSchema = z.object({
-  tagNames: z.array(z.string()).describe("The names of the tags to optimize."),
-});
-type BulkGenerateSeoForSpecificTagsInput = z.infer<typeof BulkGenerateSeoForSpecificTagsInputSchema>;
-
 const BulkGenerateSeoForSpecificTagsOutputSchema = z.object({
   message: z.string().describe("A summary of the actions taken."),
   updatedCount: z.number().describe("The number of tags that were updated."),
@@ -47,10 +42,17 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
     const updatePromises = tagsToUpdate.map(async (tag: WooTag) => {
         try {
             const seoContent = await generateTagSeoFlow({ tagName: tag.name, settings });
+            
+            // Now we can update EVERYTHING via the API
             await wooCommerceApi.updateProductTag(tag.id, {
                 description: seoContent.description,
+                meta: {
+                    _yoast_wpseo_title: seoContent.title,
+                    _yoast_wpseo_metadesc: seoContent.metaDescription,
+                    _yoast_wpseo_focuskw: seoContent.focusKeyphrase,
+                }
             });
-            console.log(`Successfully updated tag: ${tag.name}`);
+            console.log(`Successfully updated tag and SEO: ${tag.name}`);
             return true;
         } catch (error) {
             console.error(`Failed to update tag: ${tag.name}`, error);
@@ -64,7 +66,7 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
     console.log(`Finished bulk generation for specific tags. Updated ${updatedCount} tags.`);
 
     return {
-        message: `Successfully generated SEO descriptions for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
+        message: `Successfully generated descriptions and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
         updatedCount: updatedCount,
     };
 }

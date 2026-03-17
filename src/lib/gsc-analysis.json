@@ -1,38 +1,42 @@
 {
-  "summary": "User searches for furniture in Addis Ababa and Ethiopia show a strong intent for local purchases and price comparison. There is significant interest in specific product categories like beds, baby beds, and sofas, along with a demand for visual content and detailed product information.",
+  "summary": "The search performance indicates a strong local interest in furniture, specifically within Addis Ababa and Ethiopia. Users are actively searching for prices, designs, and images of products like TV stands, beds, and sofa tables. Brand-specific searches for \"Zenbaba Furniture\" also show good recognition and direct interest. There's a clear intent to purchase and a significant focus on understanding product costs and visual options.",
   "keyInsights": [
-    "Users frequently search for furniture with location-specific terms like 'Addis Ababa' and 'Ethiopia,' often including 'price,' indicating a strong local and transactional intent.",
-    "Beds, baby beds, and sofas are highly sought-after specific product categories, suggesting a clear demand for these items.",
-    "There's an apparent interest in visual content and design ideas, as evidenced by queries for 'bed design' and 'photos.'",
-    "Users are aware of competitors, with 'Zenbaba furniture' being a notable search term, highlighting the need for competitive positioning.",
-    "Specific product attributes like '1.20 bed' and '43 inch tv stand' suggest users are looking for particular dimensions and types of furniture."
+    "Users frequently include location (Addis Ababa, Ethiopia) and price in their search queries, highlighting these as critical factors in their purchasing decisions.",
+    "Visual content is highly valued, with queries mentioning 'photos', 'images', and 'design' alongside product names.",
+    "Specific product categories, primarily TV stands and beds, are major areas of interest, showing strong demand.",
+    "While 'baby beds' have significant impressions, they have low clicks, suggesting either a lack of relevant offerings or poor search visibility for this segment.",
+    "Zenbaba Furniture has strong brand recognition, leading to direct searches and a high click-through rate when ranking well."
   ],
   "mostWantedProducts": [
-    "Beds",
-    "Baby Beds",
-    "Sofas",
-    "Sofa Tables",
     "TV Stands",
-    "General Furniture"
+    "Beds",
+    "Sofa Tables",
+    "Baby Beds",
+    "General Furniture (especially in Addis Ababa/Ethiopia)",
+    "Mirrors",
+    "Office Furniture"
   ],
   "topKeywords": [
     "furniture addis ababa",
-    "furniture in ethiopia price",
-    "bed price in ethiopia",
-    "baby bed in addis ababa",
-    "sofa table price in ethiopia",
-    "furniture stores addis ababa",
-    "bed design ethiopia",
-    "best furniture in addis ababa"
+    "furniture ethiopia",
+    "tv stand price ethiopia",
+    "bed price addis ababa",
+    "sofa table design",
+    "zenbaba furniture",
+    "baby bed price",
+    "bedroom furniture design",
+    "affordable office furniture",
+    "best bed design ethiopia"
   ],
   "contentOpportunities": [
-    "A Comprehensive Guide to Furniture Prices in Addis Ababa: What to Expect and Where to Buy",
-    "Trending Bed Designs in Ethiopia: Find Your Perfect Style and Comfort",
-    "Baby Bed Buying Guide: Essential Tips for Parents in Addis Ababa"
+    "Your Ultimate Guide to TV Stand Prices and Latest Designs in Ethiopia",
+    "Bed Shopping in Addis Ababa: Explore Top Designs, Sizes, and Current Prices",
+    "Modern Sofa Table Designs: Elevate Your Living Space in Ethiopia (with photos)"
   ],
   "productSuggestions": [
-    "Expand the baby furniture line to include cribs, changing tables, and wardrobes, catering to the strong interest in 'baby bed'.",
-    "Introduce a wider range of bed sizes (e.g., '1.20 bed') and offer customizable bed designs, addressing user queries for specific dimensions and aesthetics.",
-    "Develop a line of modern TV stands, specifically designed to fit common TV sizes like '43 inch', to meet an identified niche demand."
-  ]
+    "Dedicated Line of Baby Beds and Nursery Furniture: High impressions for 'baby bed' queries indicate unmet demand.",
+    "Custom-Sized Beds and Mattresses: Queries like '1 meter bed' and '1.20 bed' suggest a need for specific dimensions.",
+    "Affordable and Functional Office Furniture Collection: 'Affordable office furniture' indicates a niche interest that could be developed."
+  ],
+  "lastAnalyzed": "2026-03-17T08:40:12.437Z"
 }

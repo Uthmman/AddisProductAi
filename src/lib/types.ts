@@ -61,7 +61,12 @@ export interface WooTag {
   slug: string;
   description: string;
   count: number;
-  meta?: { [key: string]: any };
+  meta?: {
+    _yoast_wpseo_title?: string;
+    _yoast_wpseo_metadesc?: string;
+    _yoast_wpseo_focuskw?: string;
+    [key: string]: any;
+  };
 }
 
 export interface Settings {
@@ -77,6 +82,7 @@ export interface Settings {
     watermarkScale?: number;
     watermarkOpacity?: number;
     watermarkPadding?: number;
+    aiPromptInstruction?: string;
 }
 
 export type BotImageState = {
