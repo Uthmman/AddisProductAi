@@ -4,9 +4,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { PanelLeft, Package } from 'lucide-react';
-import { Button } from './ui/button';
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from './ui/sheet';
-import { MainNav } from './main-nav';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { MainNav } from '@/components/main-nav';
 
 export default function Header() {
   return (
