@@ -227,10 +227,10 @@ export default function ProductForm({ product }: ProductFormProps) {
 
     setGeneratingField(field);
     try {
-        // The client sends original image sources (data URI for new, URL for existing) to the AI
-        const imagesData = await Promise.all(
-            images.map(image => image.src)
-        );
+        // OPTIMIZATION: Only send the first image to the AI optimization endpoint.
+        // This drastically reduces request payload size and speeds up processing.
+        // The AI only needs one sample image to understand the product context.
+        const sampleImageData = images[0].src;
         
         const currentAiContent = {
             ...aiContent,
@@ -245,13 +245,14 @@ export default function ProductForm({ product }: ProductFormProps) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...values,
-                images_data: imagesData,
+                images_data: [sampleImageData], // Only one image sent
                 price_etb: values.price_etb,
                 fieldToGenerate: field,
                 existingContent: currentAiContent,
                 availableCategories,
                 settings,
                 primaryCategory,
+                totalImageCount: images.length, // Inform the AI of the true total count for alt texts
             }),
         });
 
@@ -756,5 +757,3 @@ export default function ProductForm({ product }: ProductFormProps) {
     </Form>
   );
 }
-
-    

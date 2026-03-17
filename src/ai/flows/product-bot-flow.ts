@@ -105,27 +105,23 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 return "I can't run the AI optimization yet because there are no images uploaded for the product. Please upload images first.";
             }
             
-            let images_data: string[] = [];
-            // For AI optimization, we need data URIs. For existing products, this means fetching from the URL.
-            const imagePromises = currentState.images.map(async (img) => {
-                if (img.dataUri) {
-                    return img.dataUri;
-                }
-                if (img.src && img.src.startsWith('http')) {
-                    try {
-                        return await urlToDataUri(img.src);
-                    } catch (error) {
-                        console.error(`Failed to convert image URL to data URI: ${img.src}`, error);
-                        return null;
-                    }
-                }
-                return null;
-            });
+            // OPTIMIZATION: Only process and send the FIRST image to the AI.
+            // This drastically reduces request payload and saves time.
+            const firstImage = currentState.images[0];
+            let sampleImageDataUri: string | null = null;
 
-            images_data = (await Promise.all(imagePromises)).filter(Boolean) as string[];
+            if (firstImage.dataUri) {
+                sampleImageDataUri = firstImage.dataUri;
+            } else if (firstImage.src && firstImage.src.startsWith('http')) {
+                try {
+                    sampleImageDataUri = await urlToDataUri(firstImage.src);
+                } catch (error) {
+                    console.error(`Failed to convert image URL to data URI: ${firstImage.src}`, error);
+                }
+            }
 
-            if (images_data.length === 0) {
-                return "I can't optimize because there are no valid images for this product. Please try uploading them again.";
+            if (!sampleImageDataUri) {
+                return "I can't optimize because I couldn't process the first image for this product. Please try uploading it again.";
             }
 
             const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
@@ -136,12 +132,12 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 material: currentState.material || '',
                 amharic_name: currentState.amharic_name || '',
                 focus_keywords: currentState.focus_keywords || '',
-                images_data: images_data,
+                images_data: [sampleImageDataUri], // Only one image sent
                 availableCategories,
                 settings,
                 primaryCategory,
                 fieldToGenerate: 'all',
-                totalImageCount: images_data.length,
+                totalImageCount: currentState.images.length, // AI still knows the total count
             });
             
             // This modifies the productState in the outer scope, which will be returned by the flow.
