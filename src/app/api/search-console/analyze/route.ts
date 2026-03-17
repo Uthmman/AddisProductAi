@@ -32,13 +32,19 @@ export async function POST(request: NextRequest) {
             summary: "No query data was found for the selected period. Unable to generate an analysis.",
             keyInsights: [],
             contentOpportunities: [],
-            productSuggestions: []
+            productSuggestions: [],
+            mostWantedProducts: [],
+            topKeywords: [],
+            lastAnalyzed: new Date().toISOString()
         };
         await saveGscAnalysis(emptyAnalysis);
         return NextResponse.json(emptyAnalysis);
     }
 
     const analysisResult = await analyzeGscDataFlow(gscData);
+    
+    // Add the timestamp before saving
+    analysisResult.lastAnalyzed = new Date().toISOString();
 
     await saveGscAnalysis(analysisResult);
 

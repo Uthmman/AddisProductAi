@@ -863,7 +863,14 @@ function SearchInsights() {
 
                 {analysis && !isAnalyzing && (
                     <div className="space-y-6">
-                        <h3 className="text-lg font-semibold font-headline">AI Analysis Summary</h3>
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                            <h3 className="text-lg font-semibold font-headline">AI Analysis Summary</h3>
+                            {analysis.lastAnalyzed && (
+                                <p className="text-xs text-muted-foreground italic">
+                                    Last analyzed: {new Date(analysis.lastAnalyzed).toLocaleString()}
+                                </p>
+                            )}
+                        </div>
                         <div className="space-y-4 text-sm">
                             <p className="text-muted-foreground">{analysis.summary}</p>
                             

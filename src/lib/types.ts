@@ -105,4 +105,5 @@ export interface GscAnalysisOutput {
   topKeywords: string[];
   contentOpportunities: string[];
   productSuggestions: string[];
+  lastAnalyzed?: string;
 }
