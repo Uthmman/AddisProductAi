@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useTransition, useCallback, useMemo } from "react";
@@ -16,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent, WooCategory, Settings, WooTag } from "@/lib/types";
-import { fileToBase64, cn, applyWatermark as applyWatermarkUtil } from "@/lib/utils";
+import { fileToBase64, cn, applyWatermark as applyWatermarkUtil, resizeImage } from "@/lib/utils";
 import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save, Image as ImageIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -227,10 +226,14 @@ export default function ProductForm({ product }: ProductFormProps) {
 
     setGeneratingField(field);
     try {
-        // OPTIMIZATION: Only send the first image to the AI optimization endpoint.
-        // This drastically reduces request payload size and speeds up processing.
-        // The AI only needs one sample image to understand the product context.
-        const sampleImageData = images[0].src;
+        // PERFORMANCE FIX: Resize the first image on the client side before sending.
+        // This prevents the "load failed" error on mobile by drastically reducing payload size.
+        const sampleImage = images[0].src;
+        let optimizedSample = sampleImage;
+        
+        if (sampleImage.startsWith('data:image')) {
+            optimizedSample = await resizeImage(sampleImage, 1024);
+        }
         
         const currentAiContent = {
             ...aiContent,
@@ -245,14 +248,14 @@ export default function ProductForm({ product }: ProductFormProps) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...values,
-                images_data: [sampleImageData], // Only one image sent
+                images_data: [optimizedSample], // Only one resized image sent
                 price_etb: values.price_etb,
                 fieldToGenerate: field,
                 existingContent: currentAiContent,
                 availableCategories,
                 settings,
                 primaryCategory,
-                totalImageCount: images.length, // Inform the AI of the true total count for alt texts
+                totalImageCount: images.length,
             }),
         });
 

@@ -1,5 +1,4 @@
-
-'use client';
+"use client";
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
@@ -10,7 +9,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, Image as ImageIcon, AlertCircle, Droplet, Save, RefreshCw } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { fileToBase64, cn, urlToDataUri, applyWatermark } from '@/lib/utils';
+import { fileToBase64, cn, urlToDataUri, applyWatermark, resizeImage } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AlertDialog,
@@ -344,7 +343,22 @@ export default function BotPageClient() {
     }
     setIsLoading(true);
 
-    const stateForApi = stateOverride || activeSession.productState;
+    const stateForApi = { ...(stateOverride || activeSession.productState) };
+
+    // PERFORMANCE FIX: If we're starting optimization, resize the first image on the client
+    // to prevent the "load failed" error on mobile.
+    if (text.toLowerCase().includes('optimize') || text.toLowerCase().includes('yes') || text.toLowerCase().includes('proceed')) {
+        if (stateForApi.images && stateForApi.images.length > 0) {
+            const firstImg = stateForApi.images[0];
+            if (firstImg.dataUri && firstImg.dataUri.startsWith('data:image')) {
+                try {
+                    firstImg.dataUri = await resizeImage(firstImg.dataUri, 1024);
+                } catch (err) {
+                    console.error("Failed to resize image for bot optimization:", err);
+                }
+            }
+        }
+    }
 
     try {
         const response = await fetch('/api/telegram/chat', {
