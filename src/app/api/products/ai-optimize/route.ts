@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWooCommerceProductContent } from '@/ai/flows/generate-woocommerce-product-content';
 import { z } from 'zod';
@@ -8,9 +7,9 @@ export const maxDuration = 120; // Extend timeout to 120 seconds
 
 const InputSchema = z.object({
   raw_name: z.string(),
-  material: z.string(),
-  amharic_name: z.string(),
-  focus_keywords: z.string(),
+  material: z.string().optional().default(''),
+  amharic_name: z.string().optional().default(''),
+  focus_keywords: z.string().optional().default(''),
   price_etb: z.number(),
   images_data: z.array(z.string()).describe('Can be data URIs or public URLs'),
   availableCategories: z.array(z.object({id: z.number(), name: z.string(), slug: z.string()})),
@@ -61,6 +60,7 @@ export async function POST(request: NextRequest) {
     const validation = InputSchema.safeParse(body);
 
     if (!validation.success) {
+      console.error('AI Optimize Validation Error:', validation.error.format());
       return NextResponse.json({ message: 'Invalid input', errors: validation.error.issues }, { status: 400 });
     }
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
                     return await urlToDataUri(imageData);
                 } catch (error) {
                     console.error(`Failed to convert image URL to data URI: ${imageData}`, error);
-                    return null; // Or handle the error as needed
+                    return null; 
                 }
             }
             return imageData; // It's already a data URI
@@ -87,18 +87,24 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Could not process any of the product images." }, { status: 400 });
     }
 
+    // Ensure we send the correct total count to the flow
     const aiInput = {
         ...inputData,
         images_data: validImagesData,
     };
     
-    // The flow now internally fetches the GSC analysis.
     const aiContent = await generateWooCommerceProductContent(aiInput);
 
     return NextResponse.json(aiContent);
 
   } catch (error: any) {
-    console.error('AI optimization failed:', error);
+    console.error('AI optimization route error:', error);
+    
+    // Check for specific common errors
+    if (error.message?.includes('payload too large') || error.status === 413) {
+        return NextResponse.json({ message: 'Image size is too large. Please try using a smaller image or uploading via Google Photos.' }, { status: 413 });
+    }
+
     return NextResponse.json({ message: error.message || 'An unexpected error occurred during AI optimization.' }, { status: 500 });
   }
 }

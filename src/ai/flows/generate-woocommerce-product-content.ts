@@ -51,6 +51,7 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
     telegramUrl: z.string().optional(),
     telegramUsername: z.string().optional(),
     tiktokUrl: z.string().optional(),
+    aiPromptInstruction: z.string().optional(),
   }).optional().describe('General business settings like contact info and social media links.'),
   primaryCategory: z.object({
       id: z.number(),
@@ -102,10 +103,12 @@ const generateWooCommerceProductContentFlow = ai.defineFlow(
         getGscAnalysis()
     ]);
     
-    // Pass the total image count to the prompt for alt text generation,
-    // but only send the first image to the AI to save tokens.
-    const contextInput: any = { ...input, totalImageCount: input.images_data.length };
-    if (contextInput.images_data.length > 0) {
+    // Create a copy of the input to modify for the prompt context
+    const contextInput: any = { ...input };
+
+    // To prevent hitting token limits or request size limits, only send the first image to the AI.
+    // The prompt explicitly tells the AI to generate alt texts for 'totalImageCount' based on this one sample.
+    if (contextInput.images_data && contextInput.images_data.length > 0) {
         contextInput.images_data = [contextInput.images_data[0]];
     }
 
