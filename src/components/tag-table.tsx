@@ -1,18 +1,10 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { PlusCircle, Edit, Trash2, Sparkles, Loader2 } from "lucide-react";
 import { WooTag } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import TagForm from "./tag-form";
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -37,8 +29,6 @@ import { Skeleton } from "./ui/skeleton";
 export default function TagTable() {
   const [tags, setTags] = useState<WooTag[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingTagId, setEditingTagId] = useState<number | null>(null);
   const [deletingTag, setDeletingTag] = useState<WooTag | null>(null);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const { toast } = useToast();
@@ -59,7 +49,7 @@ export default function TagTable() {
         description: error.message || "Could not load product tags.",
         variant: "destructive"
       });
-      setTags([]); // Clear tags on error
+      setTags([]); 
     } finally {
       setIsLoading(false);
     }
@@ -68,22 +58,6 @@ export default function TagTable() {
   useEffect(() => {
     fetchTags();
   }, []);
-
-  const handleFormSuccess = () => {
-    setIsFormOpen(false);
-    setEditingTagId(null);
-    fetchTags(); // Refresh the list
-  };
-  
-  const openEditDialog = (tag: WooTag) => {
-    setEditingTagId(tag.id);
-    setIsFormOpen(true);
-  }
-
-  const openNewDialog = () => {
-    setEditingTagId(null);
-    setIsFormOpen(true);
-  }
 
   const openDeleteDialog = (tag: WooTag) => {
     setDeletingTag(tag);
@@ -110,7 +84,7 @@ export default function TagTable() {
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Could not delete tag.',
+        description: error.message || 'Could not delete category.',
         variant: 'destructive',
       });
     } finally {
@@ -118,7 +92,7 @@ export default function TagTable() {
     }
   };
   
-    const handleBulkGenerate = async () => {
+  const handleBulkGenerate = async () => {
     setIsBulkGenerating(true);
     toast({
       title: "Bulk Generation Started",
@@ -141,7 +115,7 @@ export default function TagTable() {
         description: result.message,
       });
 
-      fetchTags(); // Refresh the table
+      fetchTags(); 
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -158,9 +132,11 @@ export default function TagTable() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <h1 className="text-2xl sm:text-3xl font-bold font-headline">Product Tags</h1>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Button onClick={openNewDialog} className="w-full sm:w-auto" variant="outline">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  New Tag
+              <Button asChild className="w-full sm:w-auto" variant="outline">
+                  <Link href="/tags/new">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    New Tag
+                  </Link>
               </Button>
               <Button onClick={handleBulkGenerate} className="w-full sm:w-auto" disabled={isBulkGenerating || isLoading}>
                   {isBulkGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
@@ -192,13 +168,15 @@ export default function TagTable() {
                         <TableRow key={tag.id}>
                             <TableCell className="font-medium">{tag.name}</TableCell>
                             <TableCell className="hidden md:table-cell max-w-sm">
-                                <p className="truncate text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: tag.description || '—' }}></p>
+                                <div className="truncate text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: tag.description || '—' }}></div>
                             </TableCell>
                             <TableCell className="text-right">{tag.count}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end">
-                                <Button variant="ghost" size="icon" onClick={() => openEditDialog(tag)}>
-                                    <Edit className="h-4 w-4" />
+                                <Button variant="ghost" size="icon" asChild>
+                                    <Link href={`/tags/${tag.id}`}>
+                                      <Edit className="h-4 w-4" />
+                                    </Link>
                                 </Button>
                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => openDeleteDialog(tag)}>
                                     <Trash2 className="h-4 w-4" />
@@ -218,21 +196,6 @@ export default function TagTable() {
               </div>
             </div>
         )}
-        
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-            <DialogContent className="sm:max-w-2xl w-[90%] max-h-[90vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>{editingTagId ? 'Edit Tag' : 'Create New Tag'}</DialogTitle>
-                    <DialogDescription>
-                        {editingTagId ? 'Edit the tag details and generate SEO content.' : 'Create a new tag. You can generate SEO content for it before saving.'}
-                    </DialogDescription>
-                </DialogHeader>
-                <TagForm 
-                    tagId={editingTagId} 
-                    onSuccess={handleFormSuccess} 
-                />
-            </DialogContent>
-        </Dialog>
 
         <AlertDialog open={!!deletingTag} onOpenChange={() => setDeletingTag(null)}>
             <AlertDialogContent>

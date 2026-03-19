@@ -4,18 +4,18 @@ import { useState, useEffect }from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooTag } from "@/lib/types";
-import { Loader2, Sparkles, Terminal, Copy, CheckCircle2 } from "lucide-react";
+import { Loader2, Sparkles, Copy, CheckCircle2, Save, X } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
-import { Label } from "./ui/label";
 import { Skeleton } from "./ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import Link from "next/link";
 
 const TagFormSchema = z.object({
   name: z.string().min(2, "Tag name is required."),
@@ -37,11 +37,12 @@ type AIGeneratedContent = {
 
 type TagFormProps = {
   tagId: number | null;
-  onSuccess: () => void;
+  onSuccess?: () => void;
 };
 
 
 export default function TagForm({ tagId, onSuccess }: TagFormProps) {
+  const router = useRouter();
   const { toast } = useToast();
   const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -161,9 +162,8 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     setIsSaving(true);
     try {
       const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
-      const method = "POST"; // Use POST for both creation and update to trigger WP REST term hooks
+      const method = "POST"; 
       
-      // Exact structure required by the theme's custom Yoast REST API synchronization
       const submissionData = { 
           name: data.name,
           slug: data.slug,
@@ -187,7 +187,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             const errorData = await response.json();
             message = errorData.message || message;
         } catch (e) {
-            // Fallback to text if JSON parse fails
             try {
                 const text = await response.text();
                 message = text || message;
@@ -202,7 +201,13 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         title: "Success!",
         description: `Tag "${savedTag.name}" and SEO data have been saved.`,
       });
-      onSuccess();
+      
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/tags");
+        router.refresh();
+      }
 
     } catch (error: any) {
       toast({
@@ -229,8 +234,8 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-y-auto pr-2 sm:pr-6 py-1">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem><FormLabel>Name</FormLabel><FormControl><Input placeholder="e.g., Modern" {...field} /></FormControl><FormMessage /></FormItem>
@@ -242,55 +247,55 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                 <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                        <Textarea placeholder="The main description for the tag page..." {...field} rows={6} />
+                        <Textarea placeholder="The main description for the tag page..." {...field} rows={8} />
                     </FormControl>
                     <FormMessage />
                 </FormItem>
             )} />
-            
-            <Separator />
+          </div>
 
-            <Card className={hasGenerated ? "border-primary/50 bg-primary/5" : ""}>
-                <CardHeader>
-                    <div className="flex justify-between items-center">
+          <div className="space-y-4">
+            <Card className={hasGenerated ? "border-primary/50 bg-primary/5" : "bg-muted/30"}>
+                <CardHeader className="pb-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
-                            <CardTitle className="flex items-center gap-2">
-                                SEO Content 
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                AI SEO Content 
                                 {hasGenerated && <CheckCircle2 className="h-4 w-4 text-primary" />}
                             </CardTitle>
-                            <CardDescription>Generated Yoast SEO data for this tag.</CardDescription>
+                            <CardDescription>Generate Yoast SEO data for this tag.</CardDescription>
                         </div>
-                        <Button type="button" onClick={handleGenerateSeo} disabled={isGenerating}>
+                        <Button type="button" size="sm" onClick={handleGenerateSeo} disabled={isGenerating}>
                             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                            AI Generate SEO
+                            Generate Now
                         </Button>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <FormField control={form.control} name="seo_title" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Yoast SEO Title</FormLabel>
+                            <FormLabel className="text-xs">Yoast SEO Title</FormLabel>
                             <div className="relative">
-                                <FormControl><Input {...field} /></FormControl>
-                                <Button variant="ghost" size="icon" type="button" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(field.value || '', 'SEO Title')}><Copy className="h-4 w-4" /></Button>
+                                <FormControl><Input {...field} className="text-sm pr-10" /></FormControl>
+                                <Button variant="ghost" size="icon" type="button" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(field.value || '', 'SEO Title')}><Copy className="h-3 w-3" /></Button>
                             </div>
                         </FormItem>
                     )} />
                     <FormField control={form.control} name="seo_focuskw" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Yoast Focus Keyphrase</FormLabel>
+                            <FormLabel className="text-xs">Yoast Focus Keyphrase</FormLabel>
                             <div className="relative">
-                                <FormControl><Input {...field} /></FormControl>
-                                <Button variant="ghost" size="icon" type="button" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(field.value || '', 'Focus Keyphrase')}><Copy className="h-4 w-4" /></Button>
+                                <FormControl><Input {...field} className="text-sm pr-10" /></FormControl>
+                                <Button variant="ghost" size="icon" type="button" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(field.value || '', 'Focus Keyphrase')}><Copy className="h-3 w-3" /></Button>
                             </div>
                         </FormItem>
                     )} />
                     <FormField control={form.control} name="seo_metadesc" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Yoast Meta Description</FormLabel>
+                            <FormLabel className="text-xs">Yoast Meta Description</FormLabel>
                             <div className="relative">
-                                <FormControl><Textarea {...field} rows={3} /></FormControl>
-                                <Button variant="ghost" size="icon" type="button" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(field.value || '', 'Meta Description')}><Copy className="h-4 w-4" /></Button>
+                                <FormControl><Textarea {...field} rows={3} className="text-sm pr-10 resize-none" /></FormControl>
+                                <Button variant="ghost" size="icon" type="button" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(field.value || '', 'Meta Description')}><Copy className="h-3 w-3" /></Button>
                             </div>
                         </FormItem>
                     )} />
@@ -298,10 +303,19 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             </Card>
           </div>
         </div>
-        <div className="flex-shrink-0 flex justify-end pt-4 mt-4 border-t">
-          <Button type="submit" disabled={isSaving || isFetching}>
-            {(isSaving || isFetching) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {tagId ? "Save All Tag Data" : "Create Tag"}
+
+        <Separator />
+
+        <div className="flex flex-col sm:flex-row justify-end gap-4">
+          <Button variant="outline" type="button" asChild className="w-full sm:w-auto">
+            <Link href="/tags">
+              <X className="mr-2 h-4 w-4" />
+              Cancel
+            </Link>
+          </Button>
+          <Button type="submit" disabled={isSaving || isFetching} className="w-full sm:w-auto">
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {tagId ? "Save Changes" : "Create Tag"}
           </Button>
         </div>
       </form>
