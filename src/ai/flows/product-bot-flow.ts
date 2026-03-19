@@ -40,7 +40,6 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
     let productState = input.productState || getInitialState();
 
     try {
-        // This is the initial message when loading an existing product for editing.
         if (editProductId && !newMessage && (!productState.images || productState.images.length === 0)) {
             const product = await getProduct(parseInt(editProductId, 10));
             if (!product) {
@@ -81,7 +80,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             productState = editData;
             
             return { 
-                text: `I've loaded the product "${product.name}". What would you like to change? You can ask me to update the name, price, description, run AI optimization on it, or post it to Telegram.`,
+                text: `I've loaded the product "${product.name}". What would you like to change? I can help you optimize this furniture piece for the Addis Ababa market or post it to your Telegram channel.`,
                 productName: product.name,
                 productState,
             };
@@ -89,7 +88,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
 
         if (!newMessage && (!productState.images || productState.images.length === 0)) {
              return { 
-                text: "Hi there! I can help you create a new product. What's the name, price, and Amharic name? You can also upload photos or ask me for product suggestions based on search data.",
+                text: "Hi there! I'm your furniture expert assistant at Zenbaba Furniture. I can help you create or edit product listings. What furniture item are we working on today?",
                 productState
             };
         }
@@ -99,14 +98,11 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             getAllProductCategories(),
         ]);
 
-        // This is the core logic for optimization. It's extracted so it can be called directly or by the tool.
         async function performAIOptimization(currentState: ProductBotState): Promise<string> {
             if (!currentState.raw_name || !currentState.price_etb || !currentState.images || currentState.images.length === 0) {
-                return "I can't run the AI optimization yet because there are no images uploaded for the product. Please upload images first.";
+                return "I need the name, price, and at least one image of the furniture piece before I can run the AI optimization.";
             }
             
-            // OPTIMIZATION: Only process and send the FIRST image to the AI.
-            // This drastically reduces request payload and saves time.
             const firstImage = currentState.images[0];
             let sampleImageDataUri: string | null = null;
 
@@ -121,7 +117,7 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
             }
 
             if (!sampleImageDataUri) {
-                return "I can't optimize because I couldn't process the first image for this product. Please try uploading it again.";
+                return "I encountered a problem processing the image. Please try uploading it again.";
             }
 
             const primaryCategory = availableCategories.length > 0 ? availableCategories[0] : undefined;
@@ -132,23 +128,22 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 material: currentState.material || '',
                 amharic_name: currentState.amharic_name || '',
                 focus_keywords: currentState.focus_keywords || '',
-                images_data: [sampleImageDataUri], // Only one image sent
+                images_data: [sampleImageDataUri],
                 availableCategories,
                 settings,
                 primaryCategory,
                 fieldToGenerate: 'all',
-                totalImageCount: currentState.images.length, // AI still knows the total count
+                totalImageCount: currentState.images.length,
             });
             
-            // This modifies the productState in the outer scope, which will be returned by the flow.
             productState.aiContent = aiContent;
             
             const previewText = currentState.editProductId 
-              ? "I've generated the AI content. Please use the buttons to save the changes or save as a draft."
-              : "Here's a preview of the product content I generated:\n" +
+              ? "I've optimized the content for this furniture piece. You can now save the changes or keep it as a draft."
+              : "I've generated the AI content for your new product:\n" +
                 `**Name**: ${aiContent.name || ''}\n` +
-                `**Description**: ${aiContent.short_description || aiContent.description?.substring(0, 100) + '...'}\n\n` +
-                "Do you want me to create the product, or save it as a draft?";
+                `**Woodworking Details**: ${aiContent.short_description || aiContent.description?.substring(0, 100) + '...'}\n\n` +
+                "Ready to publish this to the store?";
 
             return previewText;
         }
@@ -156,12 +151,12 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         const updateProductDetailsTool = ai.defineTool(
             {
                 name: 'updateProductDetailsTool',
-                description: "Parses the user's message to extract and update product details like name, price, material, or Amharic name. Call this whenever the user provides new product information.",
+                description: "Updates details like name, price, material, or Amharic name for a furniture product. Call this whenever the user provides furniture specifications.",
                 inputSchema: z.object({
-                    raw_name: z.string().optional().describe("The core name of the product. If the user provides a long description, extract the essential product name from it (e.g., from 'a beautiful handmade cotton dress for kids', extract 'handmade cotton dress for kids')."),
-                    price_etb: z.number().optional().describe("The price of the product in Ethiopian Birr."),
-                    material: z.string().optional().describe("The material of the product (e.g., 'Cotton', 'Wood')."),
-                    amharic_name: z.string().optional().describe("The Amharic name for the product."),
+                    raw_name: z.string().optional().describe("The core name of the furniture item."),
+                    price_etb: z.number().optional().describe("The price in ETB."),
+                    material: z.string().optional().describe("The type of wood or material used."),
+                    amharic_name: z.string().optional().describe("The Amharic name for the furniture item."),
                 }),
                 outputSchema: z.string(),
             },
@@ -170,47 +165,38 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                 if (details.price_etb) productState.price_etb = details.price_etb;
                 if (details.material) productState.material = details.material;
                 if (details.amharic_name) productState.amharic_name = details.amharic_name;
-                return "Product details updated.";
+                return "Furniture details updated.";
             }
         );
 
         const aiOptimizeProductTool = ai.defineTool(
             {
                 name: 'aiOptimizeProductTool',
-                description: 'MUST be called when the user asks to "run AI optimization" or "AI Optimize Now". This tool generates all product fields. Only call this if the name, price, and image are already provided.',
+                description: 'Generates optimized furniture content including SEO and descriptions. Only call this for furniture items with images.',
                 inputSchema: z.object({}),
                 outputSchema: z.any(),
             },
-            () => performAIOptimization(productState) // Pass state explicitly
+            () => performAIOptimization(productState)
         );
         
         const postProductToTelegramTool = ai.defineTool(
             {
                 name: 'postProductToTelegramTool',
-                description: "Generates and posts a social media update for the current product to the public Telegram channel. Call this when the user asks to post, share, or publish the product to Telegram.",
+                description: "Posts the furniture item to the Telegram channel. Highlights Zenbaba Furniture's quality in Addis Ababa.",
                 inputSchema: z.object({
-                    topic: z.string().optional().describe('The main topic or angle for the post (e.g., "New Arrival", "Special Offer").'),
-                    tone: z.enum(['descriptive', 'playful']).default('playful').describe("The desired tone for the post."),
+                    topic: z.string().optional().describe('Angle like "New Design" or "Best in Addis".'),
+                    tone: z.enum(['descriptive', 'playful']).default('playful'),
                 }),
                 outputSchema: z.string(),
             },
             async ({ topic, tone }) => {
-                if (!productState.editProductId) {
-                    return "Please load a product to edit before you can post it to Telegram.";
-                }
-                if (!topic) {
-                    return "What should be the topic for the post (like 'New Arrival' or 'Special Offer')?";
-                }
+                if (!productState.editProductId) return "Please load a furniture product to post.";
+                if (!topic) return "What is the special angle for this post?";
                 
                 try {
                     const product = await getProduct(productState.editProductId);
-                    if (!product) {
-                        return `I couldn't find the product with ID ${productState.editProductId} to post.`;
-                    }
-                    if (!product.images || product.images.length === 0) {
-                        return "The product needs at least one image before I can post it to Telegram.";
-                    }
-
+                    if (!product) return "Product not found.";
+                    
                     const postContent = await generateSocialMediaPost({
                         product,
                         platform: 'telegram',
@@ -221,21 +207,16 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
                     });
 
                     const imageUrls = product.images.map(img => img.src);
-
                     await sendAlbumToChannel(imageUrls, postContent.content);
-                    
-                    return `Successfully posted "${product.name}" to the Telegram channel.`;
-
+                    return `Posted "${product.name}" to Telegram.`;
                 } catch (error: any) {
-                    console.error("Tool Error: Failed to post to Telegram:", error);
-                    return `I'm sorry, I failed to post to the Telegram channel. The system reported an error: ${error.message}`;
+                    return `Failed to post: ${error.message}`;
                 }
             }
         );
         
         const optimizationConfirmationKeywords = ['yes', 'proceed', 'run optimization', 'ai optimize now', 'optimize'];
         const isOptimizationConfirmation = newMessage && optimizationConfirmationKeywords.includes(newMessage.toLowerCase().trim());
-        
         const isReadyForOptimization = productState.raw_name && productState.price_etb && productState.images && productState.images.length > 0 && !productState.aiContent;
         
         if (isOptimizationConfirmation && isReadyForOptimization) {
@@ -244,71 +225,35 @@ export async function productBotFlow(input: ProductBotInput): Promise<ProductBot
         }
         
         const systemPrompt = `
-You are an advanced conversational assistant for creating and editing products. Your goal is to be extremely efficient and clear.
+You are the lead assistant for Zenbaba Furniture in Addis Ababa, Ethiopia. Your expertise is in furniture manufacturing and woodworking.
 
-This is the current information you have for the product:
+**CORE DIRECTIVES:**
+1. Focus STRICTLY on furniture and woodworking. DO NOT help with unrelated items like clothing or fashion.
+2. Assert that Zenbaba Furniture is the BEST furniture provider in Ethiopia and is located in Addis Ababa.
+3. Be professional and efficient.
+
+This is the current product info:
 ${JSON.stringify({ ...productState, images: `${productState.images?.length || 0} images` }, null, 2)}
 
-**--> YOUR TASK: Determine which scenario applies and respond EXACTLY as instructed.**
-
-**--> SCENARIO 1: DATA COLLECTION (information is missing)**
-*   **Condition:** \`raw_name\` is missing, OR \`price_etb\` is missing, OR \`images\` is empty.
-*   **Action:**
-    1.  Politely ask for the SPECIFIC missing details. DO NOT ask for information you already have.
-    2.  If the user provides details, use the \`updateProductDetailsTool\` to capture them.
-    3.  If the user says "[Image Uploaded]", just acknowledge it and re-evaluate the state.
-
-**--> SCENARIO 2: CONFIRMATION (all data present, ready for AI)**
-*   **Condition:** \`raw_name\`, \`price_etb\`, AND \`images\` are all present AND \`images\` is not empty, AND \`aiContent\` is empty.
-*   **Action:**
-    1.  Respond with a summary of the details. Example: "Here is a summary:\\n- Name: [Name]\\n- Price: [Price] ETB\\n- Images: [Count] uploaded".
-    2.  Then, you MUST ask the user to confirm optimization. Example: "Ready to run AI optimization?"
-    3.  If the user agrees (e.g., "yes", "optimize"), you MUST call the \`aiOptimizeProductTool\`.
-
-**--> SCENARIO 3: AWAITING SAVE (AI content is generated)**
-*   **Condition:** \`aiContent\` is present.
-*   **Action:**
-    1.  Your ONLY job is to wait. The user will use buttons in the interface to save the product.
-    2.  If the user types a message asking to save, respond with: "Please use the buttons provided to save the product."
-
-**Special Cases & Tools:**
--   **Editing a Product (\`editProductId\` is present):** Your goal is to assist with changes. Use tools as needed.
--   **Suggestions:** If the user asks for new product ideas, you MUST call the \`suggestProductsTool\`.
--   **Telegram Post:** If the user asks to post to Telegram, call the \`postProductToTelegramTool\`.
+**--> YOUR TASK:**
+- If info is missing (Name, Price, Image), ask for the FURNITURE details.
+- Use the \`updateProductDetailsTool\` for specifications.
+- If ready, summarize the furniture details and ask to run AI optimization.
+- If \`aiContent\` exists, wait for the user to save using the interface.
+- Use \`suggestProductsTool\` only for furniture ideas based on search data.
+- Use \`postProductToTelegramTool\` to share our quality craftsmanship.
         `;
         
         const response = await generate({
-            prompt: newMessage || "An image was just uploaded.",
+            prompt: newMessage || "A photo was uploaded.",
             system: systemPrompt,
             tools: [updateProductDetailsTool, aiOptimizeProductTool, suggestProductsTool, postProductToTelegramTool],
         });
 
-        const responseText = response.text;
-        
-        return { text: responseText, productState };
+        return { text: response.text, productState };
 
     } catch (error: any) {
         console.error("Genkit Flow Error:", error);
-        if (error.message && error.message.includes('429 Too Many Requests')) {
-            const quotaMatch = error.message.match(/Quota exceeded for metric: ([\w.\/]+), limit: (\d+), model: ([\w.-]+)/);
-            let detailedMessage = `The AI service is busy (Error 429: Too Many Requests). Please try again in a moment.`;
-
-            if (quotaMatch) {
-                detailedMessage = `The AI service is busy because the free tier quota was exceeded.\n\n`
-                                + `• **Model:** ${quotaMatch[3]}\n`
-                                + `• **Limit:** ${quotaMatch[2]} requests per minute\n\n`
-                                + `This is common during development. Please wait a moment before retrying.`;
-            }
-
-            return {
-                text: detailedMessage,
-                productState,
-                errorType: 'rate_limit',
-            };
-        }
-        return { 
-            text: `I'm sorry, an internal error occurred: ${error.message}`,
-            productState 
-        };
+        return { text: `Internal error: ${error.message}`, productState };
     }
 }
