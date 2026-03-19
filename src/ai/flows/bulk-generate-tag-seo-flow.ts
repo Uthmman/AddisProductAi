@@ -39,7 +39,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
             const [seoContent, latestImage] = await Promise.all([
                 generateTagSeoFlow({ tagName: tag.name, settings }),
                 // Automatically grab the latest product image if the tag doesn't have one
-                (!tag.meta?._zenbaba_tag_image) ? wooCommerceApi.getLatestProductImageForTag(tag.id) : Promise.resolve(null)
+                (!tag.meta?.thumbnail_id) ? wooCommerceApi.getLatestProductImageForTag(tag.id) : Promise.resolve(null)
             ]);
             
             const metaToUpdate: any = {
@@ -49,7 +49,8 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
             };
 
             if (latestImage) {
-                metaToUpdate._zenbaba_tag_image = latestImage;
+                metaToUpdate._zenbaba_tag_image = latestImage.src;
+                metaToUpdate.thumbnail_id = latestImage.id;
             }
 
             await wooCommerceApi.updateProductTag(tag.id, {
@@ -67,7 +68,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     console.log(`Finished bulk generation. Updated ${updatedCount} tags.`);
 
     return {
-        message: `Successfully generated descriptions, images, and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
+        message: `Successfully generated descriptions, linked official thumbnails, and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
         updatedCount: updatedCount,
     };
 }

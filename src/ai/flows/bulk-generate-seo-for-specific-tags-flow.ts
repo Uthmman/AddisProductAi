@@ -25,14 +25,14 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
     ]);
 
     // Find the tag objects that match the provided names.
-    // Update if description is missing OR Yoast focus keyword is missing OR tag image is missing.
+    // Update if description is missing OR Yoast focus keyword is missing OR official thumbnail is missing.
     const tagsToUpdate = allTags.filter(tag => 
-        input.tagNames.includes(tag.name) && (!tag.description || !tag.meta?._yoast_wpseo_focuskw || !tag.meta?._zenbaba_tag_image)
+        input.tagNames.includes(tag.name) && (!tag.description || !tag.meta?._yoast_wpseo_focuskw || !tag.meta?.thumbnail_id)
     );
 
     if (tagsToUpdate.length === 0) {
         return {
-            message: "The specified tags already have full SEO data and images or could not be found.",
+            message: "The specified tags already have full SEO data and linked images or could not be found.",
             updatedCount: 0,
         };
     }
@@ -45,7 +45,7 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
         try {
             const [seoContent, latestImage] = await Promise.all([
                 generateTagSeoFlow({ tagName: tag.name, settings }),
-                (!tag.meta?._zenbaba_tag_image) ? wooCommerceApi.getLatestProductImageForTag(tag.id) : Promise.resolve(null)
+                (!tag.meta?.thumbnail_id) ? wooCommerceApi.getLatestProductImageForTag(tag.id) : Promise.resolve(null)
             ]);
             
             const metaToUpdate: any = {
@@ -55,7 +55,8 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
             };
 
             if (latestImage) {
-                metaToUpdate._zenbaba_tag_image = latestImage;
+                metaToUpdate._zenbaba_tag_image = latestImage.src;
+                metaToUpdate.thumbnail_id = latestImage.id;
             }
 
             await wooCommerceApi.updateProductTag(tag.id, {
@@ -71,7 +72,7 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
     }
 
     return {
-        message: `Successfully generated content and images for ${updatedCount} targeted tags.`,
+        message: `Successfully generated content and linked official thumbnails for ${updatedCount} targeted tags.`,
         updatedCount: updatedCount,
     };
 }

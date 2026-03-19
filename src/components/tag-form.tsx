@@ -28,7 +28,8 @@ const TagFormSchema = z.object({
   seo_title: z.string().optional(),
   seo_focuskw: z.string().optional(),
   seo_metadesc: z.string().optional(),
-  tag_image: z.string().optional(),
+  tag_image_src: z.string().optional(),
+  thumbnail_id: z.union([z.number(), z.string()]).optional(),
 });
 
 type TagFormValues = z.infer<typeof TagFormSchema>;
@@ -65,13 +66,14 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         seo_title: "",
         seo_focuskw: "",
         seo_metadesc: "",
-        tag_image: "",
+        tag_image_src: "",
+        thumbnail_id: "",
     },
   });
 
   useEffect(() => {
     if (!tagId) {
-      form.reset({ name: '', slug: '', description: '', seo_title: '', seo_focuskw: '', seo_metadesc: '', tag_image: '' });
+      form.reset({ name: '', slug: '', description: '', seo_title: '', seo_focuskw: '', seo_metadesc: '', tag_image_src: '', thumbnail_id: '' });
       setHasGenerated(false);
       return;
     }
@@ -84,16 +86,18 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         if (!response.ok) throw new Error('Tag not found');
         const fetchedTag: WooTag = await response.json();
         
-        let initialImage = fetchedTag.meta?._zenbaba_tag_image || '';
+        let initialImageSrc = fetchedTag.meta?._zenbaba_tag_image || '';
+        let initialThumbnailId = fetchedTag.meta?.thumbnail_id || '';
 
-        // If no explicit image is set, try to grab the latest product image automatically
-        if (!initialImage && tagId) {
+        // If no image metadata is present, try to grab the latest product image automatically
+        if (!initialImageSrc && tagId) {
             try {
                 const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
                 if (prodRes.ok) {
                     const prodData = await prodRes.json();
-                    if (prodData.products?.[0]?.images?.[0]?.src) {
-                        initialImage = prodData.products[0].images[0].src;
+                    if (prodData.products?.[0]?.images?.[0]) {
+                        initialImageSrc = prodData.products[0].images[0].src;
+                        initialThumbnailId = prodData.products[0].images[0].id;
                     }
                 }
             } catch (err) {
@@ -108,7 +112,8 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           seo_title: fetchedTag.meta?._yoast_wpseo_title || '',
           seo_focuskw: fetchedTag.meta?._yoast_wpseo_focuskw || '',
           seo_metadesc: fetchedTag.meta?._yoast_wpseo_metadesc || '',
-          tag_image: initialImage,
+          tag_image_src: initialImageSrc,
+          thumbnail_id: initialThumbnailId,
         });
 
       } catch (error: any) {
@@ -145,12 +150,13 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       form.setValue('seo_metadesc', content.metaDescription);
       
       // If no image is set, also try to fetch the latest product image automatically
-      if (!form.getValues('tag_image') && tagId) {
+      if (!form.getValues('tag_image_src') && tagId) {
           const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
           if (prodRes.ok) {
               const prodData = await prodRes.json();
-              if (prodData.products?.[0]?.images?.[0]?.src) {
-                  form.setValue('tag_image', prodData.products[0].images[0].src);
+              if (prodData.products?.[0]?.images?.[0]) {
+                  form.setValue('tag_image_src', prodData.products[0].images[0].src);
+                  form.setValue('thumbnail_id', prodData.products[0].images[0].id);
               }
           }
       }
@@ -178,8 +184,9 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
 
         if (!response.ok) throw new Error('Upload failed.');
         const uploaded = await response.json();
-        form.setValue('tag_image', uploaded.src);
-        toast({ description: "Tag image uploaded successfully." });
+        form.setValue('tag_image_src', uploaded.src);
+        form.setValue('thumbnail_id', uploaded.id);
+        toast({ description: "Tag image uploaded and linked to library." });
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Upload Failed', description: error.message });
     }
@@ -200,10 +207,11 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     }
   };
 
-  const selectProductImage = (src: string) => {
-    form.setValue('tag_image', src);
+  const selectProductImage = (id: number, src: string) => {
+    form.setValue('tag_image_src', src);
+    form.setValue('thumbnail_id', id);
     setIsImageDialogOpen(false);
-    toast({ description: "Image selected from linked product." });
+    toast({ description: "Image selected and thumbnail ID captured." });
   };
 
   const handleCopy = (text: string, fieldName: string) => {
@@ -223,7 +231,8 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
               _yoast_wpseo_title: data.seo_title,
               _yoast_wpseo_metadesc: data.seo_metadesc,
               _yoast_wpseo_focuskw: data.seo_focuskw,
-              _zenbaba_tag_image: data.tag_image,
+              _zenbaba_tag_image: data.tag_image_src,
+              thumbnail_id: data.thumbnail_id ? parseInt(data.thumbnail_id.toString(), 10) : 0,
           }
       };
 
@@ -246,7 +255,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       const savedTag: WooTag = await response.json();
 
-      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved.` });
+      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved and thumbnail linked.` });
       if (onSuccess) onSuccess();
       else { router.push("/tags"); router.refresh(); }
     } catch (error: any) {
@@ -258,7 +267,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   
   if (isFetching) return <div className="space-y-4 py-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-20 w-full" /></div>;
 
-  const currentTagImage = form.watch('tag_image');
+  const currentTagImageSrc = form.watch('tag_image_src');
 
   return (
     <Form {...form}>
@@ -270,17 +279,17 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             <Card>
                 <CardHeader>
                     <CardTitle>Tag Image</CardTitle>
-                    <CardDescription>Upload custom or auto-select from latest products.</CardDescription>
+                    <CardDescription>Official WooCommerce thumbnail & preview.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="relative aspect-square w-full max-w-[240px] mx-auto rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
-                        {currentTagImage ? (
-                            <Image src={currentTagImage} alt="Tag image" fill className="object-cover" />
+                        {currentTagImageSrc ? (
+                            <Image src={currentTagImageSrc} alt="Tag image" fill className="object-cover" />
                         ) : (
                             <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
                         )}
-                        {currentTagImage && (
-                            <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg" onClick={() => form.setValue('tag_image', '')}>
+                        {currentTagImageSrc && (
+                            <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg" onClick={() => { form.setValue('tag_image_src', ''); form.setValue('thumbnail_id', ''); }}>
                                 <X className="h-4 w-4" />
                             </Button>
                         )}
@@ -314,7 +323,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                                         ) : (
                                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 p-1">
                                                 {linkedProducts.flatMap(p => p.images).map((img, idx) => (
-                                                    <div key={idx} className="relative aspect-square cursor-pointer hover:opacity-80 transition-opacity rounded-md overflow-hidden border" onClick={() => selectProductImage(img.src)}>
+                                                    <div key={idx} className="relative aspect-square cursor-pointer hover:opacity-80 transition-opacity rounded-md overflow-hidden border" onClick={() => selectProductImage(img.id, img.src)}>
                                                         <Image src={img.src} alt="Product image" fill className="object-cover" />
                                                     </div>
                                                 ))}

@@ -296,11 +296,14 @@ export async function createPost(postData: { title: string; content: string; sta
 /**
  * Helper to fetch the primary image of the latest product linked to a tag.
  */
-export async function getLatestProductImageForTag(tagId: number): Promise<string | null> {
+export async function getLatestProductImageForTag(tagId: number): Promise<{id: number, src: string} | null> {
     try {
         const { products } = await getProducts(1, 1, undefined, tagId.toString());
         if (products.length > 0 && products[0].images.length > 0) {
-            return products[0].images[0].src;
+            return {
+                id: products[0].images[0].id,
+                src: products[0].images[0].src
+            };
         }
     } catch (error) {
         console.error(`Failed to fetch latest product for tag ${tagId}:`, error);
