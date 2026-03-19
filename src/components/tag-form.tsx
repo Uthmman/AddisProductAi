@@ -74,8 +74,12 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       try {
         const response = await fetch(`/api/products/tags/${tagId}`);
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Tag not found or could not be loaded.');
+            let message = 'Tag not found or could not be loaded.';
+            try {
+                const errorData = await response.json();
+                message = errorData.message || message;
+            } catch (e) {}
+            throw new Error(message);
         }
         const fetchedTag: WooTag = await response.json();
         
@@ -119,7 +123,12 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       });
 
       if (!response.ok) {
-        throw new Error((await response.json()).message || 'Failed to generate SEO content.');
+        let message = 'Failed to generate SEO content.';
+        try {
+            const errorData = await response.json();
+            message = errorData.message || message;
+        } catch(e) {}
+        throw new Error(message);
       }
       
       const content: AIGeneratedContent = await response.json();
@@ -152,7 +161,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     setIsSaving(true);
     try {
       const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
-      const method = tagId ? "PUT" : "POST";
+      const method = "POST"; // Use POST for both creation and update to trigger WP REST term hooks
       
       // Exact structure required by the theme's custom Yoast REST API synchronization
       const submissionData = { 
@@ -167,14 +176,24 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       };
 
       const response = await fetch(url, {
-        method: "POST", // Standard WordPress taxonomy endpoint handles updates via POST to the ID URL
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(submissionData),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save tag");
+        let message = "Failed to save tag";
+        try {
+            const errorData = await response.json();
+            message = errorData.message || message;
+        } catch (e) {
+            // Fallback to text if JSON parse fails
+            try {
+                const text = await response.text();
+                message = text || message;
+            } catch (t) {}
+        }
+        throw new Error(message);
       }
 
       const savedTag: WooTag = await response.json();
@@ -217,7 +236,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                 <FormItem><FormLabel>Name</FormLabel><FormControl><Input placeholder="e.g., Modern" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="slug" render={({ field }) => (
-                <FormItem><FormLabel>Slug (Optional)</FormLabel><FormControl><Input placeholder="e.g., modern" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Slug (Optional)</FormLabel><FormControl><Input placeholder="e.g., modern" {...field} /></FormControl><FormMessage /></FormMessage>
             )} />
             <FormField control={form.control} name="description" render={({ field }) => (
                 <FormItem>

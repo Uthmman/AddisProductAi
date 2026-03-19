@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
 }
 
-
+// Handle both PUT and POST for updates to accommodate WordPress-style and REST-style requests
 export async function PUT(request: NextRequest, { params }: Params) {
   const id = parseInt(params.id, 10);
   if (isNaN(id)) {
@@ -34,8 +34,16 @@ export async function PUT(request: NextRequest, { params }: Params) {
     const updatedTag = await wooCommerceApi.updateProductTag(id, body);
     return NextResponse.json(updatedTag);
   } catch (error: any) {
+    console.error(error);
+    if (error.message === 'Tag not found') {
+      return NextResponse.json({ message: 'Tag not found' }, { status: 404 });
+    }
     return NextResponse.json({ message: error.message || 'Failed to update tag' }, { status: 500 });
   }
+}
+
+export async function POST(request: NextRequest, { params }: Params) {
+    return PUT(request, { params });
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
