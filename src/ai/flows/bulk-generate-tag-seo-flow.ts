@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'zod';
@@ -20,12 +19,12 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
         getSettings()
     ]);
     
-    // Filter for tags that don't have a description.
-    const tagsToUpdate = allTags.filter(tag => !tag.description);
+    // Filter for tags that don't have a description OR are missing Yoast focus keywords.
+    const tagsToUpdate = allTags.filter(tag => !tag.description || !tag.meta?._yoast_wpseo_focuskw);
 
     if (tagsToUpdate.length === 0) {
         return {
-            message: "All tags already have descriptions. No updates were needed.",
+            message: "All tags already have descriptions and Yoast SEO data. No updates were needed.",
             updatedCount: 0,
         };
     }

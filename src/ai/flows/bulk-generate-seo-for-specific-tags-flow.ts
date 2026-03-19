@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'zod';
@@ -26,11 +25,14 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
     ]);
 
     // Find the tag objects that match the provided names.
-    const tagsToUpdate = allTags.filter(tag => input.tagNames.includes(tag.name) && !tag.description);
+    // Update if description is missing OR Yoast focus keyword is missing.
+    const tagsToUpdate = allTags.filter(tag => 
+        input.tagNames.includes(tag.name) && (!tag.description || !tag.meta?._yoast_wpseo_focuskw)
+    );
 
     if (tagsToUpdate.length === 0) {
         return {
-            message: "The specified tags already have descriptions or could not be found. No updates were needed.",
+            message: "The specified tags already have descriptions and Yoast SEO data or could not be found. No updates were needed.",
             updatedCount: 0,
         };
     }

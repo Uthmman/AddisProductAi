@@ -190,7 +190,8 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
 
 export async function getAllProductTags(): Promise<WooTag[]> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
+    // context=edit is crucial for seeing the 'meta' field in the response
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
     return handleResponse(response, "Failed to fetch product tags");
 }
 
