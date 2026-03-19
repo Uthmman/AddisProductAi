@@ -188,7 +188,6 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     
     const sanitizedImageName = imageName.replace(/[^a-zA-Z0-9._-]/g, '_');
 
-    // We don't use 'Content-Type': 'application/json' for media uploads
     const mediaHeaders: any = { ...headers };
     mediaHeaders['Content-Type'] = mimeType;
     mediaHeaders['Content-Disposition'] = `attachment; filename="${sanitizedImageName}"`;
@@ -215,7 +214,6 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
 export async function getAllProductTags(): Promise<WooTag[]> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
     const headers = getWordPressAuthHeaders();
-    // context=edit is crucial for seeing the 'meta' field in the response. 
     const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
     return handleResponse(response, "Failed to fetch product tags");
 }

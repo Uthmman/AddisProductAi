@@ -89,7 +89,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         let initialImageSrc = fetchedTag.meta?._zenbaba_tag_image || '';
         let initialThumbnailId = fetchedTag.meta?.thumbnail_id || '';
 
-        // If no image metadata is present, try to grab the latest product image automatically
         if (!initialImageSrc && tagId) {
             try {
                 const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
@@ -149,7 +148,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       form.setValue('seo_focuskw', content.focusKeyphrase);
       form.setValue('seo_metadesc', content.metaDescription);
       
-      // If no image is set, also try to fetch the latest product image automatically
       if (!form.getValues('tag_image_src') && tagId) {
           const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
           if (prodRes.ok) {
@@ -274,7 +272,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           
-          {/* LEFT: BASIC INFO & IMAGE */}
           <div className="lg:col-span-1 space-y-6">
             <Card>
                 <CardHeader>
@@ -350,7 +347,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             </Card>
           </div>
 
-          {/* RIGHT: CONTENT & SEO */}
           <div className="lg:col-span-2 space-y-6">
             <Card>
                 <CardHeader>
