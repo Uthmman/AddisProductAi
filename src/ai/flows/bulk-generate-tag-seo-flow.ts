@@ -33,20 +33,30 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
 
     let updatedCount = 0;
 
-    // Process updates in sequence or chunks to avoid overwhelming the server
+    // Process updates in sequence
     for (const tag of tagsToUpdate) {
         try {
-            const seoContent = await generateTagSeoFlow({ tagName: tag.name, settings });
+            const [seoContent, latestImage] = await Promise.all([
+                generateTagSeoFlow({ tagName: tag.name, settings }),
+                // Automatically grab the latest product image if the tag doesn't have one
+                (!tag.meta?._zenbaba_tag_image) ? wooCommerceApi.getLatestProductImageForTag(tag.id) : Promise.resolve(null)
+            ]);
             
-            // Send the specific structure required by the registered term meta hooks
+            const metaToUpdate: any = {
+                _yoast_wpseo_title: seoContent.title,
+                _yoast_wpseo_metadesc: seoContent.metaDescription,
+                _yoast_wpseo_focuskw: seoContent.focusKeyphrase,
+            };
+
+            if (latestImage) {
+                metaToUpdate._zenbaba_tag_image = latestImage;
+            }
+
             await wooCommerceApi.updateProductTag(tag.id, {
                 description: seoContent.description,
-                meta: {
-                    _yoast_wpseo_title: seoContent.title,
-                    _yoast_wpseo_metadesc: seoContent.metaDescription,
-                    _yoast_wpseo_focuskw: seoContent.focusKeyphrase,
-                }
+                meta: metaToUpdate
             });
+            
             console.log(`Successfully updated tag and SEO: ${tag.name}`);
             updatedCount++;
         } catch (error) {
@@ -57,7 +67,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     console.log(`Finished bulk generation. Updated ${updatedCount} tags.`);
 
     return {
-        message: `Successfully generated descriptions and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
+        message: `Successfully generated descriptions, images, and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
         updatedCount: updatedCount,
     };
 }

@@ -84,6 +84,23 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         if (!response.ok) throw new Error('Tag not found');
         const fetchedTag: WooTag = await response.json();
         
+        let initialImage = fetchedTag.meta?._zenbaba_tag_image || '';
+
+        // If no explicit image is set, try to grab the latest product image automatically
+        if (!initialImage && tagId) {
+            try {
+                const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
+                if (prodRes.ok) {
+                    const prodData = await prodRes.json();
+                    if (prodData.products?.[0]?.images?.[0]?.src) {
+                        initialImage = prodData.products[0].images[0].src;
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch automatic fallback image:", err);
+            }
+        }
+
         form.reset({
           name: fetchedTag.name,
           slug: fetchedTag.slug,
@@ -91,7 +108,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           seo_title: fetchedTag.meta?._yoast_wpseo_title || '',
           seo_focuskw: fetchedTag.meta?._yoast_wpseo_focuskw || '',
           seo_metadesc: fetchedTag.meta?._yoast_wpseo_metadesc || '',
-          tag_image: fetchedTag.meta?._zenbaba_tag_image || '',
+          tag_image: initialImage,
         });
 
       } catch (error: any) {
@@ -127,8 +144,19 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       form.setValue('seo_focuskw', content.focusKeyphrase);
       form.setValue('seo_metadesc', content.metaDescription);
       
+      // If no image is set, also try to fetch the latest product image automatically
+      if (!form.getValues('tag_image') && tagId) {
+          const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
+          if (prodRes.ok) {
+              const prodData = await prodRes.json();
+              if (prodData.products?.[0]?.images?.[0]?.src) {
+                  form.setValue('tag_image', prodData.products[0].images[0].src);
+              }
+          }
+      }
+
       setHasGenerated(true);
-      toast({ title: 'Success!', description: 'SEO content generated.' });
+      toast({ title: 'Success!', description: 'SEO content and fallback image generated.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: error.message });
     } finally {
@@ -205,7 +233,17 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         body: JSON.stringify(submissionData),
       });
 
-      if (!response.ok) throw new Error("Failed to save tag.");
+      if (!response.ok) {
+          let errorMsg = 'Failed to save tag.';
+          try {
+              const errData = await response.json();
+              errorMsg = errData.message || errorMsg;
+          } catch (e) {
+              const text = await response.text();
+              errorMsg = text || errorMsg;
+          }
+          throw new Error(errorMsg);
+      }
       const savedTag: WooTag = await response.json();
 
       toast({ title: "Success!", description: `Tag "${savedTag.name}" saved.` });
@@ -232,7 +270,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             <Card>
                 <CardHeader>
                     <CardTitle>Tag Image</CardTitle>
-                    <CardDescription>Upload a custom image or choose from a product.</CardDescription>
+                    <CardDescription>Upload custom or auto-select from latest products.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="relative aspect-square w-full max-w-[240px] mx-auto rounded-lg overflow-hidden border bg-muted flex items-center justify-center">

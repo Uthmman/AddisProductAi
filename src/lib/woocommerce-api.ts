@@ -292,3 +292,18 @@ export async function createPost(postData: { title: string; content: string; sta
 
     return handleResponse(response, 'Failed to create WordPress post');
 }
+
+/**
+ * Helper to fetch the primary image of the latest product linked to a tag.
+ */
+export async function getLatestProductImageForTag(tagId: number): Promise<string | null> {
+    try {
+        const { products } = await getProducts(1, 1, undefined, tagId.toString());
+        if (products.length > 0 && products[0].images.length > 0) {
+            return products[0].images[0].src;
+        }
+    } catch (error) {
+        console.error(`Failed to fetch latest product for tag ${tagId}:`, error);
+    }
+    return null;
+}

@@ -25,14 +25,14 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
     ]);
 
     // Find the tag objects that match the provided names.
-    // Update if description is missing OR Yoast focus keyword is missing.
+    // Update if description is missing OR Yoast focus keyword is missing OR tag image is missing.
     const tagsToUpdate = allTags.filter(tag => 
-        input.tagNames.includes(tag.name) && (!tag.description || !tag.meta?._yoast_wpseo_focuskw)
+        input.tagNames.includes(tag.name) && (!tag.description || !tag.meta?._yoast_wpseo_focuskw || !tag.meta?._zenbaba_tag_image)
     );
 
     if (tagsToUpdate.length === 0) {
         return {
-            message: "The specified tags already have descriptions and Yoast SEO data or could not be found. No updates were needed.",
+            message: "The specified tags already have full SEO data and images or could not be found.",
             updatedCount: 0,
         };
     }
@@ -43,28 +43,35 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
 
     for (const tag of tagsToUpdate) {
         try {
-            const seoContent = await generateTagSeoFlow({ tagName: tag.name, settings });
+            const [seoContent, latestImage] = await Promise.all([
+                generateTagSeoFlow({ tagName: tag.name, settings }),
+                (!tag.meta?._zenbaba_tag_image) ? wooCommerceApi.getLatestProductImageForTag(tag.id) : Promise.resolve(null)
+            ]);
             
-            // Send the specific structure required by the registered term meta hooks
+            const metaToUpdate: any = {
+                _yoast_wpseo_title: seoContent.title,
+                _yoast_wpseo_metadesc: seoContent.metaDescription,
+                _yoast_wpseo_focuskw: seoContent.focusKeyphrase,
+            };
+
+            if (latestImage) {
+                metaToUpdate._zenbaba_tag_image = latestImage;
+            }
+
             await wooCommerceApi.updateProductTag(tag.id, {
                 description: seoContent.description,
-                meta: {
-                    _yoast_wpseo_title: seoContent.title,
-                    _yoast_wpseo_metadesc: seoContent.metaDescription,
-                    _yoast_wpseo_focuskw: seoContent.focusKeyphrase,
-                }
+                meta: metaToUpdate
             });
-            console.log(`Successfully updated tag and SEO: ${tag.name}`);
+            
+            console.log(`Successfully updated tag: ${tag.name}`);
             updatedCount++;
         } catch (error) {
             console.error(`Failed to update tag: ${tag.name}`, error);
         }
     }
 
-    console.log(`Finished bulk generation for specific tags. Updated ${updatedCount} tags.`);
-
     return {
-        message: `Successfully generated descriptions and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
+        message: `Successfully generated content and images for ${updatedCount} targeted tags.`,
         updatedCount: updatedCount,
     };
 }
