@@ -65,6 +65,7 @@ export interface WooTag {
     _yoast_wpseo_title?: string;
     _yoast_wpseo_metadesc?: string;
     _yoast_wpseo_focuskw?: string;
+    _zenbaba_tag_image?: string;
     [key: string]: any;
   };
 }

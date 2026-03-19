@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PlusCircle, Edit, Trash2, Sparkles, Loader2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon } from "lucide-react";
 import { WooTag } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Table,
   TableBody,
@@ -84,7 +85,7 @@ export default function TagTable() {
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Could not delete category.',
+        description: error.message || 'Could not delete tag.',
         variant: 'destructive',
       });
     } finally {
@@ -132,13 +133,13 @@ export default function TagTable() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <h1 className="text-2xl sm:text-3xl font-bold font-headline">Product Tags</h1>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Button asChild className="w-full sm:w-auto" variant="outline">
+              <Button asChild className="w-full sm:w-auto" variant="outline" size="sm">
                   <Link href="/tags/new">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     New Tag
                   </Link>
               </Button>
-              <Button onClick={handleBulkGenerate} className="w-full sm:w-auto" disabled={isBulkGenerating || isLoading}>
+              <Button onClick={handleBulkGenerate} className="w-full sm:w-auto" disabled={isBulkGenerating || isLoading} size="sm">
                   {isBulkGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                   Generate All SEO
               </Button>
@@ -157,6 +158,7 @@ export default function TagTable() {
                 <Table>
                     <TableHeader>
                     <TableRow>
+                        <TableHead className="w-[80px]">Image</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead className="hidden md:table-cell">Description</TableHead>
                         <TableHead className="text-right">Products</TableHead>
@@ -166,6 +168,22 @@ export default function TagTable() {
                     <TableBody>
                     {tags.length > 0 ? tags.map((tag) => (
                         <TableRow key={tag.id}>
+                            <TableCell>
+                                {tag.meta?._zenbaba_tag_image ? (
+                                    <div className="relative w-12 h-12 rounded-md overflow-hidden border">
+                                        <Image
+                                            src={tag.meta._zenbaba_tag_image}
+                                            alt={tag.name}
+                                            fill
+                                            className="object-cover"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md border border-dashed">
+                                        <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
+                                    </div>
+                                )}
+                            </TableCell>
                             <TableCell className="font-medium">{tag.name}</TableCell>
                             <TableCell className="hidden md:table-cell max-w-sm">
                                 <div className="truncate text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: tag.description || '—' }}></div>
@@ -186,7 +204,7 @@ export default function TagTable() {
                         </TableRow>
                     )) : (
                         <TableRow>
-                            <TableCell colSpan={4} className="h-24 text-center">
+                            <TableCell colSpan={5} className="h-24 text-center">
                                 No tags found.
                             </TableCell>
                         </TableRow>

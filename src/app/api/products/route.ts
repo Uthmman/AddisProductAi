@@ -6,9 +6,10 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const perPage = parseInt(searchParams.get('per_page') || '10', 10);
   const category = searchParams.get('category') || undefined;
+  const tag = searchParams.get('tag') || undefined;
 
   try {
-    const { products, totalPages, totalProducts } = await wooCommerceApi.getProducts(page, perPage, category);
+    const { products, totalPages, totalProducts } = await wooCommerceApi.getProducts(page, perPage, category, tag);
     return NextResponse.json({ products, totalPages, totalProducts });
   } catch (error: any) {
     console.error("API Route Error fetching products:", error.message);
