@@ -189,16 +189,19 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
 }
 
 export async function getAllProductTags(): Promise<WooTag[]> {
+    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
     const headers = getAuthHeaders();
-    // context=edit is crucial for seeing the 'meta' field in the response
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
+    // context=edit is crucial for seeing the 'meta' field in the response. 
+    // We use the standard WP API endpoint for product tags to ensure full metadata visibility.
+    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
     return handleResponse(response, "Failed to fetch product tags");
 }
 
 export async function getSingleProductTag(id: number): Promise<WooTag | null> {
+    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
     const headers = getAuthHeaders();
     // context=edit is crucial for seeing the 'meta' field in the response
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}?context=edit`, { 
+    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag/${id}?context=edit`, { 
         headers, 
         cache: 'no-store' 
     });
@@ -221,10 +224,12 @@ export async function updateProductTag(
         meta?: { [key: string]: any };
     }
 ): Promise<WooTag> {
+    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
     const headers = getAuthHeaders();
     
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}`, {
-        method: 'PUT',
+    // We hit the standard WP taxonomy endpoint to trigger the rest_insert_product_tag and wpseo hooks correctly.
+    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag/${id}`, {
+        method: 'POST', // WordPress REST API handles PUT and POST for updates
         headers,
         body: JSON.stringify(tagData),
     });
@@ -233,8 +238,9 @@ export async function updateProductTag(
 }
 
 export async function createProductTag(tagData: { name: string; slug?: string; description?: string; meta?: { [key: string]: any } }): Promise<WooTag> {
+    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags`, {
+    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag`, {
         method: 'POST',
         headers,
         body: JSON.stringify(tagData),
@@ -243,8 +249,9 @@ export async function createProductTag(tagData: { name: string; slug?: string; d
 }
 
 export async function deleteProductTag(id: number, force: boolean = true): Promise<WooTag> {
+    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/tags/${id}?force=${force}`, {
+    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag/${id}?force=${force}`, {
         method: 'DELETE',
         headers,
     });
