@@ -41,11 +41,11 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
 
     let updatedCount = 0;
 
-    const updatePromises = tagsToUpdate.map(async (tag: WooTag) => {
+    for (const tag of tagsToUpdate) {
         try {
             const seoContent = await generateTagSeoFlow({ tagName: tag.name, settings });
             
-            // Now we can update EVERYTHING via the API
+            // Send the specific structure required by the registered term meta hooks
             await wooCommerceApi.updateProductTag(tag.id, {
                 description: seoContent.description,
                 meta: {
@@ -55,15 +55,11 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
                 }
             });
             console.log(`Successfully updated tag and SEO: ${tag.name}`);
-            return true;
+            updatedCount++;
         } catch (error) {
             console.error(`Failed to update tag: ${tag.name}`, error);
-            return false;
         }
-    });
-
-    const results = await Promise.all(updatePromises);
-    updatedCount = results.filter(success => success).length;
+    }
 
     console.log(`Finished bulk generation for specific tags. Updated ${updatedCount} tags.`);
 

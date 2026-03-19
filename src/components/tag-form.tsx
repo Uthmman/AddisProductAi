@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect }from "react";
@@ -155,6 +154,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
       const method = tagId ? "PUT" : "POST";
       
+      // Exact structure required by the theme's custom Yoast REST API synchronization
       const submissionData = { 
           name: data.name,
           slug: data.slug,
@@ -167,7 +167,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       };
 
       const response = await fetch(url, {
-        method,
+        method: "POST", // Standard WordPress taxonomy endpoint handles updates via POST to the ID URL
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(submissionData),
       });

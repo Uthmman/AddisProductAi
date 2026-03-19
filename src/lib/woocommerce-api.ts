@@ -13,6 +13,18 @@ const getAuthHeaders = () => {
     return { 'Authorization': `Basic ${base64Auth}`, 'Content-Type': 'application/json' };
 }
 
+const getWordPressAuthHeaders = () => {
+    const user = process.env.WORDPRESS_AUTH_USER;
+    const pass = process.env.WORDPRESS_AUTH_PASS;
+    if (!user || !pass) {
+        throw new Error("WordPress Application Password credentials are not configured.");
+    }
+    return { 
+        'Authorization': `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`,
+        'Content-Type': 'application/json' 
+    };
+}
+
 async function handleResponse(response: Response, errorMessage: string) {
     if (!response.ok) {
         let message = `${errorMessage}. Status: ${response.status}`;
@@ -24,7 +36,7 @@ async function handleResponse(response: Response, errorMessage: string) {
         } catch (e) {
              message = await response.text();
         }
-        console.error("WooCommerce API Error:", message);
+        console.error("API Error:", message);
         throw new Error(message);
     }
     return response.json();
@@ -190,16 +202,15 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
 
 export async function getAllProductTags(): Promise<WooTag[]> {
     const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
-    const headers = getAuthHeaders();
+    const headers = getWordPressAuthHeaders();
     // context=edit is crucial for seeing the 'meta' field in the response. 
-    // We use the standard WP API endpoint for product tags to ensure full metadata visibility.
     const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
     return handleResponse(response, "Failed to fetch product tags");
 }
 
 export async function getSingleProductTag(id: number): Promise<WooTag | null> {
     const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
-    const headers = getAuthHeaders();
+    const headers = getWordPressAuthHeaders();
     // context=edit is crucial for seeing the 'meta' field in the response
     const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag/${id}?context=edit`, { 
         headers, 
@@ -225,11 +236,11 @@ export async function updateProductTag(
     }
 ): Promise<WooTag> {
     const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
-    const headers = getAuthHeaders();
+    const headers = getWordPressAuthHeaders();
     
-    // We hit the standard WP taxonomy endpoint to trigger the rest_insert_product_tag and wpseo hooks correctly.
+    // We hit the standard WP taxonomy endpoint to trigger the hooks defined in the theme's functions.php.
     const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag/${id}`, {
-        method: 'POST', // WordPress REST API handles PUT and POST for updates
+        method: 'POST', // WordPress handles updates via POST to the specific ID
         headers,
         body: JSON.stringify(tagData),
     });
@@ -239,7 +250,7 @@ export async function updateProductTag(
 
 export async function createProductTag(tagData: { name: string; slug?: string; description?: string; meta?: { [key: string]: any } }): Promise<WooTag> {
     const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
-    const headers = getAuthHeaders();
+    const headers = getWordPressAuthHeaders();
     const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag`, {
         method: 'POST',
         headers,
@@ -250,7 +261,7 @@ export async function createProductTag(tagData: { name: string; slug?: string; d
 
 export async function deleteProductTag(id: number, force: boolean = true): Promise<WooTag> {
     const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
-    const headers = getAuthHeaders();
+    const headers = getWordPressAuthHeaders();
     const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag/${id}?force=${force}`, {
         method: 'DELETE',
         headers,
