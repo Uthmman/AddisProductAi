@@ -1,12 +1,13 @@
 import { WooProduct, WooCategory, WooTag } from './types';
 
-const WOOCOMMERCE_API_URL = process.env.WOOCOMMERCE_API_URL;
+const WOOCOMMERCE_API_URL = process.env.WOOCOMMERCE_API_URL?.replace(/\/$/, '');
+const WOOCOMMERCE_SITE_URL = process.env.WOOCOMMERCE_SITE_URL?.replace(/\/$/, '');
 
 const getAuthHeaders = () => {
     const consumerKey = process.env.WOOCOMMERCE_CONSUMER_KEY;
     const consumerSecret = process.env.WOOCOMMERCE_CONSUMER_SECRET;
     
-    if (!consumerKey || !consumerSecret || !WOOCOMMERCE_API_URL) {
+    if (!consumerKey || consumerSecret === undefined || !WOOCOMMERCE_API_URL) {
         throw new Error("WooCommerce API credentials or URL are not configured or are incorrect.");
     }
     const base64Auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
@@ -17,12 +18,20 @@ const getWordPressAuthHeaders = () => {
     const user = process.env.WORDPRESS_AUTH_USER;
     const pass = process.env.WORDPRESS_AUTH_PASS;
     if (!user || !pass) {
-        throw new Error("WordPress Application Password credentials are not configured.");
+        throw new Error("WordPress Application Password credentials are not configured in environment variables.");
     }
     return { 
         'Authorization': `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`,
         'Content-Type': 'application/json' 
     };
+}
+
+/**
+ * Strips HTML tags from error messages returned by WordPress.
+ */
+function stripHtml(html: string) {
+    if (typeof html !== 'string') return html;
+    return html.replace(/<[^>]*>?/gm, '');
 }
 
 async function handleResponse(response: Response, errorMessage: string) {
@@ -31,10 +40,14 @@ async function handleResponse(response: Response, errorMessage: string) {
         try {
             const errorBody = await response.json();
             if (errorBody.message) {
-                message = errorBody.message;
+                message = stripHtml(errorBody.message);
             }
         } catch (e) {
-             message = await response.text();
+             try {
+                message = stripHtml(await response.text());
+             } catch (textError) {
+                // message stays as default
+             }
         }
         console.error("API Error:", message);
         throw new Error(message);
@@ -52,10 +65,10 @@ export async function getProducts(page = 1, perPage = 10, category?: string): Pr
     try {
         const errorBody = await response.json();
         if (errorBody.message) {
-            message = errorBody.message;
+            message = stripHtml(errorBody.message);
         }
     } catch(e) {
-        message = await response.text();
+        message = stripHtml(await response.text());
     }
     console.error("WooCommerce API Error:", message);
     throw new Error(message);
@@ -158,15 +171,12 @@ export async function deleteCategory(id: number, force: boolean = true): Promise
 }
 
 export async function uploadImage(imageName: string, imageData: string): Promise<{id: number, src: string}> {
-    const user = process.env.WORDPRESS_AUTH_USER;
-    const pass = process.env.WORDPRESS_AUTH_PASS;
-    
-    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
-    if(!siteUrl || !user || !pass) {
-        throw new Error("WordPress site URL or Application Password for media upload are not set in environment variables.");
+    if(!WOOCOMMERCE_SITE_URL) {
+        throw new Error("WordPress site URL (WOOCOMMERCE_SITE_URL) is not set in environment variables.");
     }
     
-    const wpApiUrl = `${siteUrl}/wp-json/wp/v2`;
+    const headers = getWordPressAuthHeaders();
+    const wpApiUrl = `${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2`;
 
     const mimeTypeMatch = imageData.match(/^data:(image\/[a-z]+);base64,/);
     if (!mimeTypeMatch) {
@@ -177,17 +187,18 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     
     const sanitizedImageName = imageName.replace(/[^a-zA-Z0-9._-]/g, '_');
 
+    // We don't use 'Content-Type': 'application/json' for media uploads
+    const mediaHeaders: any = { ...headers };
+    mediaHeaders['Content-Type'] = mimeType;
+    mediaHeaders['Content-Disposition'] = `attachment; filename="${sanitizedImageName}"`;
+
     const response = await fetch(`${wpApiUrl}/media`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`,
-        'Content-Type': mimeType,
-        'Content-Disposition': `attachment; filename="${sanitizedImageName}"`
-      },
+      headers: mediaHeaders,
       body: imageBuffer
     });
 
-    return handleResponse(response, 'Failed to upload image to WordPress');
+    return handleResponse(response, 'Failed to upload image to WordPress media library');
 }
 
 export async function updateProductBatch(updates: { update: any[] }): Promise<any> {
@@ -201,18 +212,17 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
 }
 
 export async function getAllProductTags(): Promise<WooTag[]> {
-    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
     const headers = getWordPressAuthHeaders();
     // context=edit is crucial for seeing the 'meta' field in the response. 
-    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
+    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
     return handleResponse(response, "Failed to fetch product tags");
 }
 
 export async function getSingleProductTag(id: number): Promise<WooTag | null> {
-    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
     const headers = getWordPressAuthHeaders();
-    // context=edit is crucial for seeing the 'meta' field in the response
-    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag/${id}?context=edit`, { 
+    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}?context=edit`, { 
         headers, 
         cache: 'no-store' 
     });
@@ -235,12 +245,11 @@ export async function updateProductTag(
         meta?: { [key: string]: any };
     }
 ): Promise<WooTag> {
-    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
     const headers = getWordPressAuthHeaders();
     
-    // We hit the standard WP taxonomy endpoint to trigger the hooks defined in the theme's functions.php.
-    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag/${id}`, {
-        method: 'POST', // WordPress handles updates via POST to the specific ID
+    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}`, {
+        method: 'POST',
         headers,
         body: JSON.stringify(tagData),
     });
@@ -249,9 +258,9 @@ export async function updateProductTag(
 }
 
 export async function createProductTag(tagData: { name: string; slug?: string; description?: string; meta?: { [key: string]: any } }): Promise<WooTag> {
-    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag`, {
+    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag`, {
         method: 'POST',
         headers,
         body: JSON.stringify(tagData),
@@ -260,9 +269,9 @@ export async function createProductTag(tagData: { name: string; slug?: string; d
 }
 
 export async function deleteProductTag(id: number, force: boolean = true): Promise<WooTag> {
-    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${siteUrl}/wp-json/wp/v2/product_tag/${id}?force=${force}`, {
+    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}?force=${force}`, {
         method: 'DELETE',
         headers,
     });
@@ -270,22 +279,13 @@ export async function deleteProductTag(id: number, force: boolean = true): Promi
 }
 
 export async function createPost(postData: { title: string; content: string; status: 'publish' | 'draft' }): Promise<any> {
-    const user = process.env.WORDPRESS_AUTH_USER;
-    const pass = process.env.WORDPRESS_AUTH_PASS;
-    
-    const siteUrl = process.env.WOOCOMMERCE_SITE_URL;
-    if(!siteUrl || !user || !pass) {
-        throw new Error("WordPress site URL or Application Password for media upload are not set in environment variables.");
-    }
-    
-    const wpApiUrl = `${siteUrl}/wp-json/wp/v2`;
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
+    const headers = getWordPressAuthHeaders();
+    const wpApiUrl = `${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2`;
 
     const response = await fetch(`${wpApiUrl}/posts`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`,
-            'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(postData),
     });
 
