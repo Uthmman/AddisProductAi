@@ -62,14 +62,14 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
             // Build multiple images HTML block
             // Logic: if > 3 images, make them 150px square. Otherwise 250px square.
             const useSquareSmall = productImages.length > 3;
-            const imgWidth = useSquareSmall ? 150 : 250;
-            const imgHeight = useSquareSmall ? 150 : 250;
+            const size = useSquareSmall ? 150 : 250;
 
             let imagesHtml = '';
             for (const img of productImages) {
                 if (!seoContent.description.includes(img.src)) {
                     const idClass = img.id ? ` wp-image-${img.id}` : '';
-                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="${imgWidth}" height="${imgHeight}" class="alignnone size-medium${idClass}" /></a>`;
+                    // Use object-fit: cover to ensure perfect squares without stretching
+                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="${size}" height="${size}" style="object-fit: cover; margin-right: 10px; margin-bottom: 10px; border-radius: 4px;" class="alignnone size-medium${idClass}" /></a>`;
                 }
             }
 
