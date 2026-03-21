@@ -268,9 +268,10 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       
       let imagesHtml = '';
       for (const img of imagesToEmbed) {
+          // Check if image is already in description. Note: we use width=400 for medium size.
           if (!finalDescription.includes(img.src)) {
               const idClass = img.id ? ` wp-image-${img.id}` : '';
-              imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${data.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
+              imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${data.name}" width="400" height="225" class="alignnone size-medium${idClass}" /></a>`;
           }
       }
       

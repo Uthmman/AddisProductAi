@@ -59,7 +59,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
             for (const img of productImages) {
                 if (!seoContent.description.includes(img.src)) {
                     const idClass = img.id ? ` wp-image-${img.id}` : '';
-                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
+                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="400" height="225" class="alignnone size-medium${idClass}" /></a>`;
                 }
             }
 
