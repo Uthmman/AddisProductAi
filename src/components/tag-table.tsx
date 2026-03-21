@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export default function TagTable() {
   const [tags, setTags] = useState<WooTag[]>([]);
@@ -186,7 +187,10 @@ export default function TagTable() {
                             </TableCell>
                             <TableCell className="font-medium">{tag.name}</TableCell>
                             <TableCell className="hidden md:table-cell max-w-sm">
-                                <div className="truncate text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: tag.description || '—' }}></div>
+                                <div 
+                                    className="truncate text-sm text-muted-foreground [&_img]:h-5 [&_img]:w-5 [&_img]:inline-block [&_img]:align-middle [&_img]:mr-1 [&_img]:rounded-sm [&_img]:object-cover" 
+                                    dangerouslySetInnerHTML={{ __html: tag.description || '—' }}
+                                />
                             </TableCell>
                             <TableCell className="text-right">{tag.count}</TableCell>
                             <TableCell className="text-right">
