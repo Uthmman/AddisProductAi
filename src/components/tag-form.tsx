@@ -295,10 +295,10 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       let finalDescription = data.description || '';
       const imagesToEmbed = galleryImages.length > 0 ? galleryImages : (data.tag_image_src ? [{ id: Number(data.thumbnail_id), src: data.tag_image_src }] : []);
       
-      // Logic: if > 3 images, make them 150px square. Otherwise 250px wide.
-      const useSquare = imagesToEmbed.length > 3;
-      const imgWidth = useSquare ? 150 : 250;
-      const imgHeight = useSquare ? 150 : 141;
+      // Logic: if > 3 images, make them 150px square. Otherwise 250px square.
+      const useSquareSmall = imagesToEmbed.length > 3;
+      const imgWidth = useSquareSmall ? 150 : 250;
+      const imgHeight = useSquareSmall ? 150 : 250;
 
       let imagesHtml = '';
       for (const img of imagesToEmbed) {

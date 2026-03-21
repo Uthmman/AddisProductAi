@@ -56,10 +56,10 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
             }
 
             // Build multiple images HTML block
-            // Logic: if > 3 images, make them 150px square. Otherwise 250px wide.
-            const useSquare = productImages.length > 3;
-            const imgWidth = useSquare ? 150 : 250;
-            const imgHeight = useSquare ? 150 : 141;
+            // Logic: if > 3 images, make them 150px square. Otherwise 250px square.
+            const useSquareSmall = productImages.length > 3;
+            const imgWidth = useSquareSmall ? 150 : 250;
+            const imgHeight = useSquareSmall ? 150 : 250;
 
             let imagesHtml = '';
             for (const img of productImages) {
