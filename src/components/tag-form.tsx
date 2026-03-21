@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -20,7 +19,7 @@ import { Skeleton } from "./ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import Link from "next/link";
-import { fileToBase64 } from "@/lib/utils";
+import { fileToBase64, cn } from "@/lib/utils";
 
 const TagFormSchema = z.object({
   name: z.string().min(2, "Tag name is required."),
@@ -92,19 +91,27 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         let initialImageSrc = fetchedTag.meta?._zenbaba_tag_image || '';
         let initialThumbnailId = fetchedTag.meta?.thumbnail_id || '';
 
-        // Fetch products to populate gallery images
+        // Fetch products to populate gallery images (up to 4)
         if (tagId) {
-            const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=4`);
+            const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=10`);
             if (prodRes.ok) {
                 const prodData = await prodRes.json();
-                const images = (prodData.products || [])
-                    .filter((p: any) => p.images && p.images.length > 0)
-                    .map((p: any) => ({ id: p.images[0].id, src: p.images[0].src }));
-                setGalleryImages(images);
+                const uniqueImages: {id: number, src: string}[] = [];
+                const seenSrcs = new Set();
 
-                if (!initialImageSrc && images.length > 0) {
-                    initialImageSrc = images[0].src;
-                    initialThumbnailId = images[0].id;
+                for (const p of (prodData.products || [])) {
+                    if (p.images && p.images.length > 0 && !seenSrcs.has(p.images[0].src)) {
+                        uniqueImages.push({ id: p.images[0].id, src: p.images[0].src });
+                        seenSrcs.add(p.images[0].src);
+                        if (uniqueImages.length >= 4) break;
+                    }
+                }
+                
+                setGalleryImages(uniqueImages);
+
+                if (!initialImageSrc && uniqueImages.length > 0) {
+                    initialImageSrc = uniqueImages[0].src;
+                    initialThumbnailId = uniqueImages[0].id;
                 }
             }
         }
@@ -155,17 +162,25 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       
       // Auto-suggest images from linked products if tag exists
       if (tagId && galleryImages.length === 0) {
-          const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=4`);
+          const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=10`);
           if (prodRes.ok) {
               const prodData = await prodRes.json();
-              const images = (prodData.products || [])
-                  .filter((p: any) => p.images && p.images.length > 0)
-                  .map((p: any) => ({ id: p.images[0].id, src: p.images[0].src }));
-              setGalleryImages(images);
+              const uniqueImages: {id: number, src: string}[] = [];
+              const seenSrcs = new Set();
+
+              for (const p of (prodData.products || [])) {
+                  if (p.images && p.images.length > 0 && !seenSrcs.has(p.images[0].src)) {
+                      uniqueImages.push({ id: p.images[0].id, src: p.images[0].src });
+                      seenSrcs.add(p.images[0].src);
+                      if (uniqueImages.length >= 4) break;
+                  }
+              }
               
-              if (!form.getValues('tag_image_src') && images.length > 0) {
-                  form.setValue('tag_image_src', images[0].src);
-                  form.setValue('thumbnail_id', images[0].id);
+              setGalleryImages(uniqueImages);
+              
+              if (!form.getValues('tag_image_src') && uniqueImages.length > 0) {
+                  form.setValue('tag_image_src', uniqueImages[0].src);
+                  form.setValue('thumbnail_id', uniqueImages[0].id);
               }
           }
       }
@@ -248,7 +263,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       // Embed multiple images HTML in description
       let finalDescription = data.description || '';
       
-      // We prepend images that are in our galleryImages state
+      // Filter out existing images from description to avoid double-prepending
       const imagesToEmbed = galleryImages.length > 0 ? galleryImages : (data.tag_image_src ? [{ id: Number(data.thumbnail_id), src: data.tag_image_src }] : []);
       
       let imagesHtml = '';
@@ -293,7 +308,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       const savedTag: WooTag = await response.json();
 
-      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and images.` });
+      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and 3-4 product images.` });
       if (onSuccess) onSuccess();
       else { router.push("/tags"); router.refresh(); }
     } catch (error: any) {

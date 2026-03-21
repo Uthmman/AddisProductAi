@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'zod';
@@ -39,7 +38,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
         try {
             const [seoContent, productImages] = await Promise.all([
                 generateTagSeoFlow({ tagName: tag.name, settings }),
-                // Automatically grab images from multiple products linked to this tag
+                // Automatically grab images from multiple unique products linked to this tag
                 wooCommerceApi.getProductImagesForTag(tag.id, 4)
             ]);
             
@@ -82,7 +81,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     console.log(`Finished bulk generation. Updated ${updatedCount} tags.`);
 
     return {
-        message: `Successfully generated descriptions, linked official product images, and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
+        message: `Successfully generated descriptions, linked 3-4 official product images, and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
         updatedCount: updatedCount,
     };
 }
