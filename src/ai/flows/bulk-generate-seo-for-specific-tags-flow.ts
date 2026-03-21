@@ -26,14 +26,11 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
     ]);
 
     // Find the tag objects that match the provided names.
-    // Update if description is missing OR Yoast focus keyword is missing OR official thumbnail is missing.
-    const tagsToUpdate = allTags.filter(tag => 
-        input.tagNames.includes(tag.name) && (!tag.description || !tag.meta?._yoast_wpseo_focuskw || !tag.meta?.thumbnail_id)
-    );
+    const tagsToUpdate = allTags.filter(tag => input.tagNames.includes(tag.name));
 
     if (tagsToUpdate.length === 0) {
         return {
-            message: "The specified tags already have full SEO data and linked images or could not be found.",
+            message: "The specified tags could not be found.",
             updatedCount: 0,
         };
     }
@@ -44,9 +41,10 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
 
     for (const tag of tagsToUpdate) {
         try {
-            const [seoContent, latestImage] = await Promise.all([
+            const [seoContent, productImages] = await Promise.all([
                 generateTagSeoFlow({ tagName: tag.name, settings }),
-                (!tag.meta?.thumbnail_id) ? wooCommerceApi.getLatestProductImageForTag(tag.id) : Promise.resolve(null)
+                // Fetch images from up to 4 different products for this tag
+                wooCommerceApi.getProductImagesForTag(tag.id, 4)
             ]);
             
             const metaToUpdate: any = {
@@ -55,21 +53,23 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
                 _yoast_wpseo_focuskw: seoContent.focusKeyphrase,
             };
 
-            const imageSrc = latestImage?.src || tag.meta?._zenbaba_tag_image;
-            const thumbId = latestImage?.id || tag.meta?.thumbnail_id;
-
-            if (latestImage) {
-                metaToUpdate._zenbaba_tag_image = latestImage.src;
-                metaToUpdate.thumbnail_id = latestImage.id;
+            // Set primary thumbnail if missing
+            if (!tag.meta?.thumbnail_id && productImages.length > 0) {
+                metaToUpdate._zenbaba_tag_image = productImages[0].src;
+                metaToUpdate.thumbnail_id = productImages[0].id;
             }
 
-            // Prepend image HTML to description
-            let finalDescription = seoContent.description;
-            if (imageSrc && !finalDescription.includes(imageSrc)) {
-                const idClass = thumbId ? ` wp-image-${thumbId}` : '';
-                const imgHtml = `<a href="${imageSrc}"><img src="${imageSrc}" alt="${tag.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
-                finalDescription = imgHtml + finalDescription;
+            // Build multiple images HTML block
+            let imagesHtml = '';
+            for (const img of productImages) {
+                if (!seoContent.description.includes(img.src)) {
+                    const idClass = img.id ? ` wp-image-${img.id}` : '';
+                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
+                }
             }
+
+            // Prepend gallery HTML to description
+            const finalDescription = imagesHtml + seoContent.description;
 
             await wooCommerceApi.updateProductTag(tag.id, {
                 description: finalDescription,
@@ -84,7 +84,7 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
     }
 
     return {
-        message: `Successfully generated content and linked official thumbnails from furniture products for ${updatedCount} targeted tags.`,
+        message: `Successfully generated content and embedded 3-4 unique product images for ${updatedCount} targeted furniture tags.`,
         updatedCount: updatedCount,
     };
 }

@@ -37,10 +37,10 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     // Process updates in sequence
     for (const tag of tagsToUpdate) {
         try {
-            const [seoContent, latestImage] = await Promise.all([
+            const [seoContent, productImages] = await Promise.all([
                 generateTagSeoFlow({ tagName: tag.name, settings }),
-                // Automatically grab the latest product image if the tag doesn't have one
-                (!tag.meta?.thumbnail_id) ? wooCommerceApi.getLatestProductImageForTag(tag.id) : Promise.resolve(null)
+                // Automatically grab images from multiple products linked to this tag
+                wooCommerceApi.getProductImagesForTag(tag.id, 4)
             ]);
             
             const metaToUpdate: any = {
@@ -49,21 +49,23 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
                 _yoast_wpseo_focuskw: seoContent.focusKeyphrase,
             };
 
-            const imageSrc = latestImage?.src || tag.meta?._zenbaba_tag_image;
-            const thumbId = latestImage?.id || tag.meta?.thumbnail_id;
-
-            if (latestImage) {
-                metaToUpdate._zenbaba_tag_image = latestImage.src;
-                metaToUpdate.thumbnail_id = latestImage.id;
+            // Set primary thumbnail if the tag doesn't have one
+            if (!tag.meta?.thumbnail_id && productImages.length > 0) {
+                metaToUpdate._zenbaba_tag_image = productImages[0].src;
+                metaToUpdate.thumbnail_id = productImages[0].id;
             }
 
-            // Prepend image HTML to description
-            let finalDescription = seoContent.description;
-            if (imageSrc && !finalDescription.includes(imageSrc)) {
-                const idClass = thumbId ? ` wp-image-${thumbId}` : '';
-                const imgHtml = `<a href="${imageSrc}"><img src="${imageSrc}" alt="${tag.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
-                finalDescription = imgHtml + finalDescription;
+            // Build multiple images HTML block
+            let imagesHtml = '';
+            for (const img of productImages) {
+                if (!seoContent.description.includes(img.src)) {
+                    const idClass = img.id ? ` wp-image-${img.id}` : '';
+                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
+                }
             }
+
+            // Prepend gallery HTML to description
+            const finalDescription = imagesHtml + seoContent.description;
 
             await wooCommerceApi.updateProductTag(tag.id, {
                 description: finalDescription,
@@ -80,7 +82,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     console.log(`Finished bulk generation. Updated ${updatedCount} tags.`);
 
     return {
-        message: `Successfully generated descriptions, linked official thumbnails from furniture products, and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
+        message: `Successfully generated descriptions, linked official product images, and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
         updatedCount: updatedCount,
     };
 }

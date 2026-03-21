@@ -293,19 +293,26 @@ export async function createPost(postData: { title: string; content: string; sta
 }
 
 /**
- * Helper to fetch the primary image of the latest product linked to a tag.
+ * Helper to fetch images of different products linked to a tag.
  */
-export async function getLatestProductImageForTag(tagId: number): Promise<{id: number, src: string} | null> {
+export async function getProductImagesForTag(tagId: number, limit: number = 4): Promise<{id: number, src: string}[]> {
     try {
-        const { products } = await getProducts(1, 1, undefined, tagId.toString());
-        if (products.length > 0 && products[0].images.length > 0) {
-            return {
-                id: products[0].images[0].id,
-                src: products[0].images[0].src
-            };
+        const { products } = await getProducts(1, limit, undefined, tagId.toString());
+        if (products.length > 0) {
+            return products
+                .filter(p => p.images && p.images.length > 0)
+                .map(p => ({
+                    id: p.images[0].id,
+                    src: p.images[0].src
+                }));
         }
     } catch (error) {
-        console.error(`Failed to fetch latest product for tag ${tagId}:`, error);
+        console.error(`Failed to fetch products for tag ${tagId}:`, error);
     }
-    return null;
+    return [];
+}
+
+export async function getLatestProductImageForTag(tagId: number): Promise<{id: number, src: string} | null> {
+    const images = await getProductImagesForTag(tagId, 1);
+    return images.length > 0 ? images[0] : null;
 }

@@ -57,6 +57,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const [isFetchingProducts, setIsFetchingProducts] = useState(false);
   const [linkedProducts, setLinkedProducts] = useState<WooProduct[]>([]);
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<{id: number, src: string}[]>([]);
 
   const form = useForm<TagFormValues>({
     resolver: zodResolver(TagFormSchema),
@@ -76,6 +77,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     if (!tagId) {
       form.reset({ name: '', slug: '', description: '', seo_title: '', seo_focuskw: '', seo_metadesc: '', tag_image_src: '', thumbnail_id: '' });
       setHasGenerated(false);
+      setGalleryImages([]);
       return;
     }
 
@@ -90,19 +92,20 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         let initialImageSrc = fetchedTag.meta?._zenbaba_tag_image || '';
         let initialThumbnailId = fetchedTag.meta?.thumbnail_id || '';
 
-        // Fallback: If no tag image is set, find the image of a product linked to this tag
-        if (!initialImageSrc && tagId) {
-            try {
-                const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
-                if (prodRes.ok) {
-                    const prodData = await prodRes.json();
-                    if (prodData.products?.[0]?.images?.[0]) {
-                        initialImageSrc = prodData.products[0].images[0].src;
-                        initialThumbnailId = prodData.products[0].images[0].id;
-                    }
+        // Fetch products to populate gallery images
+        if (tagId) {
+            const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=4`);
+            if (prodRes.ok) {
+                const prodData = await prodRes.json();
+                const images = (prodData.products || [])
+                    .filter((p: any) => p.images && p.images.length > 0)
+                    .map((p: any) => ({ id: p.images[0].id, src: p.images[0].src }));
+                setGalleryImages(images);
+
+                if (!initialImageSrc && images.length > 0) {
+                    initialImageSrc = images[0].src;
+                    initialThumbnailId = images[0].id;
                 }
-            } catch (err) {
-                console.error("Failed to fetch automatic fallback image:", err);
             }
         }
 
@@ -150,20 +153,25 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       form.setValue('seo_focuskw', content.focusKeyphrase);
       form.setValue('seo_metadesc', content.metaDescription);
       
-      // Auto-suggest image from linked products if not already present
-      if (!form.getValues('tag_image_src') && tagId) {
-          const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
+      // Auto-suggest images from linked products if tag exists
+      if (tagId && galleryImages.length === 0) {
+          const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=4`);
           if (prodRes.ok) {
               const prodData = await prodRes.json();
-              if (prodData.products?.[0]?.images?.[0]) {
-                  form.setValue('tag_image_src', prodData.products[0].images[0].src);
-                  form.setValue('thumbnail_id', prodData.products[0].images[0].id);
+              const images = (prodData.products || [])
+                  .filter((p: any) => p.images && p.images.length > 0)
+                  .map((p: any) => ({ id: p.images[0].id, src: p.images[0].src }));
+              setGalleryImages(images);
+              
+              if (!form.getValues('tag_image_src') && images.length > 0) {
+                  form.setValue('tag_image_src', images[0].src);
+                  form.setValue('thumbnail_id', images[0].id);
               }
           }
       }
 
       setHasGenerated(true);
-      toast({ title: 'Success!', description: 'SEO content and relevant product image suggested.' });
+      toast({ title: 'Success!', description: 'SEO content and high-quality product images suggested.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: error.message });
     } finally {
@@ -187,6 +195,12 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         const uploaded = await response.json();
         form.setValue('tag_image_src', uploaded.src);
         form.setValue('thumbnail_id', uploaded.id);
+        
+        // Add to gallery if not already present
+        if (!galleryImages.some(img => img.id === uploaded.id)) {
+            setGalleryImages(prev => [{ id: uploaded.id, src: uploaded.src }, ...prev].slice(0, 4));
+        }
+
         toast({ description: "Tag image uploaded and linked to library." });
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Upload Failed', description: error.message });
@@ -211,6 +225,12 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const selectProductImage = (id: number, src: string) => {
     form.setValue('tag_image_src', src);
     form.setValue('thumbnail_id', id);
+    
+    // Add to gallery if not already present
+    if (!galleryImages.some(img => img.id === id)) {
+        setGalleryImages(prev => [{ id, src }, ...prev].slice(0, 4));
+    }
+
     setIsImageDialogOpen(false);
     toast({ description: "Product image selected for tag." });
   };
@@ -225,13 +245,21 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     try {
       const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
       
-      // Embed image HTML in description if an image is selected and not already embedded
+      // Embed multiple images HTML in description
       let finalDescription = data.description || '';
-      if (data.tag_image_src && !finalDescription.includes(data.tag_image_src)) {
-          const idClass = data.thumbnail_id ? ` wp-image-${data.thumbnail_id}` : '';
-          const imgHtml = `<a href="${data.tag_image_src}"><img src="${data.tag_image_src}" alt="${data.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
-          finalDescription = imgHtml + finalDescription;
+      
+      // We prepend images that are in our galleryImages state
+      const imagesToEmbed = galleryImages.length > 0 ? galleryImages : (data.tag_image_src ? [{ id: Number(data.thumbnail_id), src: data.tag_image_src }] : []);
+      
+      let imagesHtml = '';
+      for (const img of imagesToEmbed) {
+          if (!finalDescription.includes(img.src)) {
+              const idClass = img.id ? ` wp-image-${img.id}` : '';
+              imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${data.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
+          }
       }
+      
+      finalDescription = imagesHtml + finalDescription;
 
       const submissionData = { 
           name: data.name,
@@ -265,7 +293,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       const savedTag: WooTag = await response.json();
 
-      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content.` });
+      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and images.` });
       if (onSuccess) onSuccess();
       else { router.push("/tags"); router.refresh(); }
     } catch (error: any) {
@@ -287,8 +315,8 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           <div className="lg:col-span-1 space-y-6">
             <Card>
                 <CardHeader>
-                    <CardTitle>Tag Image</CardTitle>
-                    <CardDescription>Relevant furniture image for this tag.</CardDescription>
+                    <CardTitle>Tag Gallery</CardTitle>
+                    <CardDescription>Main image and gallery previews.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="relative aspect-square w-full max-w-[240px] mx-auto rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
@@ -303,7 +331,25 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                             </Button>
                         )}
                     </div>
-                    <div className="flex flex-col gap-2">
+                    
+                    {galleryImages.length > 0 && (
+                        <div className="grid grid-cols-4 gap-2">
+                            {galleryImages.map((img, idx) => (
+                                <div 
+                                    key={idx} 
+                                    className={cn(
+                                        "relative aspect-square rounded-md overflow-hidden border cursor-pointer hover:ring-2 hover:ring-primary transition-all",
+                                        currentTagImageSrc === img.src && "ring-2 ring-primary"
+                                    )}
+                                    onClick={() => { form.setValue('tag_image_src', img.src); form.setValue('thumbnail_id', img.id); }}
+                                >
+                                    <Image src={img.src} alt={`Gallery ${idx}`} fill className="object-cover" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-2 pt-2">
                         <div className="relative">
                             <Button variant="outline" className="w-full" asChild>
                                 <label className="cursor-pointer">
