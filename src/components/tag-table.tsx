@@ -97,7 +97,7 @@ export default function TagTable() {
     setIsBulkGenerating(true);
     toast({
       title: "Bulk Generation Started",
-      description: "AI is generating SEO content for tags without a description. This may take a few minutes.",
+      description: "AI is generating SEO content and linking product images for tags. This may take a few minutes.",
     });
 
     try {
@@ -158,7 +158,7 @@ export default function TagTable() {
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead className="w-[80px]">Image</TableHead>
+                        <TableHead className="w-[50px]">Icon</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead className="hidden md:table-cell">Description</TableHead>
                         <TableHead className="text-right">Products</TableHead>
@@ -170,7 +170,7 @@ export default function TagTable() {
                         <TableRow key={tag.id}>
                             <TableCell>
                                 {tag.meta?._zenbaba_tag_image ? (
-                                    <div className="relative w-12 h-12 rounded-md overflow-hidden border">
+                                    <div className="relative w-8 h-8 rounded-sm overflow-hidden border">
                                         <Image
                                             src={tag.meta._zenbaba_tag_image}
                                             alt={tag.name}
@@ -179,8 +179,8 @@ export default function TagTable() {
                                         />
                                     </div>
                                 ) : (
-                                    <div className="w-12 h-12 flex items-center justify-center bg-muted rounded-md border border-dashed">
-                                        <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
+                                    <div className="w-8 h-8 flex items-center justify-center bg-muted rounded-sm border border-dashed">
+                                        <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
                                     </div>
                                 )}
                             </TableCell>

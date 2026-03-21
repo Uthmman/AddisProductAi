@@ -186,7 +186,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
 
       setHasGenerated(true);
-      toast({ title: 'Success!', description: 'SEO content and high-quality product images suggested.' });
+      toast({ title: 'Success!', description: 'SEO content and furniture product images suggested.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: error.message });
     } finally {
@@ -216,7 +216,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             setGalleryImages(prev => [{ id: uploaded.id, src: uploaded.src }, ...prev].slice(0, 4));
         }
 
-        toast({ description: "Tag image uploaded and linked to library." });
+        toast({ description: "Tag image uploaded and linked." });
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Upload Failed', description: error.message });
     }
@@ -308,7 +308,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       const savedTag: WooTag = await response.json();
 
-      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and 3-4 product images.` });
+      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and unique images.` });
       if (onSuccess) onSuccess();
       else { router.push("/tags"); router.refresh(); }
     } catch (error: any) {
@@ -331,7 +331,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             <Card>
                 <CardHeader>
                     <CardTitle>Tag Gallery</CardTitle>
-                    <CardDescription>Main image and gallery previews.</CardDescription>
+                    <CardDescription>Main icon and gallery previews.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="relative aspect-square w-full max-w-[240px] mx-auto rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
@@ -389,7 +389,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                                         {isFetchingProducts ? (
                                             <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
                                         ) : linkedProducts.length === 0 ? (
-                                            <p className="text-center text-muted-foreground py-8">No products currently use this tag.</p>
+                                            <p className="text-center text-muted-foreground py-8">No furniture products currently use this tag.</p>
                                         ) : (
                                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 p-1">
                                                 {linkedProducts.flatMap(p => p.images).map((img, idx) => (
