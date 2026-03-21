@@ -54,12 +54,12 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
                 metaToUpdate.thumbnail_id = productImages[0].id;
             }
 
-            // Build multiple images HTML block
+            // Build multiple images HTML block (Compact size: 300px width)
             let imagesHtml = '';
             for (const img of productImages) {
                 if (!seoContent.description.includes(img.src)) {
                     const idClass = img.id ? ` wp-image-${img.id}` : '';
-                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="400" height="225" class="alignnone size-medium${idClass}" /></a>`;
+                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="300" height="169" class="alignnone size-medium${idClass}" /></a>`;
                 }
             }
 

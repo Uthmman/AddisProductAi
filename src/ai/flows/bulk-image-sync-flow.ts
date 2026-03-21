@@ -40,13 +40,13 @@ export async function bulkImageSyncFlow(): Promise<z.infer<typeof BulkImageSyncO
             const currentDescription = tag.description || '';
             const metaToUpdate: any = { ...tag.meta };
 
-            // Build the image HTML block (Medium size: 400px width)
+            // Build the image HTML block (Compact size: 300px width)
             let imagesHtml = '';
             for (const img of productImages) {
                 // Prevent adding the same image source multiple times
                 if (!currentDescription.includes(img.src)) {
                     const idClass = img.id ? ` wp-image-${img.id}` : '';
-                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="400" height="225" class="alignnone size-medium${idClass}" /></a>`;
+                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="300" height="169" class="alignnone size-medium${idClass}" /></a>`;
                 }
             }
 
