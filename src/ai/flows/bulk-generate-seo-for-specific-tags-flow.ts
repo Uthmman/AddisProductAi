@@ -84,7 +84,7 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
     }
 
     return {
-        message: `Successfully generated content and linked official thumbnails for ${updatedCount} targeted tags.`,
+        message: `Successfully generated content and linked official thumbnails from furniture products for ${updatedCount} targeted tags.`,
         updatedCount: updatedCount,
     };
 }

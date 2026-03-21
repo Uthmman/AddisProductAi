@@ -90,6 +90,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         let initialImageSrc = fetchedTag.meta?._zenbaba_tag_image || '';
         let initialThumbnailId = fetchedTag.meta?.thumbnail_id || '';
 
+        // Fallback: If no tag image is set, find the image of a product linked to this tag
         if (!initialImageSrc && tagId) {
             try {
                 const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
@@ -149,6 +150,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       form.setValue('seo_focuskw', content.focusKeyphrase);
       form.setValue('seo_metadesc', content.metaDescription);
       
+      // Auto-suggest image from linked products if not already present
       if (!form.getValues('tag_image_src') && tagId) {
           const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=1`);
           if (prodRes.ok) {
@@ -161,7 +163,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
 
       setHasGenerated(true);
-      toast({ title: 'Success!', description: 'SEO content and fallback image generated.' });
+      toast({ title: 'Success!', description: 'SEO content and relevant product image suggested.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: error.message });
     } finally {
@@ -210,7 +212,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     form.setValue('tag_image_src', src);
     form.setValue('thumbnail_id', id);
     setIsImageDialogOpen(false);
-    toast({ description: "Image selected and thumbnail ID captured." });
+    toast({ description: "Product image selected for tag." });
   };
 
   const handleCopy = (text: string, fieldName: string) => {
@@ -263,7 +265,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       const savedTag: WooTag = await response.json();
 
-      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with embedded visual content.` });
+      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content.` });
       if (onSuccess) onSuccess();
       else { router.push("/tags"); router.refresh(); }
     } catch (error: any) {
@@ -286,7 +288,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
             <Card>
                 <CardHeader>
                     <CardTitle>Tag Image</CardTitle>
-                    <CardDescription>Official WooCommerce thumbnail & preview.</CardDescription>
+                    <CardDescription>Relevant furniture image for this tag.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="relative aspect-square w-full max-w-[240px] mx-auto rounded-lg overflow-hidden border bg-muted flex items-center justify-center">
@@ -321,7 +323,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-3xl">
-                                    <DialogHeader><DialogTitle>Linked Product Images</DialogTitle></DialogHeader>
+                                    <DialogHeader><DialogTitle>Images from Products with this Tag</DialogTitle></DialogHeader>
                                     <ScrollArea className="h-[400px] mt-4">
                                         {isFetchingProducts ? (
                                             <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
@@ -364,7 +366,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                         <CardTitle>Page Description</CardTitle>
                         <Button type="button" variant="outline" size="sm" onClick={handleGenerateSeo} disabled={isGenerating}>
                             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                            AI Suggest
+                            AI Suggest Content
                         </Button>
                     </div>
                 </CardHeader>
