@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon, RefreshCw } from "lucide-react";
 import { WooTag } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
@@ -33,6 +33,7 @@ export default function TagTable() {
   const [isLoading, setIsLoading] = useState(true);
   const [deletingTag, setDeletingTag] = useState<WooTag | null>(null);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
+  const [isSyncingImages, setIsSyncingImages] = useState(false);
   const { toast } = useToast();
 
   const fetchTags = async () => {
@@ -97,7 +98,7 @@ export default function TagTable() {
   const handleBulkGenerate = async () => {
     setIsBulkGenerating(true);
     toast({
-      title: "Bulk Generation Started",
+      title: "Bulk SEO Generation Started",
       description: "AI is generating SEO content and linking product images for tags. This may take a few minutes.",
     });
 
@@ -129,6 +130,41 @@ export default function TagTable() {
     }
   }
 
+  const handleBulkImageSync = async () => {
+    setIsSyncingImages(true);
+    toast({
+      title: "Image Synchronization Started",
+      description: "Fetching 3-4 unique furniture product images for every tag and updating descriptions.",
+    });
+
+    try {
+      const response = await fetch('/api/tags/bulk-image-sync', {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Image sync failed.');
+      }
+      
+      const result = await response.json();
+      toast({
+        title: "Image Sync Complete",
+        description: result.message,
+      });
+
+      fetchTags(); 
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Sync Failed",
+        description: error.message,
+      });
+    } finally {
+      setIsSyncingImages(false);
+    }
+  }
+
   return (
     <div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -139,6 +175,10 @@ export default function TagTable() {
                     <PlusCircle className="mr-2 h-4 w-4" />
                     New Tag
                   </Link>
+              </Button>
+              <Button onClick={handleBulkImageSync} className="w-full sm:w-auto" variant="secondary" disabled={isSyncingImages || isLoading} size="sm">
+                  {isSyncingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Sync All Images
               </Button>
               <Button onClick={handleBulkGenerate} className="w-full sm:w-auto" disabled={isBulkGenerating || isLoading} size="sm">
                   {isBulkGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
