@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -48,13 +49,24 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
                 _yoast_wpseo_focuskw: seoContent.focusKeyphrase,
             };
 
+            const imageSrc = latestImage?.src || tag.meta?._zenbaba_tag_image;
+            const thumbId = latestImage?.id || tag.meta?.thumbnail_id;
+
             if (latestImage) {
                 metaToUpdate._zenbaba_tag_image = latestImage.src;
                 metaToUpdate.thumbnail_id = latestImage.id;
             }
 
+            // Prepend image HTML to description
+            let finalDescription = seoContent.description;
+            if (imageSrc && !finalDescription.includes(imageSrc)) {
+                const idClass = thumbId ? ` wp-image-${thumbId}` : '';
+                const imgHtml = `<a href="${imageSrc}"><img src="${imageSrc}" alt="${tag.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
+                finalDescription = imgHtml + finalDescription;
+            }
+
             await wooCommerceApi.updateProductTag(tag.id, {
-                description: seoContent.description,
+                description: finalDescription,
                 meta: metaToUpdate
             });
             

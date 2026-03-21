@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -221,10 +222,19 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     setIsSaving(true);
     try {
       const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
+      
+      // Embed image HTML in description if an image is selected and not already embedded
+      let finalDescription = data.description || '';
+      if (data.tag_image_src && !finalDescription.includes(data.tag_image_src)) {
+          const idClass = data.thumbnail_id ? ` wp-image-${data.thumbnail_id}` : '';
+          const imgHtml = `<a href="${data.tag_image_src}"><img src="${data.tag_image_src}" alt="${data.name}" width="986" height="531" class="alignnone size-full${idClass}" /></a>`;
+          finalDescription = imgHtml + finalDescription;
+      }
+
       const submissionData = { 
           name: data.name,
           slug: data.slug,
-          description: data.description,
+          description: finalDescription,
           meta: {
               _yoast_wpseo_title: data.seo_title,
               _yoast_wpseo_metadesc: data.seo_metadesc,
@@ -253,7 +263,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       const savedTag: WooTag = await response.json();
 
-      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved and thumbnail linked.` });
+      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with embedded visual content.` });
       if (onSuccess) onSuccess();
       else { router.push("/tags"); router.refresh(); }
     } catch (error: any) {
