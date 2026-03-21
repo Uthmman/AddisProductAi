@@ -55,12 +55,17 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
                 metaToUpdate.thumbnail_id = productImages[0].id;
             }
 
-            // Build multiple images HTML block (Compact size: 250px width)
+            // Build multiple images HTML block
+            // Logic: if > 3 images, make them 150px square. Otherwise 250px wide.
+            const useSquare = productImages.length > 3;
+            const imgWidth = useSquare ? 150 : 250;
+            const imgHeight = useSquare ? 150 : 141;
+
             let imagesHtml = '';
             for (const img of productImages) {
                 if (!seoContent.description.includes(img.src)) {
                     const idClass = img.id ? ` wp-image-${img.id}` : '';
-                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="250" height="141" class="alignnone size-medium${idClass}" /></a>`;
+                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="${imgWidth}" height="${imgHeight}" class="alignnone size-medium${idClass}" /></a>`;
                 }
             }
 
@@ -82,7 +87,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     console.log(`Finished bulk generation. Updated ${updatedCount} tags.`);
 
     return {
-        message: `Successfully generated descriptions, linked 3-4 official product images (250px), and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
+        message: `Successfully generated descriptions, linked product images, and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
         updatedCount: updatedCount,
     };
 }

@@ -212,9 +212,8 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         const result = await response.json();
         toast({ title: 'Sync Complete', description: result.message });
         
-        // Refresh local state to show new images in the description and gallery
+        // Refresh local state
         router.refresh();
-        // Since we updated via API, we should reload the tag data to populate the textarea
         const tagRes = await fetch(`/api/products/tags/${tagId}`);
         const updatedTag = await tagRes.json();
         form.setValue('description', updatedTag.description);
@@ -246,7 +245,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         form.setValue('tag_image_src', uploaded.src);
         form.setValue('thumbnail_id', uploaded.id);
         
-        // Add to gallery if not already present
         if (!galleryImages.some(img => img.id === uploaded.id)) {
             setGalleryImages(prev => [{ id: uploaded.id, src: uploaded.src }, ...prev].slice(0, 4));
         }
@@ -276,7 +274,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     form.setValue('tag_image_src', src);
     form.setValue('thumbnail_id', id);
     
-    // Add to gallery if not already present
     if (!galleryImages.some(img => img.id === id)) {
         setGalleryImages(prev => [{ id, src }, ...prev].slice(0, 4));
     }
@@ -295,18 +292,19 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     try {
       const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
       
-      // Embed multiple images HTML in description
       let finalDescription = data.description || '';
-      
-      // Filter out existing images from description to avoid double-prepending
       const imagesToEmbed = galleryImages.length > 0 ? galleryImages : (data.tag_image_src ? [{ id: Number(data.thumbnail_id), src: data.tag_image_src }] : []);
       
+      // Logic: if > 3 images, make them 150px square. Otherwise 250px wide.
+      const useSquare = imagesToEmbed.length > 3;
+      const imgWidth = useSquare ? 150 : 250;
+      const imgHeight = useSquare ? 150 : 141;
+
       let imagesHtml = '';
       for (const img of imagesToEmbed) {
-          // Check if image is already in description. Note: we use width=250 for a compact size.
           if (!finalDescription.includes(img.src)) {
               const idClass = img.id ? ` wp-image-${img.id}` : '';
-              imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${data.name}" width="250" height="141" class="alignnone size-medium${idClass}" /></a>`;
+              imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${data.name}" width="${imgWidth}" height="${imgHeight}" class="alignnone size-medium${idClass}" /></a>`;
           }
       }
       
@@ -331,20 +329,10 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         body: JSON.stringify(submissionData),
       });
 
-      if (!response.ok) {
-          let errorMsg = 'Failed to save tag.';
-          try {
-              const errData = await response.json();
-              errorMsg = errData.message || errorMsg;
-          } catch (e) {
-              const text = await response.text();
-              errorMsg = text || errorMsg;
-          }
-          throw new Error(errorMsg);
-      }
+      if (!response.ok) throw new Error('Failed to save tag.');
       const savedTag: WooTag = await response.json();
 
-      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and images at 250px width.` });
+      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and images.` });
       if (onSuccess) onSuccess();
       else { router.push("/tags"); router.refresh(); }
     } catch (error: any) {

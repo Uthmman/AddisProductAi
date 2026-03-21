@@ -25,14 +25,18 @@ export async function syncTagImagesFlow(tagId: number): Promise<{success: boolea
     const currentDescription = tag.description || '';
     const metaToUpdate: any = { ...tag.meta };
 
-    // Build the image HTML block (Compact size: 250px width)
+    // Build the image HTML block
+    // Logic: if > 3 images, make them 150px square. Otherwise 250px wide.
+    const useSquare = productImages.length > 3;
+    const imgWidth = useSquare ? 150 : 250;
+    const imgHeight = useSquare ? 150 : 141;
+
     let imagesHtml = '';
     for (const img of productImages) {
         // Prevent adding the same image source multiple times
         if (!currentDescription.includes(img.src)) {
             const idClass = img.id ? ` wp-image-${img.id}` : '';
-            // Height is calculated for 16:9 ratio (250 / 1.77 = 141)
-            imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="250" height="141" class="alignnone size-medium${idClass}" /></a>`;
+            imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="${imgWidth}" height="${imgHeight}" class="alignnone size-medium${idClass}" /></a>`;
         }
     }
 
