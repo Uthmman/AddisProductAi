@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooTag, WooProduct } from "@/lib/types";
-import { Loader2, Sparkles, Copy, CheckCircle2, Save, X, UploadCloud, Image as ImageIcon, Search } from "lucide-react";
+import { Loader2, Sparkles, Copy, CheckCircle2, Save, X, UploadCloud, Image as ImageIcon, Search, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Skeleton } from "./ui/skeleton";
@@ -52,6 +53,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const [isFetching, setIsFetching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [isFetchingProducts, setIsFetchingProducts] = useState(false);
   const [linkedProducts, setLinkedProducts] = useState<WooProduct[]>([]);
@@ -194,6 +196,39 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     }
   };
 
+  const handleAutoSyncImages = async () => {
+    if (!tagId) {
+        toast({ variant: "destructive", title: "Action Not Available", description: "Please save the tag first before synchronizing images." });
+        return;
+    }
+
+    setIsSyncing(true);
+    try {
+        const response = await fetch(`/api/tags/${tagId}/sync-images`, { method: 'POST' });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Sync failed.');
+        }
+        const result = await response.json();
+        toast({ title: 'Sync Complete', description: result.message });
+        
+        // Refresh local state to show new images in the description and gallery
+        router.refresh();
+        // Since we updated via API, we should reload the tag data to populate the textarea
+        const tagRes = await fetch(`/api/products/tags/${tagId}`);
+        const updatedTag = await tagRes.json();
+        form.setValue('description', updatedTag.description);
+        if (updatedTag.meta?._zenbaba_tag_image) {
+            form.setValue('tag_image_src', updatedTag.meta._zenbaba_tag_image);
+            form.setValue('thumbnail_id', updatedTag.meta.thumbnail_id);
+        }
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Sync Failed', description: error.message });
+    } finally {
+        setIsSyncing(false);
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -268,10 +303,10 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       
       let imagesHtml = '';
       for (const img of imagesToEmbed) {
-          // Check if image is already in description. Note: we use width=300 for a compact size.
+          // Check if image is already in description. Note: we use width=250 for a compact size.
           if (!finalDescription.includes(img.src)) {
               const idClass = img.id ? ` wp-image-${img.id}` : '';
-              imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${data.name}" width="300" height="169" class="alignnone size-medium${idClass}" /></a>`;
+              imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${data.name}" width="250" height="141" class="alignnone size-medium${idClass}" /></a>`;
           }
       }
       
@@ -309,7 +344,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       }
       const savedTag: WooTag = await response.json();
 
-      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and unique images.` });
+      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and images at 250px width.` });
       if (onSuccess) onSuccess();
       else { router.push("/tags"); router.refresh(); }
     } catch (error: any) {
@@ -424,12 +459,18 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
           <div className="lg:col-span-2 space-y-6">
             <Card>
                 <CardHeader>
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                         <CardTitle>Page Description</CardTitle>
-                        <Button type="button" variant="outline" size="sm" onClick={handleGenerateSeo} disabled={isGenerating}>
-                            {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                            AI Suggest Content
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="secondary" size="sm" onClick={handleAutoSyncImages} disabled={isSyncing || !tagId}>
+                                {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                                Sync Product Images
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" onClick={handleGenerateSeo} disabled={isGenerating}>
+                                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                                AI Suggest Content
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>

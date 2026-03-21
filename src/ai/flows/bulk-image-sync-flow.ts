@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -8,6 +9,7 @@
 
 import { z } from 'zod';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
+import { syncTagImagesFlow } from './sync-tag-images-flow';
 
 const BulkImageSyncOutputSchema = z.object({
   message: z.string().describe("A summary of the actions taken."),
@@ -29,44 +31,9 @@ export async function bulkImageSyncFlow(): Promise<z.infer<typeof BulkImageSyncO
 
     for (const tag of allTags) {
         try {
-            // Fetch up to 4 unique product images for this specific tag
-            const productImages = await wooCommerceApi.getProductImagesForTag(tag.id, 4);
-            
-            if (productImages.length === 0) {
-                console.log(`No products found for tag: ${tag.name}, skipping image sync.`);
-                continue;
-            }
-
-            const currentDescription = tag.description || '';
-            const metaToUpdate: any = { ...tag.meta };
-
-            // Build the image HTML block (Compact size: 300px width)
-            let imagesHtml = '';
-            for (const img of productImages) {
-                // Prevent adding the same image source multiple times
-                if (!currentDescription.includes(img.src)) {
-                    const idClass = img.id ? ` wp-image-${img.id}` : '';
-                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="300" height="169" class="alignnone size-medium${idClass}" /></a>`;
-                }
-            }
-
-            // If we found new images to add, update the tag
-            if (imagesHtml) {
-                // Set primary thumbnail if missing
-                if (!tag.meta?.thumbnail_id) {
-                    metaToUpdate.thumbnail_id = productImages[0].id;
-                    metaToUpdate._zenbaba_tag_image = productImages[0].src;
-                }
-
-                const finalDescription = imagesHtml + currentDescription;
-
-                await wooCommerceApi.updateProductTag(tag.id, {
-                    description: finalDescription,
-                    meta: metaToUpdate
-                });
-                
+            const result = await syncTagImagesFlow(tag.id);
+            if (result.success && !result.message.includes('already up to date')) {
                 updatedCount++;
-                console.log(`Successfully synced images for tag: ${tag.name}`);
             }
         } catch (error) {
             console.error(`Failed to sync images for tag: ${tag.name}`, error);
@@ -74,7 +41,7 @@ export async function bulkImageSyncFlow(): Promise<z.infer<typeof BulkImageSyncO
     }
 
     return {
-        message: `Successfully synchronized furniture galleries for ${updatedCount} tags. Descriptions now feature up to 4 unique product images.`,
+        message: `Successfully synchronized furniture galleries for ${updatedCount} tags. Descriptions now feature up to 4 unique product images at 250px width.`,
         updatedCount: updatedCount,
     };
 }

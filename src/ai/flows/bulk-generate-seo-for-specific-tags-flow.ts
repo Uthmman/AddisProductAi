@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -58,12 +59,12 @@ export async function bulkGenerateSeoForSpecificTagsFlow(input: {tagNames: strin
                 metaToUpdate.thumbnail_id = productImages[0].id;
             }
 
-            // Build multiple images HTML block (Compact size: 300px width)
+            // Build multiple images HTML block (Compact size: 250px width)
             let imagesHtml = '';
             for (const img of productImages) {
                 if (!seoContent.description.includes(img.src)) {
                     const idClass = img.id ? ` wp-image-${img.id}` : '';
-                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="300" height="169" class="alignnone size-medium${idClass}" /></a>`;
+                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="250" height="141" class="alignnone size-medium${idClass}" /></a>`;
                 }
             }
 

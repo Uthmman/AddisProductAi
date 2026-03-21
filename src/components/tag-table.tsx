@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -27,6 +28,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 export default function TagTable() {
   const [tags, setTags] = useState<WooTag[]>([]);
@@ -34,6 +36,7 @@ export default function TagTable() {
   const [deletingTag, setDeletingTag] = useState<WooTag | null>(null);
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const [isSyncingImages, setIsSyncingImages] = useState(false);
+  const [syncingTagId, setSyncingTagId] = useState<number | null>(null);
   const { toast } = useToast();
 
   const fetchTags = async () => {
@@ -134,7 +137,7 @@ export default function TagTable() {
     setIsSyncingImages(true);
     toast({
       title: "Image Synchronization Started",
-      description: "Fetching 3-4 unique furniture product images for every tag and updating descriptions.",
+      description: "Fetching unique furniture product images (250px) for every tag and updating descriptions.",
     });
 
     try {
@@ -164,6 +167,24 @@ export default function TagTable() {
       setIsSyncingImages(false);
     }
   }
+
+  const handleSingleImageSync = async (tagId: number) => {
+    setSyncingTagId(tagId);
+    try {
+        const response = await fetch(`/api/tags/${tagId}/sync-images`, { method: 'POST' });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Sync failed.');
+        }
+        const result = await response.json();
+        toast({ title: 'Sync Complete', description: result.message });
+        fetchTags();
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Sync Failed', description: error.message });
+    } finally {
+        setSyncingTagId(null);
+    }
+  };
 
   return (
     <div>
@@ -203,7 +224,7 @@ export default function TagTable() {
                         <TableHead>Name</TableHead>
                         <TableHead className="hidden md:table-cell">Description</TableHead>
                         <TableHead className="text-right">Products</TableHead>
-                        <TableHead className="w-[100px] text-right">Actions</TableHead>
+                        <TableHead className="w-[120px] text-right">Actions</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -234,7 +255,17 @@ export default function TagTable() {
                             </TableCell>
                             <TableCell className="text-right">{tag.count}</TableCell>
                             <TableCell className="text-right">
-                              <div className="flex justify-end">
+                              <div className="flex justify-end gap-1">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" onClick={() => handleSingleImageSync(tag.id)} disabled={syncingTagId === tag.id}>
+                                                {syncingTagId === tag.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Sync Product Images</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                                 <Button variant="ghost" size="icon" asChild>
                                     <Link href={`/tags/${tag.id}`}>
                                       <Edit className="h-4 w-4" />
