@@ -23,6 +23,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from "./ui/badge";
 import { Switch } from "./ui/switch";
 import { useGooglePicker } from "@/hooks/use-google-picker";
+import { useTasks } from "@/context/task-context";
 
 
 // Simplified schema for form validation
@@ -63,6 +64,7 @@ export default function ProductForm({ product }: ProductFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const { addTask, updateTask } = useTasks();
   const [isSaving, setIsSaving] = useState(false);
   const [generatingField, setGeneratingField] = useState<GeneratingField>(null);
   
@@ -226,8 +228,6 @@ export default function ProductForm({ product }: ProductFormProps) {
 
     setGeneratingField(field);
     try {
-        // PERFORMANCE FIX: Resize the first image on the client side before sending.
-        // This prevents the "load failed" error on mobile by drastically reducing payload size.
         const sampleImage = images[0].src;
         let optimizedSample = sampleImage;
         
@@ -248,7 +248,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...values,
-                images_data: [optimizedSample], // Only one resized image sent
+                images_data: [optimizedSample],
                 price_etb: values.price_etb,
                 fieldToGenerate: field,
                 existingContent: currentAiContent,
@@ -315,43 +315,53 @@ export default function ProductForm({ product }: ProductFormProps) {
 
   const onSubmit = async (action: SaveAction) => {
     setIsSaving(true);
+    const taskId = `product-save-${Date.now()}`;
+    const productTitle = aiContent.name || form.getValues('raw_name');
+    
+    addTask({
+      id: taskId,
+      title: product ? `Updating ${productTitle}` : `Creating ${productTitle}`,
+      description: 'Preparing product data...',
+      progress: 0
+    });
 
     try {
         const newFilesToUpload = images.filter(img => img.file || (img.src && !img.id));
+        const totalSteps = newFilesToUpload.length + 2; // Resizing + Uploads + Final Save
+        let currentStep = 0;
 
         const uploadedImages = await Promise.all(
-          newFilesToUpload.map(async (image) => {
+          newFilesToUpload.map(async (image, idx) => {
             if (!image.file && !image.src.startsWith('http')) throw new Error("Image file is missing.");
             
             let imageBase64;
             let imageName = image.fileName || `product-image-${Date.now()}.jpg`;
 
+            updateTask(taskId, { 
+              description: `Optimizing and resizing ${imageName}...`,
+              progress: Math.round((currentStep / totalSteps) * 100)
+            });
+
             if (image.file) {
                 imageBase64 = await fileToBase64(image.file);
             } else {
-                imageBase64 = image.src; // Pass URL directly to upload-image API
+                imageBase64 = image.src;
             }
 
-            // OPTIMIZATION: Resize huge images client-side before processing further
-            // This prevents timeouts and memory issues during watermarking/uploading
             if (imageBase64.startsWith('data:image')) {
                 imageBase64 = await resizeImage(imageBase64, 1600);
             }
             
-            // Apply watermark on the client-side if enabled, before sending to the uploader.
             if (applyWatermark && settings?.watermarkImageUrl && !imageBase64.startsWith('http')) {
+              updateTask(taskId, { description: `Applying woodworking watermark to ${imageName}...` });
               try {
                 imageBase64 = await applyWatermarkUtil(imageBase64, settings.watermarkImageUrl, settings);
               } catch (watermarkError) {
-                 console.error("Client-side watermarking failed, uploading original.", watermarkError);
-                 toast({
-                    variant: "destructive",
-                    title: "Watermark Failed",
-                    description: "Could not apply watermark, uploading original image.",
-                 });
+                 console.error("Client-side watermarking failed", watermarkError);
               }
             }
 
+            updateTask(taskId, { description: `Uploading ${imageName} to WordPress...` });
             const response = await fetch('/api/products/upload-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -363,6 +373,8 @@ export default function ProductForm({ product }: ProductFormProps) {
               throw new Error(errorData.message || `Image upload failed for ${imageName}`);
             }
 
+            currentStep++;
+            updateTask(taskId, { progress: Math.round((currentStep / totalSteps) * 100) });
             const uploaded = await response.json();
             return { ...uploaded, alt: image.alt };
           })
@@ -381,22 +393,15 @@ export default function ProductForm({ product }: ProductFormProps) {
         }));
         
         const finalCategories = selectedCategories.map(c => {
-             // If it has an ID, it's an existing category. If not, it's a new one.
             return c.id ? { id: c.id } : { name: c.name };
         });
 
-        // Combine meta data, ensuring user-input focus keyword is included
         const userFocusKeyword = form.getValues('focus_keywords');
         let finalMetaData = aiContent.meta_data ? [...aiContent.meta_data] : [];
-        
-        // Remove any existing focus keyword from AI content to avoid duplicates
         finalMetaData = finalMetaData.filter(m => m.key !== '_yoast_wpseo_focuskw');
-        
-        // Add the user-entered one
         if (userFocusKeyword) {
             finalMetaData.push({ key: '_yoast_wpseo_focuskw', value: userFocusKeyword });
         }
-
 
         const finalData = {
             name: aiContent.name || form.getValues('raw_name'),
@@ -412,6 +417,11 @@ export default function ProductForm({ product }: ProductFormProps) {
             meta_data: finalMetaData,
             status: action,
         };
+
+        updateTask(taskId, { 
+          description: 'Saving final product details to the store...', 
+          progress: 95 
+        });
 
         const url = product ? `/api/products/${product.id}` : '/api/products';
         const method = product ? 'PUT' : 'POST';
@@ -430,42 +440,24 @@ export default function ProductForm({ product }: ProductFormProps) {
 
         const savedProduct = await response.json();
 
-        // If a new product was created, check for and optimize any new tags.
         if (isNewProduct && aiContent.tags && aiContent.tags.length > 0) {
             const newTagNames = aiContent.tags.filter(tagName => 
                 !allTags.some(existingTag => existingTag.name.toLowerCase() === tagName.toLowerCase())
             );
 
             if (newTagNames.length > 0) {
-                toast({
-                    title: "Optimizing new tags...",
-                    description: `Found ${newTagNames.length} new tags. Generating SEO content for them in the background.`
-                });
-
-                // Fire and forget, no need to await.
                 fetch('/api/tags/bulk-optimize-specific', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tagNames: newTagNames }),
-                }).then(async (res) => {
-                    if (res.ok) {
-                        const result = await res.json();
-                        if (result.updatedCount > 0) {
-                            toast({
-                                title: "Background Task Complete",
-                                description: `Successfully generated SEO for ${result.updatedCount} new tags.`
-                            });
-                        }
-                    }
-                }).catch(err => {
-                    console.error("Failed to bulk optimize new tags:", err);
-                });
+                }).catch(err => console.error("Failed to bulk optimize new tags:", err));
             }
         }
         
+        updateTask(taskId, { status: 'success', description: `Product "${savedProduct.name}" saved!`, progress: 100 });
         toast({
             title: "Success!",
-            description: `Product "${savedProduct.name}" has been saved as a ${action}.`,
+            description: `Product "${savedProduct.name}" has been saved.`,
         });
         
         router.push('/dashboard');
@@ -473,10 +465,11 @@ export default function ProductForm({ product }: ProductFormProps) {
 
     } catch (error: any) {
         console.error(error);
+        updateTask(taskId, { status: 'error', description: error.message || 'Save failed.' });
         toast({
             variant: "destructive",
             title: "Save Failed",
-            description: error.message || "There was an error saving the product. Please try again.",
+            description: error.message || "There was an error saving the product.",
         });
     } finally {
         setIsSaving(false);

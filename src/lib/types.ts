@@ -115,3 +115,13 @@ export interface GscAnalysisOutput {
   productSuggestions: string[];
   lastAnalyzed?: string;
 }
+
+export type TaskStatus = 'pending' | 'loading' | 'success' | 'error';
+
+export interface BackgroundTask {
+  id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  progress?: number;
+}
