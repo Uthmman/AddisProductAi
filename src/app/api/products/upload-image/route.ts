@@ -1,7 +1,8 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadImage } from '@/lib/woocommerce-api';
 import { z } from 'zod';
+
+export const maxDuration = 120; // Extend timeout to 120 seconds
 
 const UploadSchema = z.object({
   image_data: z.string(),
@@ -67,5 +68,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: errorMessage }, { status: statusCode });
   }
 }
-
-    

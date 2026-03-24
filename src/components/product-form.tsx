@@ -331,6 +331,12 @@ export default function ProductForm({ product }: ProductFormProps) {
             } else {
                 imageBase64 = image.src; // Pass URL directly to upload-image API
             }
+
+            // OPTIMIZATION: Resize huge images client-side before processing further
+            // This prevents timeouts and memory issues during watermarking/uploading
+            if (imageBase64.startsWith('data:image')) {
+                imageBase64 = await resizeImage(imageBase64, 1600);
+            }
             
             // Apply watermark on the client-side if enabled, before sending to the uploader.
             if (applyWatermark && settings?.watermarkImageUrl && !imageBase64.startsWith('http')) {

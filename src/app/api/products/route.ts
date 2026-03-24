@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 
+export const maxDuration = 120; // Extend timeout to 120 seconds
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1', 10);

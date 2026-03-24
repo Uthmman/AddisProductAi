@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 
+export const maxDuration = 120; // Extend timeout to 120 seconds
+
 interface Params {
   params: { id: string };
 }
