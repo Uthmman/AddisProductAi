@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { productBotFlow } from '@/ai/flows/product-bot-flow';
 import { z } from 'zod';
-import { ProductBotState } from '@/lib/types';
 
 const InputSchema = z.object({
   chatId: z.string(),
   newMessage: z.string().optional(),
-  productState: z.any(), // Using any() because Zod struggles with complex recursive types in client<->server
+  productState: z.any(),
   editProductId: z.string().optional(),
 });
 
@@ -21,14 +20,18 @@ export async function POST(request: NextRequest) {
     
     const botResponse = await productBotFlow(validation.data);
     
-    if (botResponse.errorType === 'rate_limit') {
-        return NextResponse.json(botResponse, { status: 429 });
-    }
-
     return NextResponse.json(botResponse);
 
   } catch (error: any) {
     console.error('Telegram chat API failed:', error);
+
+    if (error.status === 429 || error.message?.includes('429')) {
+        return NextResponse.json({ 
+            text: 'The AI is currently receiving too many requests. Please wait a moment and try again.',
+            errorType: 'rate_limit'
+        }, { status: 429 });
+    }
+
     return NextResponse.json({ text: `I'm sorry, an internal error occurred: ${error.message}` }, { status: 500 });
   }
 }

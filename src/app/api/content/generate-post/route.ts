@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { generateBlogPost } from '@/ai/flows/generate-blog-post';
 import { z } from 'zod';
@@ -18,7 +17,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid input', errors: validation.error.issues }, { status: 400 });
     }
     
-    // Fetch settings. The blog post flow now fetches the GSC analysis internally.
     const settings = await getSettings();
     
     const aiContent = await generateBlogPost({
@@ -30,6 +28,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Blog post generation failed:', error);
+
+    if (error.status === 429 || error.message?.includes('429')) {
+        return NextResponse.json({ 
+            message: 'The AI is currently receiving too many requests. Please wait a moment and try again.',
+            errorType: 'rate_limit'
+        }, { status: 429 });
+    }
+
     return NextResponse.json({ message: error.message || 'An unexpected error occurred during AI optimization.' }, { status: 500 });
   }
 }

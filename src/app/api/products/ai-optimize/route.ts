@@ -33,7 +33,6 @@ const InputSchema = z.object({
 });
 
 async function urlToDataUri(url: string): Promise<string> {
-    // For Google Photos, we need to bypass the redirect to get the actual image
     if (url.includes('googleusercontent.com')) {
         const response = await fetch(url, { redirect: 'follow' });
          if (!response.ok) {
@@ -60,13 +59,11 @@ export async function POST(request: NextRequest) {
     const validation = InputSchema.safeParse(body);
 
     if (!validation.success) {
-      console.error('AI Optimize Validation Error:', validation.error.format());
       return NextResponse.json({ message: 'Invalid input', errors: validation.error.issues }, { status: 400 });
     }
 
     const inputData = validation.data;
 
-    // Convert any image URLs to data URIs on the server
     const processedImagesData = await Promise.all(
         inputData.images_data.map(async (imageData: string) => {
             if (imageData.startsWith('http')) {
@@ -77,7 +74,7 @@ export async function POST(request: NextRequest) {
                     return null; 
                 }
             }
-            return imageData; // It's already a data URI
+            return imageData;
         })
     );
     
@@ -87,7 +84,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: "Could not process any of the product images." }, { status: 400 });
     }
 
-    // Ensure we send the correct total count to the flow
     const aiInput = {
         ...inputData,
         images_data: validImagesData,
@@ -100,7 +96,13 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('AI optimization route error:', error);
     
-    // Check for specific common errors
+    if (error.status === 429 || error.message?.includes('429')) {
+        return NextResponse.json({ 
+            message: 'The AI is currently receiving too many requests. Please wait a moment and try again.',
+            errorType: 'rate_limit'
+        }, { status: 429 });
+    }
+
     if (error.message?.includes('payload too large') || error.status === 413) {
         return NextResponse.json({ message: 'Image size is too large. Please try using a smaller image or uploading via Google Photos.' }, { status: 413 });
     }

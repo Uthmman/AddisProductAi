@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid Product ID' }, { status: 400 });
     }
     
-    // Fetch product and settings data here, before calling the flow
     const [product, settings] = await Promise.all([
         getProduct(productIdNum),
         getSettings()
@@ -45,6 +44,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Social post generation failed:', error);
+
+    if (error.status === 429 || error.message?.includes('429')) {
+        return NextResponse.json({ 
+            message: 'The AI is currently receiving too many requests. Please wait a moment and try again.',
+            errorType: 'rate_limit'
+        }, { status: 429 });
+    }
+
     return NextResponse.json({ message: error.message || 'An unexpected error occurred.' }, { status: 500 });
   }
 }
