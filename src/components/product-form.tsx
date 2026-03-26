@@ -327,7 +327,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
     try {
         const newFilesToUpload = images.filter(img => img.file || (img.src && !img.id));
-        const totalSteps = newFilesToUpload.length + 2; // Resizing + Uploads + Final Save
+        const totalSteps = newFilesToUpload.length + 2; 
         let currentStep = 0;
 
         const uploadedImages = await Promise.all(
@@ -348,8 +348,10 @@ export default function ProductForm({ product }: ProductFormProps) {
                 imageBase64 = image.src;
             }
 
+            // Using 1200px as the max dimension for web-optimized product uploads.
+            // This drastically reduces payload size while keeping detail sharp.
             if (imageBase64.startsWith('data:image')) {
-                imageBase64 = await resizeImage(imageBase64, 1600);
+                imageBase64 = await resizeImage(imageBase64, 1200);
             }
             
             if (applyWatermark && settings?.watermarkImageUrl && !imageBase64.startsWith('http')) {

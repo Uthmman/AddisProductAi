@@ -30,7 +30,7 @@ export function fileToBase64(file: File): Promise<string> {
 
 /**
  * Resizes a base64 image string to a maximum dimension on the client side.
- * This is crucial for mobile performance to prevent huge payloads.
+ * This is crucial for performance to prevent huge payloads and timeouts.
  */
 export async function resizeImage(base64Str: string, maxDimension: number = 1024): Promise<string> {
   return new Promise((resolve) => {
@@ -57,7 +57,8 @@ export async function resizeImage(base64Str: string, maxDimension: number = 1024
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx?.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.8)); // Return as compressed JPEG
+      // Using 0.7 quality provides a great balance between visual clarity and small file size.
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
     };
   });
 }
@@ -134,7 +135,8 @@ export function applyWatermark(originalImageSrc: string, watermarkImageSrc: stri
         ctx.globalAlpha = watermarkOpacity;
         ctx.drawImage(watermarkImage, x, y, watermarkWidth, watermarkHeight);
         
-        resolve(canvas.toDataURL('image/jpeg', 0.9)); // Return as high-quality JPEG
+        // Quality 0.75 is sufficient for web-optimized product photos.
+        resolve(canvas.toDataURL('image/jpeg', 0.75));
       };
       watermarkImage.onerror = () => reject(new Error('Watermark image failed to load'));
       watermarkImage.src = watermarkImageSrc;

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { uploadImage } from '@/lib/woocommerce-api';
 import { z } from 'zod';
 
-export const maxDuration = 120; // Extend timeout to 120 seconds
+export const maxDuration = 120; // Ensure the server allows up to 2 minutes for slow WordPress media processing
 
 const UploadSchema = z.object({
   image_data: z.string(),
@@ -51,16 +51,13 @@ export async function POST(request: NextRequest) {
         }
     }
     
-    // This endpoint now directly passes the raw base64 data URI and name to the uploadImage function.
-    // Watermarking is handled by the calling function (e.g., in the client or in another API route)
-    // before this endpoint is called.
+    // Upload the base64 data URI to the WordPress media library
     const uploadedImage = await uploadImage(image_name, image_data);
 
     return NextResponse.json(uploadedImage);
 
   } catch (error: any) {
-    // Log the detailed error from the underlying API call
-    console.error('Image upload failed:', error);
+    console.error('Image upload API route failed:', error);
     
     const errorMessage = error.message || 'An unexpected error occurred during image upload.';
     const statusCode = 500;
