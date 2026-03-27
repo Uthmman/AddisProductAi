@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -154,7 +153,11 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         body: JSON.stringify({ tagName }),
       });
 
-      if (!response.ok) throw new Error('Failed to generate SEO content.');
+      if (!response.ok) {
+          const errorBody = await response.json().catch(() => ({ message: 'Failed to generate SEO content.' }));
+          toast({ variant: "destructive", title: "Generation Failed", description: errorBody.message });
+          return;
+      }
       const content: AIGeneratedContent = await response.json();
       
       form.setValue('description', content.description);

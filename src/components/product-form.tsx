@@ -260,8 +260,13 @@ export default function ProductForm({ product }: ProductFormProps) {
         });
 
         if (!response.ok) {
-            const errorBody = await response.json();
-            throw new Error(errorBody.message || `Failed to generate AI content for ${field}`);
+            const errorBody = await response.json().catch(() => ({ message: 'The AI service is currently unavailable.' }));
+            toast({
+                variant: "destructive",
+                title: "Generation Failed",
+                description: errorBody.message || `Failed to generate AI content for ${field}.`,
+            });
+            return;
         }
 
         const data: Partial<AIProductContent> = await response.json();
@@ -305,8 +310,8 @@ export default function ProductForm({ product }: ProductFormProps) {
         console.error(error);
         toast({
             variant: "destructive",
-            title: "Generation Failed",
-            description: error.message || `There was an error generating content for ${field}. Please try again.`,
+            title: "Error",
+            description: error.message || `There was an unexpected error generating content for ${field}.`,
         });
     } finally {
         setGeneratingField(null);
