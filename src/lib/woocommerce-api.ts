@@ -1,15 +1,32 @@
-
 import { WooProduct, WooCategory, WooTag } from './types';
 
 const WOOCOMMERCE_API_URL = process.env.WOOCOMMERCE_API_URL?.replace(/\/$/, '');
-const WOOCOMMERCE_SITE_URL = process.env.WOOCOMMERCE_SITE_URL?.replace(/\/$/, '');
+
+/**
+ * Robustly determines the WordPress site URL.
+ * Prioritizes the explicit WOOCOMMERCE_SITE_URL env var,
+ * but falls back to inferring it from WOOCOMMERCE_API_URL.
+ */
+const getSiteUrl = () => {
+    const envUrl = process.env.WOOCOMMERCE_SITE_URL?.replace(/\/$/, '');
+    if (envUrl) return envUrl;
+    
+    const apiUrl = process.env.WOOCOMMERCE_API_URL;
+    if (apiUrl && apiUrl.includes('/wp-json/')) {
+        // WordPress REST API structure is usually site.com/wp-json/wc/v3
+        return apiUrl.split('/wp-json/')[0];
+    }
+    return '';
+}
+
+const WOOCOMMERCE_SITE_URL = getSiteUrl();
 
 const getAuthHeaders = () => {
     const consumerKey = process.env.WOOCOMMERCE_CONSUMER_KEY;
     const consumerSecret = process.env.WOOCOMMERCE_CONSUMER_SECRET;
     
     if (!consumerKey || consumerSecret === undefined || !WOOCOMMERCE_API_URL) {
-        throw new Error("WooCommerce API credentials or URL are not configured or are incorrect.");
+        throw new Error("WooCommerce API credentials or URL are not configured correctly in environment variables.");
     }
     const base64Auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
     return { 'Authorization': `Basic ${base64Auth}`, 'Content-Type': 'application/json' };
@@ -19,7 +36,7 @@ const getWordPressAuthHeaders = () => {
     const user = process.env.WORDPRESS_AUTH_USER;
     const pass = process.env.WORDPRESS_AUTH_PASS;
     if (!user || !pass) {
-        throw new Error("WordPress Application Password credentials are not configured in environment variables.");
+        throw new Error("WordPress Application Password (WORDPRESS_AUTH_USER/PASS) is not configured.");
     }
     return { 
         'Authorization': `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`,
@@ -174,7 +191,7 @@ export async function deleteCategory(id: number, force: boolean = true): Promise
 
 export async function uploadImage(imageName: string, imageData: string): Promise<{id: number, src: string}> {
     if(!WOOCOMMERCE_SITE_URL) {
-        throw new Error("WordPress site URL (WOOCOMMERCE_SITE_URL) is not set in environment variables.");
+        throw new Error("WordPress Site URL could not be determined. Please ensure WOOCOMMERCE_API_URL is correct or set WOOCOMMERCE_SITE_URL explicitly.");
     }
     
     const headers = getWordPressAuthHeaders();
@@ -182,7 +199,7 @@ export async function uploadImage(imageName: string, imageData: string): Promise
 
     const mimeTypeMatch = imageData.match(/^data:(image\/[a-z]+);base64,/);
     if (!mimeTypeMatch) {
-      throw new Error('Invalid Base64 image format. Could not determine MIME type.');
+      throw new Error('Invalid image format. Could not determine MIME type for upload.');
     }
     const mimeType = mimeTypeMatch[1];
     const imageBuffer = Buffer.from(imageData.split(';base64,').pop()!, 'base64');
@@ -213,14 +230,14 @@ export async function updateProductBatch(updates: { update: any[] }): Promise<an
 }
 
 export async function getAllProductTags(): Promise<WooTag[]> {
-    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
     return handleResponse(response, "Failed to fetch product tags");
 }
 
 export async function getSingleProductTag(id: number): Promise<WooTag | null> {
-    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}?context=edit`, { 
         headers, 
@@ -245,7 +262,7 @@ export async function updateProductTag(
         meta?: { [key: string]: any };
     }
 ): Promise<WooTag> {
-    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
     
     const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}`, {
@@ -258,7 +275,7 @@ export async function updateProductTag(
 }
 
 export async function createProductTag(tagData: { name: string; slug?: string; description?: string; meta?: { [key: string]: any } }): Promise<WooTag> {
-    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag`, {
         method: 'POST',
@@ -269,7 +286,7 @@ export async function createProductTag(tagData: { name: string; slug?: string; d
 }
 
 export async function deleteProductTag(id: number, force: boolean = true): Promise<WooTag> {
-    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}?force=${force}`, {
         method: 'DELETE',
@@ -279,7 +296,7 @@ export async function deleteProductTag(id: number, force: boolean = true): Promi
 }
 
 export async function createPost(postData: { title: string; content: string; status: 'publish' | 'draft' }): Promise<any> {
-    if(!WOOCOMMERCE_SITE_URL) throw new Error("WOOCOMMERCE_SITE_URL is not configured.");
+    if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for post creation.");
     const headers = getWordPressAuthHeaders();
     const wpApiUrl = `${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2`;
 

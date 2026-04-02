@@ -344,7 +344,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             let imageName = image.fileName || `product-image-${Date.now()}.jpg`;
 
             updateTask(taskId, { 
-              description: `Optimizing and resizing ${imageName}...`,
+              description: `Optimizing ${imageName}...`,
               progress: Math.round((currentStep / totalSteps) * 100)
             });
 
@@ -354,13 +354,13 @@ export default function ProductForm({ product }: ProductFormProps) {
                 imageBase64 = image.src;
             }
 
-            // Using 1200px as the max dimension for web-optimized product uploads.
+            // Client-side resizing to 1200px before uploading
             if (imageBase64.startsWith('data:image')) {
                 imageBase64 = await resizeImage(imageBase64, 1200);
             }
             
             if (applyWatermark && settings?.watermarkImageUrl && !imageBase64.startsWith('http')) {
-              updateTask(taskId, { description: `Applying woodworking watermark to ${imageName}...` });
+              updateTask(taskId, { description: `Watermarking ${imageName}...` });
               try {
                 imageBase64 = await applyWatermarkUtil(imageBase64, settings.watermarkImageUrl, settings);
               } catch (watermarkError) {
@@ -368,7 +368,7 @@ export default function ProductForm({ product }: ProductFormProps) {
               }
             }
 
-            updateTask(taskId, { description: `Uploading ${imageName} to WordPress...` });
+            updateTask(taskId, { description: `Uploading ${imageName}...` });
             const response = await fetch('/api/products/upload-image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -377,7 +377,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
             if (!response.ok) {
               const errorData = await response.json();
-              throw new Error(errorData.message || `Image upload failed for ${imageName}`);
+              throw new Error(errorData.message || `Image upload failed for ${imageName}. Please check your site URL and authentication.`);
             }
 
             currentStep++;
@@ -426,7 +426,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         };
 
         updateTask(taskId, { 
-          description: 'Saving final product details to the store...', 
+          description: 'Saving product details...', 
           progress: 95 
         });
 
@@ -442,7 +442,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to save product');
+            throw new Error(errorData.message || 'Failed to save product details.');
         }
 
         const savedProduct = await response.json();
@@ -472,7 +472,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
     } catch (error: any) {
         console.error(error);
-        updateTask(taskId, { status: 'error', description: error.message || 'Save failed.' });
+        updateTask(taskId, { status: 'error', description: error.message || 'Save failed. Please check your credentials and network.' });
         toast({
             variant: "destructive",
             title: "Save Failed",
