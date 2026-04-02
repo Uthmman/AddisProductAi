@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useTransition, useCallback, useMemo } from "react";
@@ -84,7 +85,7 @@ export default function ProductForm({ product }: ProductFormProps) {
     setImages(prev => [...prev, ...newImages]);
   };
 
-  const { openPicker, isPickerLoading } = useGooglePicker({
+  const { openPicker, isPickerLoading, isConfigured: isPickerConfigured } = useGooglePicker({
     onSelect: handlePickerSelect,
   });
 
@@ -354,7 +355,6 @@ export default function ProductForm({ product }: ProductFormProps) {
             }
 
             // Using 1200px as the max dimension for web-optimized product uploads.
-            // This drastically reduces payload size while keeping detail sharp.
             if (imageBase64.startsWith('data:image')) {
                 imageBase64 = await resizeImage(imageBase64, 1200);
             }
@@ -586,18 +586,20 @@ export default function ProductForm({ product }: ProductFormProps) {
                                <Input id="product-image" type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleImageChange} multiple />
                            </div>
                         </div>
-                        <div className="pt-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full"
-                                onClick={openPicker}
-                                disabled={isPickerLoading}
-                            >
-                                {isPickerLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
-                                Select from Google Photos
-                            </Button>
-                        </div>
+                        {isPickerConfigured && (
+                            <div className="pt-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={openPicker}
+                                    disabled={isPickerLoading}
+                                >
+                                    {isPickerLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+                                    Select from Google Photos
+                                </Button>
+                            </div>
+                        )}
                     </div>
                     
                     <FormField control={form.control} name="raw_name" render={({ field }) => (

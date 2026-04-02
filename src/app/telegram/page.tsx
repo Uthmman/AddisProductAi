@@ -287,7 +287,7 @@ export default function TelegramMiniAppPage() {
         });
         
         if (!response.ok) {
-            const errorData = await response.json();
+            const errorData = await response.json().catch(() => ({ message: 'AI is busy' }));
             throw errorData;
         }
 
@@ -672,7 +672,7 @@ export default function TelegramMiniAppPage() {
             </CardContent>
             <div className="border-t p-4 bg-background">
               <div className="flex items-center gap-2">
-                  <Input
+                  <input
                       type="file"
                       accept="image/*"
                       ref={fileInputRef}

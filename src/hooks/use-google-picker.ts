@@ -26,7 +26,11 @@ export function useGooglePicker({ onSelect }: UseGooglePickerProps) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const scope = ['https://www.googleapis.com/auth/photoslibrary.readonly'];
 
+  const isConfigured = !!apiKey && !!clientId;
+
   useEffect(() => {
+    if (!isConfigured) return;
+
     const gisScript = document.createElement('script');
     gisScript.src = 'https://accounts.google.com/gsi/client';
     gisScript.async = true;
@@ -46,10 +50,10 @@ export function useGooglePicker({ onSelect }: UseGooglePickerProps) {
     document.body.appendChild(gapiScript);
 
     return () => {
-      document.body.removeChild(gisScript);
-      document.body.removeChild(gapiScript);
+      if (document.body.contains(gisScript)) document.body.removeChild(gisScript);
+      if (document.body.contains(gapiScript)) document.body.removeChild(gapiScript);
     };
-  }, []);
+  }, [isConfigured]);
 
   const createPicker = useCallback(() => {
     if (!isPickerApiLoaded || !oauthToken) {
@@ -76,11 +80,11 @@ export function useGooglePicker({ onSelect }: UseGooglePickerProps) {
   }, [isPickerApiLoaded, oauthToken, clientId, apiKey, onSelect]);
 
   const openPicker = () => {
-    if (!apiKey || !clientId) {
+    if (!isConfigured) {
       toast({
         variant: 'destructive',
         title: 'Configuration Error',
-        description: 'Google Picker API Key or Client ID is missing. Please check your .env.local file.',
+        description: 'Google Picker API Key or Client ID is missing. Please check your .env file.',
       });
       return;
     }
@@ -125,5 +129,5 @@ export function useGooglePicker({ onSelect }: UseGooglePickerProps) {
   }, [oauthToken, createPicker]);
   
 
-  return { openPicker, isPickerLoading };
+  return { openPicker, isPickerLoading, isConfigured };
 }

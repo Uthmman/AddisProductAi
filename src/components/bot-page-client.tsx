@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -99,7 +100,7 @@ export default function BotPageClient() {
      handleImageUpload(photos);
   };
 
-  const { openPicker, isPickerLoading } = useGooglePicker({
+  const { openPicker, isPickerLoading, isConfigured: isPickerConfigured } = useGooglePicker({
     onSelect: handlePickerSelect,
   });
 
@@ -345,8 +346,7 @@ export default function BotPageClient() {
 
     const stateForApi = { ...(stateOverride || activeSession.productState) };
 
-    // PERFORMANCE FIX: If we're starting optimization, resize the first image on the client
-    // to prevent the "load failed" error on mobile.
+    // PERFORMANCE FIX: Resize the first image on the client
     if (text.toLowerCase().includes('optimize') || text.toLowerCase().includes('yes') || text.toLowerCase().includes('proceed')) {
         if (stateForApi.images && stateForApi.images.length > 0) {
             const firstImg = stateForApi.images[0];
@@ -372,7 +372,7 @@ export default function BotPageClient() {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
+            const errorData = await response.json().catch(() => ({ message: 'AI is busy' }));
             throw errorData;
         }
 
@@ -769,9 +769,11 @@ export default function BotPageClient() {
                         <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isLoading || isSaving}>
                             <Paperclip className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" onClick={openPicker} disabled={isLoading || isPickerLoading || isSaving}>
-                            {isPickerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-                        </Button>
+                        {isPickerConfigured && (
+                            <Button variant="outline" size="icon" onClick={openPicker} disabled={isLoading || isPickerLoading || isSaving}>
+                                {isPickerLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                            </Button>
+                        )}
                         <Input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
