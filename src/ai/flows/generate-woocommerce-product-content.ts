@@ -63,7 +63,7 @@ export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooC
 
 // Define the output schema for the flow
 const GenerateWooCommerceProductContentOutputSchema = z.object({
-  name: z.string().optional().describe('Refined, SEO-Optimized English Product Title.'),
+  name: z.string().optional().describe('Refined, SEO-Optimized Product Title including both English and Amharic text.'),
   sku: z.string().optional().describe("A unique product SKU, e.g., 'ZF' + 2 category digits + 2 random digits."),
   slug: z.string().optional().describe('URL-friendly, English slug based on the new name.'),
   description: z.string().optional().describe('SEO-rich description of about 300 words, formatted with HTML tags. It must include inbound and outbound links.'),
