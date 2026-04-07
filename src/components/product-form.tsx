@@ -111,7 +111,7 @@ export default function ProductForm({ product }: ProductFormProps) {
     }
   }, [searchParams, product, form]);
 
-  // Load from local storage on mount
+  // Load initial product data
   useEffect(() => {
      if (product) {
         form.reset({
@@ -164,8 +164,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                     setApplyWatermark(false);
                 }
             } else {
-                 console.error("Failed to fetch settings");
-                 setSettings({}); // Set to empty object on failure to prevent buttons from being permanently disabled
+                 setSettings({});
             }
 
         } catch (error) {
@@ -175,7 +174,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                 description: "Could not load product categories, tags, or settings.",
                 variant: "destructive"
             });
-            setSettings({}); // Set to empty object on error
+            setSettings({});
         }
     }
     fetchInitialData();
@@ -354,7 +353,6 @@ export default function ProductForm({ product }: ProductFormProps) {
                 imageBase64 = image.src;
             }
 
-            // Client-side resizing to 1200px before uploading
             if (imageBase64.startsWith('data:image')) {
                 imageBase64 = await resizeImage(imageBase64, 1200);
             }
@@ -377,7 +375,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
             if (!response.ok) {
               const errorData = await response.json();
-              throw new Error(errorData.message || `Image upload failed for ${imageName}. Please check your site URL and authentication.`);
+              throw new Error(errorData.message || `Image upload failed for ${imageName}.`);
             }
 
             currentStep++;
@@ -403,6 +401,12 @@ export default function ProductForm({ product }: ProductFormProps) {
             return c.id ? { id: c.id } : { name: c.name };
         });
 
+        // Resolve tag IDs to speed up WordPress processing
+        const finalTags = aiContent.tags?.map(tagName => {
+            const existing = allTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+            return existing ? { id: existing.id } : { name: tagName };
+        }) || [];
+
         const userFocusKeyword = form.getValues('focus_keywords');
         let finalMetaData = aiContent.meta_data ? [...aiContent.meta_data] : [];
         finalMetaData = finalMetaData.filter(m => m.key !== '_yoast_wpseo_focuskw');
@@ -410,7 +414,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             finalMetaData.push({ key: '_yoast_wpseo_focuskw', value: userFocusKeyword });
         }
 
-        const finalData = {
+        const finalData: any = {
             name: aiContent.name || form.getValues('raw_name'),
             sku: aiContent.sku,
             slug: aiContent.slug,
@@ -418,12 +422,56 @@ export default function ProductForm({ product }: ProductFormProps) {
             description: aiContent.description,
             short_description: aiContent.short_description,
             categories: finalCategories,
-            tags: aiContent.tags?.map(tag => ({ name: tag })),
+            tags: finalTags,
             images: finalImages,
             attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
             meta_data: finalMetaData,
             status: action,
         };
+
+        // Smart Update: If editing, only send changed fields
+        let dataToSubmit = finalData;
+        if (product) {
+            const diff: any = { id: product.id };
+            let hasChanges = false;
+
+            if (finalData.name !== product.name) { diff.name = finalData.name; hasChanges = true; }
+            if (finalData.sku !== product.sku) { diff.sku = finalData.sku; hasChanges = true; }
+            if (finalData.slug !== product.slug) { diff.slug = finalData.slug; hasChanges = true; }
+            if (finalData.regular_price !== product.regular_price) { diff.regular_price = finalData.regular_price; hasChanges = true; }
+            if (finalData.description !== product.description) { diff.description = finalData.description; hasChanges = true; }
+            if (finalData.short_description !== product.short_description) { diff.short_description = finalData.short_description; hasChanges = true; }
+            if (finalData.status !== product.status) { diff.status = finalData.status; hasChanges = true; }
+
+            // Collections are usually sent in full if any member changed
+            const initialCatIds = product.categories.map(c => c.id).sort().join(',');
+            const finalCatIds = selectedCategories.filter(c => c.id).map(c => c.id).sort().join(',');
+            const hasNewCat = selectedCategories.some(c => !c.id);
+            if (initialCatIds !== finalCatIds || hasNewCat) {
+                diff.categories = finalData.categories;
+                hasChanges = true;
+            }
+
+            const initialTagNames = product.tags.map(t => t.name).sort().join(',');
+            const finalTagNames = (aiContent.tags || []).sort().join(',');
+            if (initialTagNames !== finalTagNames) {
+                diff.tags = finalData.tags;
+                hasChanges = true;
+            }
+
+            const initialImgIds = product.images.map(i => i.id).join(',');
+            const finalImgIds = finalImages.map(i => i.id).join(',');
+            if (initialImgIds !== finalImgIds || uploadedImages.length > 0) {
+                diff.images = finalData.images;
+                hasChanges = true;
+            }
+
+            // Always include meta_data and attributes for consistency in this app
+            diff.meta_data = finalData.meta_data;
+            diff.attributes = finalData.attributes;
+            
+            dataToSubmit = diff;
+        }
 
         updateTask(taskId, { 
           description: 'Saving product details...', 
@@ -432,12 +480,11 @@ export default function ProductForm({ product }: ProductFormProps) {
 
         const url = product ? `/api/products/${product.id}` : '/api/products';
         const method = product ? 'PUT' : 'POST';
-        const isNewProduct = !product;
 
         const response = await fetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(finalData),
+            body: JSON.stringify(dataToSubmit),
         });
 
         if (!response.ok) {
@@ -446,38 +493,17 @@ export default function ProductForm({ product }: ProductFormProps) {
         }
 
         const savedProduct = await response.json();
-
-        if (isNewProduct && aiContent.tags && aiContent.tags.length > 0) {
-            const newTagNames = aiContent.tags.filter(tagName => 
-                !allTags.some(existingTag => existingTag.name.toLowerCase() === tagName.toLowerCase())
-            );
-
-            if (newTagNames.length > 0) {
-                fetch('/api/tags/bulk-optimize-specific', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tagNames: newTagNames }),
-                }).catch(err => console.error("Failed to bulk optimize new tags:", err));
-            }
-        }
         
         updateTask(taskId, { status: 'success', description: `Product "${savedProduct.name}" saved!`, progress: 100 });
-        toast({
-            title: "Success!",
-            description: `Product "${savedProduct.name}" has been saved.`,
-        });
+        toast({ title: "Success!", description: `Product "${savedProduct.name}" has been saved.` });
         
         router.push('/dashboard');
         router.refresh();
 
     } catch (error: any) {
         console.error(error);
-        updateTask(taskId, { status: 'error', description: error.message || 'Save failed. Please check your credentials and network.' });
-        toast({
-            variant: "destructive",
-            title: "Save Failed",
-            description: error.message || "There was an error saving the product.",
-        });
+        updateTask(taskId, { status: 'error', description: error.message || 'Save failed.' });
+        toast({ variant: "destructive", title: "Save Failed", description: error.message || "There was an error saving the product." });
     } finally {
         setIsSaving(false);
     }
@@ -603,7 +629,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                     </div>
                     
                     <FormField control={form.control} name="raw_name" render={({ field }) => (
-                        <FormItem><FormLabel>Product Name (Raw)</FormLabel><FormControl><Input placeholder="e.g., Traditional Dress" {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Product Name (Raw)</FormLabel><FormControl><Input placeholder="e.g., traditional Traditional Dress" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                      <FormField control={form.control} name="material" render={({ field }) => (
                         <FormItem><FormLabel>Material</FormLabel><FormControl><Input placeholder="e.g., Cotton" {...field} /></FormControl><FormMessage /></FormItem>
