@@ -458,6 +458,22 @@ function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGene
     const { toast } = useToast();
     const [isPosting, setIsPosting] = useState(false);
     const [isCreatingPost, setIsCreatingPost] = useState(false);
+    
+    // Editable states
+    const [editableTitle, setEditableTitle] = useState("");
+    const [editableContent, setEditableContent] = useState("");
+
+    // Update editable states when post prop changes
+    useEffect(() => {
+        if (post) {
+            if ('title' in post) {
+                setEditableTitle(post.title);
+                setEditableContent(post.content);
+            } else if ('content' in post) {
+                setEditableContent(post.content);
+            }
+        }
+    }, [post]);
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -473,8 +489,8 @@ function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGene
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    title: post.title,
-                    content: post.content,
+                    title: editableTitle,
+                    content: editableContent,
                 }),
             });
             
@@ -503,7 +519,7 @@ function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGene
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     productId: post.productId,
-                    content: post.content,
+                    content: editableContent,
                 }),
             });
             
@@ -525,7 +541,7 @@ function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGene
     <Card className={!post && !isGenerating ? 'hidden md:block' : ''}>
       <CardHeader>
         <CardTitle>Generated Content</CardTitle>
-        <CardDescription>Review the AI-generated content. You can copy it or post it directly.</CardDescription>
+        <CardDescription>Review and refine the AI-generated content. You can manually edit it before posting.</CardDescription>
       </CardHeader>
       <CardContent>
         {isGenerating && (
@@ -541,15 +557,15 @@ function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGene
             <div className="space-y-2">
               <Label>Title</Label>
               <div className="relative">
-                <Input readOnly value={post.title} className="text-lg font-bold h-auto pr-10" />
-                <Button variant="ghost" size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(post.title)}><Copy className="h-4 w-4" /></Button>
+                <Input value={editableTitle} onChange={(e) => setEditableTitle(e.target.value)} className="text-lg font-bold h-auto pr-10" />
+                <Button variant="ghost" size="icon" className="absolute top-1/2 right-1 -translate-y-1/2 h-8 w-8" onClick={() => handleCopy(editableTitle)}><Copy className="h-4 w-4" /></Button>
               </div>
             </div>
             <div className="space-y-2">
               <Label>Content (HTML)</Label>
               <div className="relative">
-                <Textarea readOnly value={post.content} className="h-96" />
-                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(post.content)}><Copy className="h-4 w-4" /></Button>
+                <Textarea value={editableContent} onChange={(e) => setEditableContent(e.target.value)} className="h-96" />
+                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => handleCopy(editableContent)}><Copy className="h-4 w-4" /></Button>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
@@ -577,14 +593,14 @@ function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGene
                     </div>
                 )}
                 <div className="space-y-2">
-                    <Label>Post Content</Label>
+                    <Label>Post Content (Telegram HTML)</Label>
                      <div className="relative">
-                        <Textarea readOnly value={post.content} className="h-96 whitespace-pre-wrap pr-12" />
+                        <Textarea value={editableContent} onChange={(e) => setEditableContent(e.target.value)} className="h-96 whitespace-pre-wrap pr-12" />
                         <div className="absolute top-2 right-2 flex flex-col gap-2">
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" onClick={() => handleCopy(post.content)} disabled={isPosting}>
+                                        <Button variant="ghost" size="icon" onClick={() => handleCopy(editableContent)} disabled={isPosting}>
                                             <Copy className="h-4 w-4" />
                                         </Button>
                                     </TooltipTrigger>
