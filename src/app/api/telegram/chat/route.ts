@@ -25,7 +25,12 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Telegram chat API failed:', error);
 
-    if (error.status === 429 || error.message?.includes('429')) {
+    const errorMessage = error.message || "";
+    if (errorMessage.includes('503') || errorMessage.includes('Service Unavailable') || errorMessage.includes('high demand')) {
+        return NextResponse.json({ text: 'The AI service is currently overloaded or busy. Please wait a moment and try again.' }, { status: 503 });
+    }
+
+    if (error.status === 429 || errorMessage.includes('429')) {
         return NextResponse.json({ 
             text: 'The AI is currently receiving too many requests. Please wait a moment and try again.',
             errorType: 'rate_limit'

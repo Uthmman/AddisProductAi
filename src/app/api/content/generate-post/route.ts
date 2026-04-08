@@ -29,13 +29,18 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Blog post generation failed:', error);
 
-    if (error.status === 429 || error.message?.includes('429')) {
+    const errorMessage = error.message || "";
+    if (errorMessage.includes('503') || errorMessage.includes('Service Unavailable') || errorMessage.includes('high demand')) {
+        return NextResponse.json({ message: 'The AI service is currently overloaded or busy. Please wait a moment and try again.' }, { status: 503 });
+    }
+
+    if (error.status === 429 || errorMessage.includes('429')) {
         return NextResponse.json({ 
             message: 'The AI is currently receiving too many requests. Please wait a moment and try again.',
             errorType: 'rate_limit'
         }, { status: 429 });
     }
 
-    return NextResponse.json({ message: error.message || 'An unexpected error occurred during AI optimization.' }, { status: 500 });
+    return NextResponse.json({ message: 'An unexpected error occurred during AI optimization.' }, { status: 500 });
   }
 }

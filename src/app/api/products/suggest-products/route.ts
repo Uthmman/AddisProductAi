@@ -17,9 +17,20 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Product suggestion failed:', error);
-    if (error.message && error.message.includes('API key was reported as leaked')) {
-      return NextResponse.json({ message: 'Your Google AI API key has been reported as leaked and cannot be used. Please generate a new key in Google AI Studio and update your .env.local file.' }, { status: 403 });
+    
+    const errorMessage = error.message || "";
+    if (errorMessage.includes('503') || errorMessage.includes('Service Unavailable') || errorMessage.includes('high demand')) {
+        return NextResponse.json({ message: 'The AI service is currently overloaded or busy. Please wait a moment and try again.' }, { status: 503 });
     }
-    return NextResponse.json({ message: error.message || "An unexpected error occurred while generating suggestions." }, { status: 500 });
+    
+    if (error.status === 429 || errorMessage.includes('429')) {
+        return NextResponse.json({ message: 'The AI is currently receiving too many requests. Please wait a moment and try again.' }, { status: 429 });
+    }
+
+    if (errorMessage.includes('API key was reported as leaked')) {
+      return NextResponse.json({ message: 'Your Google AI API key has been reported as leaked and cannot be used. Please generate a new key in Google AI Studio and update your .env file.' }, { status: 403 });
+    }
+    
+    return NextResponse.json({ message: "An unexpected error occurred while generating suggestions." }, { status: 500 });
   }
 }

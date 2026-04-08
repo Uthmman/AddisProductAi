@@ -59,12 +59,18 @@ export default function ProductSuggestions() {
     try {
       const res = await fetch('/api/products/suggest-products');
       const data = await res.json();
+      
       if (!res.ok) {
+        // Use the friendly message from the server if available
         throw new Error(data.message || 'Failed to fetch suggestions.');
       }
+      
       setSuggestions(data.suggestions || []);
     } catch (err: any) {
-      console.error(err.message);
+      // Don't log demand spike errors as full exceptions to avoid dev overlay crashes
+      if (!err.message.includes('overloaded') && !err.message.includes('busy')) {
+          console.error("Suggestion loading error:", err.message);
+      }
       setError(err.message);
       setSuggestions([]);
     } finally {
