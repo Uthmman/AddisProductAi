@@ -19,6 +19,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { fileToBase64, cn } from "@/lib/utils";
+import { Separator } from "./ui/separator";
 
 const PostFormSchema = z.object({
   title: z.string().min(2, "Title is required."),
