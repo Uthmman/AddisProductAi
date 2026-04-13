@@ -159,6 +159,14 @@ export default function PostForm({ postId }: PostFormProps) {
     toast({ description: `${tempSelectedImages.length} images added to post gallery.` });
   };
 
+  const removeGalleryImage = (id: number) => {
+    setGalleryImages(prev => prev.filter(img => img.id !== id));
+    if (form.getValues('featured_media') === id) {
+        form.setValue('featured_media', 0);
+        setFeaturedImageSrc(null);
+    }
+  };
+
   const insertGalleryHtml = () => {
     if (galleryImages.length === 0) {
         toast({ variant: "destructive", description: "Add images to the gallery first." });
@@ -280,12 +288,20 @@ export default function PostForm({ postId }: PostFormProps) {
                         <div 
                             key={idx} 
                             className={cn(
-                                "relative aspect-square rounded-md overflow-hidden border cursor-pointer hover:ring-2 hover:ring-primary transition-all",
+                                "relative aspect-square rounded-md overflow-hidden border cursor-pointer hover:ring-2 hover:ring-primary transition-all group",
                                 form.getValues('featured_media') === img.id && "ring-2 ring-primary"
                             )}
                             onClick={() => { form.setValue('featured_media', img.id); setFeaturedImageSrc(img.src); }}
                         >
                             <Image src={img.src} alt={`Gallery ${idx}`} fill className="object-cover" />
+                            <Button 
+                                variant="destructive" 
+                                size="icon" 
+                                className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10" 
+                                onClick={(e) => { e.stopPropagation(); removeGalleryImage(img.id); }}
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
                         </div>
                     ))}
                     <div className="relative aspect-square rounded-md border-2 border-dashed flex items-center justify-center hover:bg-muted cursor-pointer transition-colors">

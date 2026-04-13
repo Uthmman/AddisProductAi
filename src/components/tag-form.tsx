@@ -174,6 +174,14 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     }
   };
 
+  const removeGalleryImage = (id: number) => {
+    setGalleryImages(prev => prev.filter(img => img.id !== id));
+    if (Number(form.getValues('thumbnail_id')) === id) {
+        form.setValue('tag_image_src', '');
+        form.setValue('thumbnail_id', '');
+    }
+  };
+
   const insertGalleryHtml = () => {
     const imagesToEmbed = galleryImages.length > 0 ? galleryImages : (form.getValues('tag_image_src') ? [{ id: Number(form.getValues('thumbnail_id')), src: form.getValues('tag_image_src') }] : []);
     
@@ -377,12 +385,20 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                                 <div 
                                     key={idx} 
                                     className={cn(
-                                        "relative aspect-square rounded-md overflow-hidden border cursor-pointer hover:ring-2 hover:ring-primary transition-all",
+                                        "relative aspect-square rounded-md overflow-hidden border cursor-pointer hover:ring-2 hover:ring-primary transition-all group",
                                         currentTagImageSrc === img.src && "ring-2 ring-primary"
                                     )}
                                     onClick={() => { form.setValue('tag_image_src', img.src); form.setValue('thumbnail_id', img.id); }}
                                 >
                                     <Image src={img.src} alt={`Gallery ${idx}`} fill className="object-cover" />
+                                    <Button 
+                                        variant="destructive" 
+                                        size="icon" 
+                                        className="absolute top-1 right-1 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity z-10" 
+                                        onClick={(e) => { e.stopPropagation(); removeGalleryImage(img.id); }}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </Button>
                                 </div>
                             ))}
                         </div>
