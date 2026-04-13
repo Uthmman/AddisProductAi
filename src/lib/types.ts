@@ -71,6 +71,25 @@ export interface WooTag {
   };
 }
 
+export interface WooPost {
+  id: number;
+  date: string;
+  slug: string;
+  status: 'publish' | 'draft' | 'pending' | 'private';
+  link: string;
+  title: {
+    rendered: string;
+  };
+  content: {
+    rendered: string;
+    protected: boolean;
+  };
+  excerpt: {
+    rendered: string;
+    protected: boolean;
+  };
+}
+
 export interface Settings {
     phoneNumber: string;
     facebookUrl: string;

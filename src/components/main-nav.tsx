@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -10,6 +9,7 @@ import {
   FileText,
   MessageSquare,
   Tag,
+  Newspaper,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -23,6 +23,7 @@ const navItems = [
   { href: '/dashboard', label: 'Products', icon: Package },
   { href: '/categories', label: 'Categories', icon: FolderTree },
   { href: '/tags', label: 'Tags', icon: Tag },
+  { href: '/posts', label: 'Posts', icon: Newspaper },
   { href: '/content', label: 'Content', icon: FileText },
   { href: '/bot', label: 'Chatbot', icon: MessageSquare },
   { href: '/settings', label: 'Settings', icon: Settings },
