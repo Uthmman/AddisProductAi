@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -556,7 +554,7 @@ function PromptSettings() {
         });
   
         const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Failed to get AI response.');
+        if (!res.ok) throw new Error(data.modifiedPrompt || 'Failed to get AI response.');
         
         const botResponse = data.modifiedPrompt;
         handlePromptChange(key, botResponse);
@@ -731,6 +729,11 @@ function SettingsPageInner() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') || 'general';
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   const navTitles: {[key:string]: string} = {
     general: 'General Settings',
@@ -753,17 +756,21 @@ function SettingsPageInner() {
     <div className="container mx-auto py-10 max-w-7xl">
         <div className="md:hidden mb-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold font-headline">{navTitles[tab]}</h1>
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetTrigger asChild>
-                <Button variant="outline"><PanelLeft className="mr-2 h-4 w-4" /> Menu</Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[250px] p-4">
-                <SheetTitle className="sr-only">Settings Menu</SheetTitle>
-                <SheetDescription className="sr-only">Select a settings section from the menu.</SheetDescription>
-                <h2 className="text-lg font-semibold mb-4">Settings</h2>
-                {renderSidebar()}
-            </SheetContent>
-            </Sheet>
+            {mounted ? (
+              <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <SheetTrigger asChild>
+                    <Button variant="outline"><PanelLeft className="mr-2 h-4 w-4" /> Menu</Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[250px] p-4">
+                    <SheetTitle className="sr-only">Settings Menu</SheetTitle>
+                    <SheetDescription className="sr-only">Select a settings section from the menu.</SheetDescription>
+                    <h2 className="text-lg font-semibold mb-4">Settings</h2>
+                    {renderSidebar()}
+                </SheetContent>
+              </Sheet>
+            ) : (
+              <Button variant="outline" disabled><PanelLeft className="mr-2 h-4 w-4" /> Menu</Button>
+            )}
         </div>
 
         <div className="hidden md:block space-y-0.5 mb-6">

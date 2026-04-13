@@ -171,7 +171,8 @@ function BlogGenerator() {
       });
 
       if (!response.ok) {
-        throw new Error((await response.json()).message || 'Failed to generate post.');
+        const errorData = await response.json().catch(() => ({ message: 'Failed to generate post.' }));
+        throw new Error(errorData.message || 'Failed to generate post.');
       }
       
       const post = await response.json();
@@ -277,7 +278,8 @@ function SocialPostGenerator({ productId: defaultProductId }: { productId: strin
       });
 
       if (!response.ok) {
-        throw new Error((await response.json()).message || 'Failed to generate post.');
+        const errorData = await response.json().catch(() => ({ message: 'Failed to generate post.' }));
+        throw new Error(errorData.message || 'Failed to generate post.');
       }
       
       const postContent = await response.json();
@@ -983,6 +985,11 @@ function ContentPageInner() {
   const tab = searchParams.get('tab') || 'blog';
   const productId = searchParams.get('productId');
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const renderContent = () => {
     switch (tab) {
@@ -1000,17 +1007,21 @@ function ContentPageInner() {
     <div className="container mx-auto py-10 max-w-7xl">
       <div className="md:hidden mb-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold font-headline">Content Tools</h1>
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetTrigger asChild>
-            <Button variant="outline"><PanelLeft className="mr-2 h-4 w-4" /> Menu</Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[250px] p-4">
-            <SheetTitle className="sr-only">Content Tools Menu</SheetTitle>
-            <SheetDescription className="sr-only">Select a content tool from the menu.</SheetDescription>
-             <h2 className="text-lg font-semibold mb-4">Content Tools</h2>
-             {renderSidebar()}
-          </SheetContent>
-        </Sheet>
+        {mounted ? (
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline"><PanelLeft className="mr-2 h-4 w-4" /> Menu</Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[250px] p-4">
+              <SheetTitle className="sr-only">Content Tools Menu</SheetTitle>
+              <SheetDescription className="sr-only">Select a content tool from the menu.</SheetDescription>
+               <h2 className="text-lg font-semibold mb-4">Content Tools</h2>
+               {renderSidebar()}
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <Button variant="outline" disabled><PanelLeft className="mr-2 h-4 w-4" /> Menu</Button>
+        )}
       </div>
 
       <div className="hidden md:block space-y-0.5 mb-6">

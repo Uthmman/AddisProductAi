@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -7,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, AlertCircle, Image as ImageIcon, Droplet, Save, RefreshCw } from 'lucide-react';
+import { Loader2, Send, Paperclip, User, Bot, Sparkles, PlusCircle, Trash2, MessageSquare, PanelLeft, X as XIcon, AlertCircle, ImageIcon, Droplet, Save, RefreshCw } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { fileToBase64, cn, urlToDataUri, applyWatermark } from '@/lib/utils';
 import {
@@ -544,7 +543,7 @@ export default function TelegramMiniAppPage() {
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar - only render if client is mounted to avoid hydration errors */}
       <div className="hidden md:flex h-full">
         {renderSidebar()}
       </div>
