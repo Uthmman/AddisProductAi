@@ -12,11 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooTag, WooProduct } from "@/lib/types";
-import { Loader2, Sparkles, Copy, CheckCircle2, Save, X, UploadCloud, Image as ImageIcon, Search, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Copy, CheckCircle2, Save, X, UploadCloud, Image as ImageIcon, Search, RefreshCw, Check } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Separator } from "./ui/separator";
 import { Skeleton } from "./ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import Link from "next/link";
 import { fileToBase64, cn } from "@/lib/utils";
@@ -58,6 +58,9 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   const [linkedProducts, setLinkedProducts] = useState<WooProduct[]>([]);
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const [galleryImages, setGalleryImages] = useState<{id: number, src: string}[]>([]);
+  
+  // State for multi-selection in the dialog
+  const [tempSelectedImages, setTempSelectedImages] = useState<{id: number, src: string}[]>([]);
 
   const form = useForm<TagFormValues>({
     resolver: zodResolver(TagFormSchema),
@@ -92,7 +95,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         let initialImageSrc = fetchedTag.meta?._zenbaba_tag_image || '';
         let initialThumbnailId = fetchedTag.meta?.thumbnail_id || '';
 
-        // Fetch products to populate gallery images (up to 4)
         const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=10`);
         if (prodRes.ok) {
             const prodData = await prodRes.json();
@@ -180,12 +182,12 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         return;
     }
 
-    const size = imagesToEmbed.length > 3 ? 150 : 250;
-    let html = '\n<div class="tag-furniture-gallery" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">\n';
+    // Generate responsive grid HTML: 4 per row on PC (approx 23% width each)
+    let html = '\n<div class="zenbaba-furniture-grid" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 25px;">\n';
     
     imagesToEmbed.forEach(img => {
-        html += `  <a href="${img.src}" target="_blank">\n`;
-        html += `    <img src="${img.src}" class="alignnone size-medium wp-image-${img.id}" alt="${form.getValues('name')}" width="${size}" height="${size}" style="object-fit: cover; border-radius: 4px;" />\n`;
+        html += `  <a href="${img.src}" target="_blank" style="width: calc(25% - 9px); min-width: 140px; text-decoration: none; display: block;">\n`;
+        html += `    <img src="${img.src}" class="alignnone size-medium wp-image-${img.id}" alt="${form.getValues('name')}" width="300" height="300" style="width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" />\n`;
         html += `  </a>\n`;
     });
     
@@ -193,7 +195,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
 
     const currentDesc = form.getValues('description') || '';
     form.setValue('description', html + currentDesc);
-    toast({ description: "Gallery HTML inserted at start of description." });
+    toast({ description: "Gallery grid HTML inserted." });
   };
 
   const handleAutoSyncImages = async () => {
@@ -255,10 +257,11 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
   };
 
   const fetchProductsForTag = async () => {
-    if (!tagId) return;
     setIsFetchingProducts(true);
+    setTempSelectedImages([]);
     try {
-        const response = await fetch(`/api/products?tag=${tagId}&per_page=50`);
+        const url = tagId ? `/api/products?tag=${tagId}&per_page=50` : `/api/products?per_page=50`;
+        const response = await fetch(url);
         if (!response.ok) throw new Error('Failed to fetch products.');
         const data = await response.json();
         setLinkedProducts(data.products || []);
@@ -269,16 +272,32 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     }
   };
 
-  const selectProductImage = (id: number, src: string) => {
-    form.setValue('tag_image_src', src);
-    form.setValue('thumbnail_id', id);
-    
-    if (!galleryImages.some(img => img.id === id)) {
-        setGalleryImages(prev => [{ id, src }, ...prev].slice(0, 4));
+  const toggleImageSelection = (id: number, src: string) => {
+    setTempSelectedImages(prev => {
+        const exists = prev.find(img => img.id === id);
+        if (exists) {
+            return prev.filter(img => img.id !== id);
+        } else {
+            return [...prev, { id, src }];
+        }
+    });
+  };
+
+  const addSelectedImages = () => {
+    if (tempSelectedImages.length === 0) return;
+
+    setGalleryImages(prev => {
+        const newImages = tempSelectedImages.filter(temp => !prev.some(p => p.id === temp.id));
+        return [...newImages, ...prev].slice(0, 4);
+    });
+
+    if (!form.getValues('tag_image_src') && tempSelectedImages.length > 0) {
+        form.setValue('tag_image_src', tempSelectedImages[0].src);
+        form.setValue('thumbnail_id', tempSelectedImages[0].id);
     }
 
     setIsImageDialogOpen(false);
-    toast({ description: "Product image selected for tag." });
+    toast({ description: `${tempSelectedImages.length} images selected for tag.` });
   };
 
   const handleCopy = (text: string, fieldName: string) => {
@@ -313,7 +332,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       if (!response.ok) throw new Error('Failed to save tag.');
       const savedTag: WooTag = await response.json();
 
-      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved with furniture content and images.` });
+      toast({ title: "Success!", description: `Tag "${savedTag.name}" saved.` });
       if (onSuccess) onSuccess();
       else { router.push("/tags"); router.refresh(); }
     } catch (error: any) {
@@ -380,34 +399,54 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                             </Button>
                         </div>
                         
-                        {tagId && (
-                            <Dialog open={isImageDialogOpen} onOpenChange={(open) => { setIsImageDialogOpen(open); if(open) fetchProductsForTag(); }}>
-                                <DialogTrigger asChild>
-                                    <Button variant="secondary" className="w-full">
-                                        <Search className="mr-2 h-4 w-4" />
-                                        Choose from Products
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-3xl">
-                                    <DialogHeader><DialogTitle>Images from Products with this Tag</DialogTitle></DialogHeader>
-                                    <ScrollArea className="h-[400px] mt-4">
-                                        {isFetchingProducts ? (
-                                            <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
-                                        ) : linkedProducts.length === 0 ? (
-                                            <p className="text-center text-muted-foreground py-8">No furniture products currently use this tag.</p>
-                                        ) : (
-                                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 p-1">
-                                                {linkedProducts.flatMap(p => p.images).map((img, idx) => (
-                                                    <div key={idx} className="relative aspect-square cursor-pointer hover:opacity-80 transition-opacity rounded-md overflow-hidden border" onClick={() => selectProductImage(img.id, img.src)}>
+                        <Dialog open={isImageDialogOpen} onOpenChange={(open) => { setIsImageDialogOpen(open); if(open) fetchProductsForTag(); }}>
+                            <DialogTrigger asChild>
+                                <Button variant="secondary" className="w-full">
+                                    <Search className="mr-2 h-4 w-4" />
+                                    Choose from Products
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-3xl">
+                                <DialogHeader>
+                                    <DialogTitle>Select Furniture Photos</DialogTitle>
+                                    <CardDescription>Select images from your products to add to this tag's gallery.</CardDescription>
+                                </DialogHeader>
+                                <ScrollArea className="h-[400px] mt-4">
+                                    {isFetchingProducts ? (
+                                        <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                                    ) : (
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 p-1">
+                                            {linkedProducts.flatMap(p => p.images).map((img, idx) => {
+                                                const isSelected = tempSelectedImages.some(t => t.id === img.id);
+                                                return (
+                                                    <div 
+                                                        key={`${img.id}-${idx}`} 
+                                                        className={cn(
+                                                            "relative aspect-square cursor-pointer transition-all rounded-md overflow-hidden border",
+                                                            isSelected ? "ring-4 ring-primary" : "hover:opacity-80"
+                                                        )} 
+                                                        onClick={() => toggleImageSelection(img.id, img.src)}
+                                                    >
                                                         <Image src={img.src} alt="Product image" fill className="object-cover" />
+                                                        {isSelected && (
+                                                            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                                                <Check className="text-primary-foreground h-8 w-8" />
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </ScrollArea>
-                                </DialogContent>
-                            </Dialog>
-                        )}
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </ScrollArea>
+                                <DialogFooter className="mt-4">
+                                    <Button variant="outline" onClick={() => setIsImageDialogOpen(false)}>Cancel</Button>
+                                    <Button onClick={addSelectedImages} disabled={tempSelectedImages.length === 0}>
+                                        Add {tempSelectedImages.length} Selected
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </CardContent>
             </Card>

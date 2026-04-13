@@ -12,9 +12,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { WooPost, WooProduct } from "@/lib/types";
-import { Loader2, Save, X, Sparkles, UploadCloud, Image as ImageIcon, Search, PlusCircle, CheckCircle2, Copy } from "lucide-react";
+import { Loader2, Save, X, Sparkles, UploadCloud, Image as ImageIcon, Search, Check, Copy } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -44,6 +44,9 @@ export default function PostForm({ postId }: PostFormProps) {
   const [linkedProducts, setLinkedProducts] = useState<WooProduct[]>([]);
   const [isFetchingProducts, setIsFetchingProducts] = useState(false);
   const [featuredImageSrc, setFeaturedImageSrc] = useState<string | null>(null);
+  
+  // State for multi-selection in the dialog
+  const [tempSelectedImages, setTempSelectedImages] = useState<{id: number, src: string}[]>([]);
 
   const form = useForm<PostFormValues>({
     resolver: zodResolver(PostFormSchema),
@@ -102,7 +105,6 @@ export default function PostForm({ postId }: PostFormProps) {
         
         setGalleryImages(prev => [{ id: uploaded.id, src: uploaded.src }, ...prev]);
         
-        // If no featured image is set, use this one
         if (!form.getValues('featured_media')) {
             form.setValue('featured_media', uploaded.id);
             setFeaturedImageSrc(uploaded.src);
@@ -116,6 +118,7 @@ export default function PostForm({ postId }: PostFormProps) {
 
   const fetchRecentProducts = async () => {
     setIsFetchingProducts(true);
+    setTempSelectedImages([]);
     try {
         const response = await fetch(`/api/products?per_page=50`);
         if (!response.ok) throw new Error('Failed to fetch products.');
@@ -128,18 +131,32 @@ export default function PostForm({ postId }: PostFormProps) {
     }
   };
 
-  const selectProductImage = (id: number, src: string) => {
-    if (!galleryImages.some(img => img.id === id)) {
-        setGalleryImages(prev => [{ id, src }, ...prev]);
-    }
-    
-    if (!form.getValues('featured_media')) {
-        form.setValue('featured_media', id);
-        setFeaturedImageSrc(src);
+  const toggleImageSelection = (id: number, src: string) => {
+    setTempSelectedImages(prev => {
+        const exists = prev.find(img => img.id === id);
+        if (exists) {
+            return prev.filter(img => img.id !== id);
+        } else {
+            return [...prev, { id, src }];
+        }
+    });
+  };
+
+  const addSelectedImages = () => {
+    if (tempSelectedImages.length === 0) return;
+
+    setGalleryImages(prev => {
+        const newImages = tempSelectedImages.filter(temp => !prev.some(p => p.id === temp.id));
+        return [...newImages, ...prev];
+    });
+
+    if (!form.getValues('featured_media') && tempSelectedImages.length > 0) {
+        form.setValue('featured_media', tempSelectedImages[0].id);
+        setFeaturedImageSrc(tempSelectedImages[0].src);
     }
 
     setIsImageDialogOpen(false);
-    toast({ description: "Product image added to post gallery." });
+    toast({ description: `${tempSelectedImages.length} images added to post gallery.` });
   };
 
   const insertGalleryHtml = () => {
@@ -148,12 +165,12 @@ export default function PostForm({ postId }: PostFormProps) {
         return;
     }
 
-    const size = galleryImages.length > 3 ? 150 : 300;
-    let html = '\n<div class="furniture-post-gallery" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0;">\n';
+    // Generate responsive grid HTML: 4 per row on PC (approx 23% width each)
+    let html = '\n<div class="zenbaba-furniture-grid" style="display: flex; flex-wrap: wrap; gap: 12px; margin: 25px 0;">\n';
     
     galleryImages.forEach(img => {
-        html += `  <a href="${img.src}" target="_blank" style="flex: 1; min-width: ${size}px;">\n`;
-        html += `    <img src="${img.src}" class="alignnone size-medium wp-image-${img.id}" alt="Furniture Craftsmanship" width="${size}" height="${size}" style="width: 100%; height: auto; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />\n`;
+        html += `  <a href="${img.src}" target="_blank" style="width: calc(25% - 9px); min-width: 140px; text-decoration: none; display: block;">\n`;
+        html += `    <img src="${img.src}" class="alignnone size-medium wp-image-${img.id}" alt="Zenbaba Furniture Craftsmanship" width="300" height="300" style="width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s;" />\n`;
         html += `  </a>\n`;
     });
     
@@ -161,14 +178,14 @@ export default function PostForm({ postId }: PostFormProps) {
 
     const currentContent = form.getValues('content');
     form.setValue('content', currentContent + html);
-    toast({ description: "Gallery HTML inserted at end of content." });
+    toast({ description: "Furniture gallery HTML inserted." });
   };
 
   const onSubmit = async (data: PostFormValues) => {
     setIsSaving(true);
     try {
       const url = postId ? `/api/posts/${postId}` : "/api/posts";
-      const method = "POST"; // WP REST API prefers POST for updates when using the post ID endpoint
+      const method = "POST";
 
       const response = await fetch(url, {
         method,
@@ -247,7 +264,7 @@ export default function PostForm({ postId }: PostFormProps) {
                         )}
                     </div>
                     <p className="text-xs text-muted-foreground text-center">
-                        The featured image is set automatically when you add images to the gallery below.
+                        Selected automatically from your gallery below.
                     </p>
                 </CardContent>
             </Card>
@@ -286,20 +303,44 @@ export default function PostForm({ postId }: PostFormProps) {
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-3xl">
-                            <DialogHeader><DialogTitle>Select Product Images</DialogTitle></DialogHeader>
+                            <DialogHeader>
+                                <DialogTitle>Select Product Images</DialogTitle>
+                                <CardDescription>Select one or more images to add to your post gallery.</CardDescription>
+                            </DialogHeader>
                             <ScrollArea className="h-[400px] mt-4">
                                 {isFetchingProducts ? (
                                     <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>
                                 ) : (
                                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 p-1">
-                                        {linkedProducts.flatMap(p => p.images).map((img, idx) => (
-                                            <div key={idx} className="relative aspect-square cursor-pointer hover:opacity-80 transition-opacity rounded-md overflow-hidden border" onClick={() => selectProductImage(img.id, img.src)}>
-                                                <Image src={img.src} alt="Product image" fill className="object-cover" />
-                                            </div>
-                                        ))}
+                                        {linkedProducts.flatMap(p => p.images).map((img, idx) => {
+                                            const isSelected = tempSelectedImages.some(t => t.id === img.id);
+                                            return (
+                                                <div 
+                                                    key={`${img.id}-${idx}`} 
+                                                    className={cn(
+                                                        "relative aspect-square cursor-pointer transition-all rounded-md overflow-hidden border group",
+                                                        isSelected ? "ring-4 ring-primary" : "hover:opacity-80"
+                                                    )} 
+                                                    onClick={() => toggleImageSelection(img.id, img.src)}
+                                                >
+                                                    <Image src={img.src} alt="Product image" fill className="object-cover" />
+                                                    {isSelected && (
+                                                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                                            <Check className="text-primary-foreground h-8 w-8 drop-shadow-md" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </ScrollArea>
+                            <DialogFooter className="mt-4">
+                                <Button variant="outline" onClick={() => setIsImageDialogOpen(false)}>Cancel</Button>
+                                <Button onClick={addSelectedImages} disabled={tempSelectedImages.length === 0}>
+                                    Add {tempSelectedImages.length} Selected Images
+                                </Button>
+                            </DialogFooter>
                         </DialogContent>
                     </Dialog>
                 </div>
