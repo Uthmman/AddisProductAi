@@ -66,8 +66,8 @@ export default function PostForm({ postId }: PostFormProps) {
         const fetchedPost: WooPost = await response.json();
         
         form.reset({
-          title: fetchedPost.title.rendered,
-          content: fetchedPost.content.rendered,
+          title: fetchedPost.title.raw || fetchedPost.title.rendered,
+          content: fetchedPost.content.raw || fetchedPost.content.rendered,
           status: fetchedPost.status,
           featured_media: fetchedPost.featured_media || 0,
         });
@@ -168,7 +168,7 @@ export default function PostForm({ postId }: PostFormProps) {
     setIsSaving(true);
     try {
       const url = postId ? `/api/posts/${postId}` : "/api/posts";
-      const method = "POST"; // WP REST API often prefers POST for updates
+      const method = "POST"; // WP REST API prefers POST for updates when using the post ID endpoint
 
       const response = await fetch(url, {
         method,
@@ -176,7 +176,10 @@ export default function PostForm({ postId }: PostFormProps) {
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) throw new Error('Failed to save post.');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to save post.' }));
+        throw new Error(errorData.message || 'Failed to save post.');
+      }
       
       toast({ title: "Success!", description: `Post has been saved.` });
       router.push("/posts");

@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const id = parseInt(params.id, 10);
+  const { id: idStr } = await params;
+  const id = parseInt(idStr, 10);
+  
   if (isNaN(id)) {
     return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
   }
@@ -23,7 +25,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function PUT(request: NextRequest, { params }: Params) {
-  const id = parseInt(params.id, 10);
+  const { id: idStr } = await params;
+  const id = parseInt(idStr, 10);
+
   if (isNaN(id)) {
     return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
   }
@@ -38,8 +42,15 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 }
 
+// Handle POST for updates as well, as many WordPress setups and some frontend logic prefer this
+export async function POST(request: NextRequest, { params }: Params) {
+    return PUT(request, { params });
+}
+
 export async function DELETE(request: NextRequest, { params }: Params) {
-  const id = parseInt(params.id, 10);
+  const { id: idStr } = await params;
+  const id = parseInt(idStr, 10);
+
   if (isNaN(id)) {
     return NextResponse.json({ message: 'Invalid post ID' }, { status: 400 });
   }
