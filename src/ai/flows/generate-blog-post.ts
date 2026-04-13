@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview This file defines a Genkit flow to generate a blog post.
  * The flow takes a topic and generates a title and content for a blog post,
@@ -26,6 +25,7 @@ type GenerateBlogPostInput = z.infer<typeof GenerateBlogPostInputSchema>;
 const GenerateBlogPostOutputSchema = z.object({
   title: z.string().describe('A catchy, SEO-friendly title for the blog post.'),
   content: z.string().describe('The full content of the blog post, formatted with HTML tags. It should be engaging, informative, and around 400-500 words.'),
+  searchTerms: z.array(z.string()).describe('2-3 specific furniture keywords to find related product images (e.g., ["bunk bed", "modern sofa"]).'),
 });
 export type GenerateBlogPostOutput = z.infer<typeof GenerateBlogPostOutputSchema>;
 

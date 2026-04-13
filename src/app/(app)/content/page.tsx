@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send, Share2, Bot as BotIcon, PanelLeft, FileText, Check, ChevronsUpDown, BrainCircuit } from 'lucide-react';
+import { Loader2, Sparkles, Copy, TrendingUp, Lightbulb, RefreshCw, Terminal, Send, Share2, Bot as BotIcon, PanelLeft, FileText, Check, ChevronsUpDown, BrainCircuit, ImageIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WooProduct } from '@/lib/types';
@@ -48,6 +48,7 @@ type SocialPostFormValues = z.infer<typeof SocialPostSchema>;
 type BlogPost = {
   title: string;
   content: string;
+  relatedImages?: { id: number; src: string }[];
 };
 
 type SocialPost = {
@@ -176,8 +177,21 @@ function BlogGenerator() {
       }
       
       const post = await response.json();
+      
+      // If relevant images were found, automatically build a small gallery and append it
+      if (post.relatedImages && post.relatedImages.length > 0) {
+          let galleryHtml = '\n<div class="zenbaba-furniture-grid" style="display: flex; flex-wrap: wrap; gap: 12px; margin: 25px 0;">\n';
+          post.relatedImages.forEach((img: any) => {
+              galleryHtml += `  <a href="${img.src}" target="_blank" style="width: calc(25% - 9px); min-width: 140px; text-decoration: none; display: block;">\n`;
+              galleryHtml += `    <img src="${img.src}" class="alignnone size-medium wp-image-${img.id}" alt="Furniture" width="300" height="300" style="width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 6px;" />\n`;
+              galleryHtml += `  </a>\n`;
+          });
+          galleryHtml += '</div>\n';
+          post.content += galleryHtml;
+      }
+
       setGeneratedPost(post);
-      toast({ title: 'Success!', description: 'Your blog post has been generated.' });
+      toast({ title: 'Success!', description: 'Your blog post and related furniture images have been prepared.' });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: error.message });
     } finally {
@@ -487,12 +501,16 @@ function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGene
         
         setIsCreatingPost(true);
         try {
+            // If images were attached, the first one becomes the featured image
+            const featuredMediaId = post.relatedImages?.[0]?.id;
+
             const response = await fetch('/api/content/create-blog-post', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     title: editableTitle,
                     content: editableContent,
+                    featured_media: featuredMediaId
                 }),
             });
             
@@ -556,6 +574,19 @@ function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGene
         )}
         {post && 'title' in post && ( // Blog Post
           <div className="space-y-4">
+            {post.relatedImages && post.relatedImages.length > 0 && (
+                <div className="space-y-2">
+                    <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Related Product Images (Auto-Attached)</Label>
+                    <div className="grid grid-cols-4 gap-2 border rounded-md p-2 bg-muted/20">
+                        {post.relatedImages.map((img, i) => (
+                            <div key={i} className="relative aspect-square rounded-sm overflow-hidden border shadow-sm group">
+                                <Image src={img.src} alt="Attached" fill className="object-cover" />
+                                {i === 0 && <Badge className="absolute top-0.5 left-0.5 text-[8px] h-3 px-1">Featured</Badge>}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
             <div className="space-y-2">
               <Label>Title</Label>
               <div className="relative">
@@ -613,7 +644,7 @@ function GeneratedContentPreview({ isGenerating, post, onPostSuccess }: { isGene
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <Button size="icon" onClick={handlePostToTelegram} disabled={isPosting}>
-                                            {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                            {isPosting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent><p>Post to Telegram</p></TooltipContent>
