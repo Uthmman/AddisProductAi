@@ -77,6 +77,7 @@ export interface WooPost {
   slug: string;
   status: 'publish' | 'draft' | 'pending' | 'private';
   link: string;
+  featured_media: number;
   title: {
     rendered: string;
   };
@@ -87,6 +88,12 @@ export interface WooPost {
   excerpt: {
     rendered: string;
     protected: boolean;
+  };
+  _embedded?: {
+    'wp:featuredmedia'?: Array<{
+      source_url: string;
+      alt_text: string;
+    }>;
   };
 }
 

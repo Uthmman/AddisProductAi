@@ -93,27 +93,25 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         let initialThumbnailId = fetchedTag.meta?.thumbnail_id || '';
 
         // Fetch products to populate gallery images (up to 4)
-        if (tagId) {
-            const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=10`);
-            if (prodRes.ok) {
-                const prodData = await prodRes.json();
-                const uniqueImages: {id: number, src: string}[] = [];
-                const seenSrcs = new Set();
+        const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=10`);
+        if (prodRes.ok) {
+            const prodData = await prodRes.json();
+            const uniqueImages: {id: number, src: string}[] = [];
+            const seenSrcs = new Set();
 
-                for (const p of (prodData.products || [])) {
-                    if (p.images && p.images.length > 0 && !seenSrcs.has(p.images[0].src)) {
-                        uniqueImages.push({ id: p.images[0].id, src: p.images[0].src });
-                        seenSrcs.add(p.images[0].src);
-                        if (uniqueImages.length >= 4) break;
-                    }
+            for (const p of (prodData.products || [])) {
+                if (p.images && p.images.length > 0 && !seenSrcs.has(p.images[0].src)) {
+                    uniqueImages.push({ id: p.images[0].id, src: p.images[0].src });
+                    seenSrcs.add(p.images[0].src);
+                    if (uniqueImages.length >= 4) break;
                 }
-                
-                setGalleryImages(uniqueImages);
+            }
+            
+            setGalleryImages(uniqueImages);
 
-                if (!initialImageSrc && uniqueImages.length > 0) {
-                    initialImageSrc = uniqueImages[0].src;
-                    initialThumbnailId = uniqueImages[0].id;
-                }
+            if (!initialImageSrc && uniqueImages.length > 0) {
+                initialImageSrc = uniqueImages[0].src;
+                initialThumbnailId = uniqueImages[0].id;
             }
         }
 
@@ -165,31 +163,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
       form.setValue('seo_focuskw', content.focusKeyphrase);
       form.setValue('seo_metadesc', content.metaDescription);
       
-      // Auto-suggest images from linked products if tag exists
-      if (tagId && galleryImages.length === 0) {
-          const prodRes = await fetch(`/api/products?tag=${tagId}&per_page=10`);
-          if (prodRes.ok) {
-              const prodData = await prodRes.json();
-              const uniqueImages: {id: number, src: string}[] = [];
-              const seenSrcs = new Set();
-
-              for (const p of (prodData.products || [])) {
-                  if (p.images && p.images.length > 0 && !seenSrcs.has(p.images[0].src)) {
-                      uniqueImages.push({ id: p.images[0].id, src: p.images[0].src });
-                      seenSrcs.add(p.images[0].src);
-                      if (uniqueImages.length >= 4) break;
-                  }
-              }
-              
-              setGalleryImages(uniqueImages);
-              
-              if (!form.getValues('tag_image_src') && uniqueImages.length > 0) {
-                  form.setValue('tag_image_src', uniqueImages[0].src);
-                  form.setValue('thumbnail_id', uniqueImages[0].id);
-              }
-          }
-      }
-
       setHasGenerated(true);
       toast({ title: 'Success!', description: 'SEO content and furniture product images suggested.' });
     } catch (error: any) {
@@ -197,6 +170,30 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const insertGalleryHtml = () => {
+    const imagesToEmbed = galleryImages.length > 0 ? galleryImages : (form.getValues('tag_image_src') ? [{ id: Number(form.getValues('thumbnail_id')), src: form.getValues('tag_image_src') }] : []);
+    
+    if (imagesToEmbed.length === 0) {
+        toast({ variant: "destructive", description: "Add images to the gallery first." });
+        return;
+    }
+
+    const size = imagesToEmbed.length > 3 ? 150 : 250;
+    let html = '\n<div class="tag-furniture-gallery" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">\n';
+    
+    imagesToEmbed.forEach(img => {
+        html += `  <a href="${img.src}" target="_blank">\n`;
+        html += `    <img src="${img.src}" class="alignnone size-medium wp-image-${img.id}" alt="${form.getValues('name')}" width="${size}" height="${size}" style="object-fit: cover; border-radius: 4px;" />\n`;
+        html += `  </a>\n`;
+    });
+    
+    html += '</div>\n';
+
+    const currentDesc = form.getValues('description') || '';
+    form.setValue('description', html + currentDesc);
+    toast({ description: "Gallery HTML inserted at start of description." });
   };
 
   const handleAutoSyncImages = async () => {
@@ -215,7 +212,6 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
         const result = await response.json();
         toast({ title: 'Sync Complete', description: result.message });
         
-        // Refresh local state
         router.refresh();
         const tagRes = await fetch(`/api/products/tags/${tagId}`);
         const updatedTag = await tagRes.json();
@@ -295,28 +291,10 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
     try {
       const url = tagId ? `/api/products/tags/${tagId}` : "/api/products/tags";
       
-      let finalDescription = data.description || '';
-      const imagesToEmbed = galleryImages.length > 0 ? galleryImages : (data.tag_image_src ? [{ id: Number(data.thumbnail_id), src: data.tag_image_src }] : []);
-      
-      // Logic: if > 3 images, make them 150px square. Otherwise 250px square.
-      const useSquareSmall = imagesToEmbed.length > 3;
-      const size = useSquareSmall ? 150 : 250;
-
-      let imagesHtml = '';
-      for (const img of imagesToEmbed) {
-          if (!finalDescription.includes(img.src)) {
-              const idClass = img.id ? ` wp-image-${img.id}` : '';
-              // Add object-fit: cover to prevent stretching
-              imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${data.name}" width="${size}" height="${size}" style="object-fit: cover; margin-right: 10px; margin-bottom: 10px; border-radius: 4px;" class="alignnone size-medium${idClass}" /></a>`;
-          }
-      }
-      
-      finalDescription = imagesHtml + finalDescription;
-
       const submissionData = { 
           name: data.name,
           slug: data.slug,
-          description: finalDescription,
+          description: data.description,
           meta: {
               _yoast_wpseo_title: data.seo_title,
               _yoast_wpseo_metadesc: data.seo_metadesc,
@@ -453,11 +431,15 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                     <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                         <CardTitle>Page Description</CardTitle>
                         <div className="flex gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={insertGalleryHtml}>
+                                <ImageIcon className="mr-2 h-4 w-4" />
+                                Insert Gallery HTML
+                            </Button>
                             <Button type="button" variant="secondary" size="sm" onClick={handleAutoSyncImages} disabled={isSyncing || !tagId}>
                                 {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                                 Sync Product Images
                             </Button>
-                            <Button type="button" variant="outline" size="sm" onClick={handleGenerateSeo} disabled={isGenerating}>
+                            <Button type="button" variant="ghost" size="sm" onClick={handleGenerateSeo} disabled={isGenerating}>
                                 {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                                 AI Suggest Content
                             </Button>
@@ -466,7 +448,7 @@ export default function TagForm({ tagId, onSuccess }: TagFormProps) {
                 </CardHeader>
                 <CardContent>
                     <FormField control={form.control} name="description" render={({ field }) => (
-                        <FormItem><FormControl><Textarea placeholder="Write a description for this tag page..." {...field} rows={12} className="resize-none" /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormControl><Textarea placeholder="Write a description for this tag page..." {...field} rows={12} className="resize-none font-mono text-sm" /></FormControl><FormMessage /></FormItem>
                     )} />
                 </CardContent>
             </Card>

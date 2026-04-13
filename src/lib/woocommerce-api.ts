@@ -298,7 +298,7 @@ export async function deleteProductTag(id: number, force: boolean = true): Promi
 export async function getPosts(page = 1, perPage = 10): Promise<{posts: WooPost[], totalPages: number, totalPosts: number}> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for posts.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts?per_page=${perPage}&page=${page}&context=edit`, { headers, cache: 'no-store' });
+    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts?per_page=${perPage}&page=${page}&context=edit&_embed`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
         await handleResponse(response, 'Failed to fetch posts');
@@ -314,7 +314,7 @@ export async function getPosts(page = 1, perPage = 10): Promise<{posts: WooPost[
 export async function getPost(id: number): Promise<WooPost | null> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for posts.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts/${id}?context=edit`, { headers, cache: 'no-store' });
+    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts/${id}?context=edit&_embed`, { headers, cache: 'no-store' });
 
     if (!response.ok) {
         if (response.status === 404) return null;
@@ -324,7 +324,7 @@ export async function getPost(id: number): Promise<WooPost | null> {
     return await response.json();
 }
 
-export async function createPost(postData: { title: string; content: string; status: 'publish' | 'draft' }): Promise<WooPost> {
+export async function createPost(postData: { title: string; content: string; status: 'publish' | 'draft'; featured_media?: number }): Promise<WooPost> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for post creation.");
     const headers = getWordPressAuthHeaders();
     const wpApiUrl = `${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2`;
@@ -338,7 +338,7 @@ export async function createPost(postData: { title: string; content: string; sta
     return handleResponse(response, 'Failed to create WordPress post');
 }
 
-export async function updatePost(id: number, postData: { title?: string; content?: string; status?: string }): Promise<WooPost> {
+export async function updatePost(id: number, postData: { title?: string; content?: string; status?: string; featured_media?: number }): Promise<WooPost> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for posts.");
     const headers = getWordPressAuthHeaders();
     const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts/${id}`, {
