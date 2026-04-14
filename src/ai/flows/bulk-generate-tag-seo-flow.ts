@@ -21,7 +21,18 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     ]);
     
     // Filter for tags that don't have a description OR are missing Yoast focus keywords.
-    const tagsToUpdate = allTags.filter(tag => !tag.description || !tag.meta?._yoast_wpseo_focuskw);
+    // We prioritize tags that have absolutely nothing (no description AND no meta) first.
+    const tagsToUpdate = allTags
+        .filter(tag => !tag.description?.trim() || !tag.meta?._yoast_wpseo_focuskw)
+        .sort((a, b) => {
+            const aEmpty = !a.description?.trim() && !a.meta?._yoast_wpseo_focuskw;
+            const bEmpty = !b.description?.trim() && !b.meta?._yoast_wpseo_focuskw;
+            
+            // Prioritize those that are completely empty (true < false in sort if we want true first)
+            if (aEmpty && !bEmpty) return -1;
+            if (!aEmpty && bEmpty) return 1;
+            return 0;
+        });
 
     if (tagsToUpdate.length === 0) {
         return {
@@ -30,7 +41,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
         };
     }
     
-    console.log(`Found ${tagsToUpdate.length} tags to update.`);
+    console.log(`Found ${tagsToUpdate.length} tags to update. Prioritizing completely empty tags.`);
 
     let updatedCount = 0;
 
@@ -62,7 +73,8 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
 
             let imagesHtml = '';
             for (const img of productImages) {
-                if (!seoContent.description.includes(img.src)) {
+                // Prevent adding the same image source multiple times
+                if (!tag.description || !tag.description.includes(img.src)) {
                     const idClass = img.id ? ` wp-image-${img.id}` : '';
                     // Force equal height/width with object-fit: cover
                     imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="${size}" height="${size}" style="object-fit: cover; margin-right: 10px; margin-bottom: 10px; border-radius: 4px;" class="alignnone size-medium${idClass}" /></a>`;
@@ -87,7 +99,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     console.log(`Finished bulk generation. Updated ${updatedCount} tags.`);
 
     return {
-        message: `Successfully generated descriptions, linked product images, and Yoast SEO data for ${updatedCount} out of ${tagsToUpdate.length} targeted tags.`,
+        message: `Successfully generated descriptions, linked product images, and Yoast SEO data for ${updatedCount} tags. Entries with no existing content were prioritized.`,
         updatedCount: updatedCount,
     };
 }
