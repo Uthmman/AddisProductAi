@@ -99,73 +99,93 @@ export default function TagTable() {
   };
   
   const handleBulkGenerate = async () => {
+    // We prioritize tags that have NO description OR are missing Yoast focus keywords.
+    const tagsToUpdate = tags
+        .filter(tag => !tag.description?.trim() || !tag.meta?._yoast_wpseo_focuskw)
+        .sort((a, b) => {
+            const aEmpty = !a.description?.trim() && !a.meta?._yoast_wpseo_focuskw;
+            const bEmpty = !b.description?.trim() && !b.meta?._yoast_wpseo_focuskw;
+            if (aEmpty && !bEmpty) return -1;
+            if (!aEmpty && bEmpty) return 1;
+            return 0;
+        });
+
+    if (tagsToUpdate.length === 0) {
+        toast({
+            title: "Optimization Not Needed",
+            description: "All your tags already have descriptions and SEO data.",
+        });
+        return;
+    }
+
     setIsBulkGenerating(true);
     toast({
       title: "Bulk SEO Generation Started",
-      description: "AI is generating SEO content and linking product images for tags. This may take a few minutes.",
+      description: `Processing ${tagsToUpdate.length} tags. This avoids timeouts by processing each tag individually.`,
     });
 
-    try {
-      const response = await fetch('/api/tags/bulk-ai-optimize', {
-        method: 'POST',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Bulk generation failed.');
-      }
-      
-      const result = await response.json();
-      toast({
-        title: "Bulk Generation Complete",
-        description: result.message,
-      });
+    let successCount = 0;
+    let failCount = 0;
 
-      fetchTags(); 
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Bulk Generation Failed",
-        description: error.message,
-      });
-    } finally {
-      setIsBulkGenerating(false);
+    for (const tag of tagsToUpdate) {
+        setOptimizingTagId(tag.id);
+        try {
+            const response = await fetch(`/api/tags/${tag.id}/auto-optimize`, { method: 'POST' });
+            if (!response.ok) throw new Error('Failed');
+            successCount++;
+        } catch (err) {
+            console.error(`Failed to optimize tag ${tag.name}:`, err);
+            failCount++;
+        }
+        setOptimizingTagId(null);
     }
+
+    setIsBulkGenerating(false);
+    toast({
+      title: "Bulk Generation Finished",
+      description: `Successfully optimized ${successCount} tags.${failCount > 0 ? ` Failed: ${failCount}.` : ''}`,
+    });
+
+    fetchTags();
   }
 
   const handleBulkImageSync = async () => {
+    const tagsToSync = tags.filter(tag => tag.count > 0);
+
+    if (tagsToSync.length === 0) {
+        toast({
+            title: "Sync Not Needed",
+            description: "No tags found with products to synchronize.",
+        });
+        return;
+    }
+
     setIsSyncingImages(true);
     toast({
       title: "Image Synchronization Started",
-      description: "Fetching unique furniture product images (250px) for every tag and updating descriptions.",
+      description: `Updating galleries for ${tagsToSync.length} tags...`,
     });
 
-    try {
-      const response = await fetch('/api/tags/bulk-image-sync', {
-        method: 'POST',
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Image sync failed.');
-      }
-      
-      const result = await response.json();
-      toast({
-        title: "Image Sync Complete",
-        description: result.message,
-      });
+    let successCount = 0;
 
-      fetchTags(); 
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Sync Failed",
-        description: error.message,
-      });
-    } finally {
-      setIsSyncingImages(false);
+    for (const tag of tagsToSync) {
+        setSyncingTagId(tag.id);
+        try {
+            const response = await fetch(`/api/tags/${tag.id}/sync-images`, { method: 'POST' });
+            if (response.ok) successCount++;
+        } catch (err) {
+            console.error(`Failed to sync images for tag ${tag.name}:`, err);
+        }
+        setSyncingTagId(null);
     }
+
+    setIsSyncingImages(false);
+    toast({
+      title: "Image Sync Complete",
+      description: `Successfully updated galleries for ${successCount} tags.`,
+    });
+
+    fetchTags();
   }
 
   const handleSingleImageSync = async (tagId: number) => {
@@ -288,7 +308,7 @@ export default function TagTable() {
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button variant="ghost" size="icon" onClick={() => handleSingleImageSync(tag.id)} disabled={syncingTagId === tag.id || optimizingTagId === tag.id}>
-                                                {syncingTagId === tag.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                                                {syncingTagId === tag.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent><p>Sync Product Images</p></TooltipContent>
