@@ -1,8 +1,7 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
-import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon, RefreshCw } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon, RefreshCw, Wand2 } from "lucide-react";
 import { WooTag } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
@@ -37,6 +36,7 @@ export default function TagTable() {
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
   const [isSyncingImages, setIsSyncingImages] = useState(false);
   const [syncingTagId, setSyncingTagId] = useState<number | null>(null);
+  const [optimizingTagId, setOptimizingTagId] = useState<number | null>(null);
   const { toast } = useToast();
 
   const fetchTags = async () => {
@@ -186,6 +186,24 @@ export default function TagTable() {
     }
   };
 
+  const handleSingleAutoOptimize = async (tagId: number) => {
+    setOptimizingTagId(tagId);
+    try {
+        const response = await fetch(`/api/tags/${tagId}/auto-optimize`, { method: 'POST' });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Auto-optimize failed.');
+        }
+        const result = await response.json();
+        toast({ title: 'Optimization Complete', description: result.message });
+        fetchTags();
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Optimization Failed', description: error.message });
+    } finally {
+        setOptimizingTagId(null);
+    }
+  };
+
   return (
     <div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
@@ -224,7 +242,7 @@ export default function TagTable() {
                         <TableHead>Name</TableHead>
                         <TableHead className="hidden md:table-cell">Description</TableHead>
                         <TableHead className="text-right">Products</TableHead>
-                        <TableHead className="w-[120px] text-right">Actions</TableHead>
+                        <TableHead className="w-[160px] text-right">Actions</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -259,7 +277,17 @@ export default function TagTable() {
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Button variant="ghost" size="icon" onClick={() => handleSingleImageSync(tag.id)} disabled={syncingTagId === tag.id}>
+                                            <Button variant="ghost" size="icon" className="text-primary hover:text-primary hover:bg-primary/10" onClick={() => handleSingleAutoOptimize(tag.id)} disabled={optimizingTagId === tag.id || syncingTagId === tag.id}>
+                                                {optimizingTagId === tag.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Auto-Optimize AI & Images</p></TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" onClick={() => handleSingleImageSync(tag.id)} disabled={syncingTagId === tag.id || optimizingTagId === tag.id}>
                                                 {syncingTagId === tag.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                                             </Button>
                                         </TooltipTrigger>
