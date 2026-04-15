@@ -1,4 +1,3 @@
-
 'use server';
 
 import { z } from 'zod';
@@ -28,7 +27,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
             const aEmpty = !a.description?.trim() && !a.meta?._yoast_wpseo_focuskw;
             const bEmpty = !b.description?.trim() && !b.meta?._yoast_wpseo_focuskw;
             
-            // Prioritize those that are completely empty (true < false in sort if we want true first)
+            // Prioritize those that are completely empty
             if (aEmpty && !bEmpty) return -1;
             if (!aEmpty && bEmpty) return 1;
             return 0;
@@ -66,22 +65,20 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
                 metaToUpdate.thumbnail_id = productImages[0].id;
             }
 
-            // Build multiple images HTML block
-            // Logic: if > 3 images, make them 150px square. Otherwise 250px square.
-            const useSquareSmall = productImages.length > 3;
-            const size = useSquareSmall ? 150 : 250;
-
+            // Build responsive gallery HTML block (4 per row on PC)
             let imagesHtml = '';
-            for (const img of productImages) {
-                // Prevent adding the same image source multiple times
-                if (!tag.description || !tag.description.includes(img.src)) {
+            if (productImages.length > 0) {
+                imagesHtml = '\n<div class="zenbaba-furniture-grid" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 25px;">\n';
+                for (const img of productImages) {
                     const idClass = img.id ? ` wp-image-${img.id}` : '';
-                    // Force equal height/width with object-fit: cover
-                    imagesHtml += `<a href="${img.src}"><img src="${img.src}" alt="${tag.name}" width="${size}" height="${size}" style="object-fit: cover; margin-right: 10px; margin-bottom: 10px; border-radius: 4px;" class="alignnone size-medium${idClass}" /></a>`;
+                    imagesHtml += `  <a href="${img.src}" target="_blank" style="width: calc(25% - 9px); min-width: 140px; text-decoration: none; display: block;">\n`;
+                    imagesHtml += `    <img src="${img.src}" class="alignnone size-medium${idClass}" alt="${tag.name}" width="300" height="300" style="width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);" />\n`;
+                    imagesHtml += `  </a>\n`;
                 }
+                imagesHtml += '</div>\n';
             }
 
-            // Prepend gallery HTML to description
+            // Prepend gallery grid to the AI-generated description
             const finalDescription = imagesHtml + seoContent.description;
 
             await wooCommerceApi.updateProductTag(tag.id, {
@@ -99,7 +96,7 @@ export async function bulkGenerateTagSeoFlow(): Promise<z.infer<typeof BulkGener
     console.log(`Finished bulk generation. Updated ${updatedCount} tags.`);
 
     return {
-        message: `Successfully generated descriptions, linked product images, and Yoast SEO data for ${updatedCount} tags. Entries with no existing content were prioritized.`,
+        message: `Successfully generated descriptions, responsive galleries, and Yoast SEO data for ${updatedCount} tags.`,
         updatedCount: updatedCount,
     };
 }
