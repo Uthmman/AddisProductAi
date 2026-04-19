@@ -3,6 +3,8 @@ import { generateTagSeoFlow } from '@/ai/flows/generate-tag-seo-flow';
 import * as wooCommerceApi from '@/lib/woocommerce-api';
 import { getSettings } from '@/lib/settings-api';
 
+export const maxDuration = 120; // Ensure single tag optimization has enough time for AI and WordPress
+
 /**
  * API route to automatically optimize a single product tag.
  * Performs: AI Content Generation + Image Syncing + Direct Saving.

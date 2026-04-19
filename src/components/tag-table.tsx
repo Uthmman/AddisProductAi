@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon, RefreshCw, Wand2 } from "lucide-react";
 import { WooTag } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
-import Link from "next/link";
+import Link from "next/navigation";
 import Image from "next/image";
 import {
   Table,
@@ -99,7 +99,6 @@ export default function TagTable() {
   };
   
   const handleBulkGenerate = async () => {
-    // We prioritize tags that have NO description OR are missing Yoast focus keywords.
     const tagsToUpdate = tags
         .filter(tag => !tag.description?.trim() || !tag.meta?._yoast_wpseo_focuskw)
         .sort((a, b) => {
@@ -121,7 +120,7 @@ export default function TagTable() {
     setIsBulkGenerating(true);
     toast({
       title: "Bulk SEO Generation Started",
-      description: `Processing ${tagsToUpdate.length} tags. This avoids timeouts by processing each tag individually.`,
+      description: `Processing ${tagsToUpdate.length} tags. Each tag is being optimized individually to ensure accuracy.`,
     });
 
     let successCount = 0;
@@ -131,10 +130,19 @@ export default function TagTable() {
         setOptimizingTagId(tag.id);
         try {
             const response = await fetch(`/api/tags/${tag.id}/auto-optimize`, { method: 'POST' });
-            if (!response.ok) throw new Error('Failed');
-            successCount++;
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.warn(`Optimization failed for tag "${tag.name}": ${errorData.message || response.statusText}`);
+                failCount++;
+            } else {
+                successCount++;
+            }
+            
+            // Small pause to respect AI rate limits and allow background saving
+            await new Promise(r => setTimeout(r, 1000));
         } catch (err) {
-            console.error(`Failed to optimize tag ${tag.name}:`, err);
+            console.error(`Unexpected error during optimization for "${tag.name}":`, err);
             failCount++;
         }
         setOptimizingTagId(null);
@@ -143,7 +151,7 @@ export default function TagTable() {
     setIsBulkGenerating(false);
     toast({
       title: "Bulk Generation Finished",
-      description: `Successfully optimized ${successCount} tags.${failCount > 0 ? ` Failed: ${failCount}.` : ''}`,
+      description: `Successfully optimized ${successCount} tags.${failCount > 0 ? ` Failed to optimize ${failCount} tags.` : ''}`,
     });
 
     fetchTags();
@@ -167,14 +175,22 @@ export default function TagTable() {
     });
 
     let successCount = 0;
+    let failCount = 0;
 
     for (const tag of tagsToSync) {
         setSyncingTagId(tag.id);
         try {
             const response = await fetch(`/api/tags/${tag.id}/sync-images`, { method: 'POST' });
-            if (response.ok) successCount++;
+            if (response.ok) {
+                successCount++;
+            } else {
+                failCount++;
+            }
+            // Small pause between tags
+            await new Promise(r => setTimeout(r, 500));
         } catch (err) {
             console.error(`Failed to sync images for tag ${tag.name}:`, err);
+            failCount++;
         }
         setSyncingTagId(null);
     }
@@ -182,7 +198,7 @@ export default function TagTable() {
     setIsSyncingImages(false);
     toast({
       title: "Image Sync Complete",
-      description: `Successfully updated galleries for ${successCount} tags.`,
+      description: `Successfully updated galleries for ${successCount} tags.${failCount > 0 ? ` Failed: ${failCount}` : ''}`,
     });
 
     fetchTags();
