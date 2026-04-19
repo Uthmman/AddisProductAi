@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon, RefreshCw, Wand2 } from "lucide-react";
 import { WooTag } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
-import Link from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import {
   Table,
