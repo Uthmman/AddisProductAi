@@ -101,7 +101,10 @@ export default function TagTable() {
   };
   
   const handleBulkGenerate = async () => {
-    const tagsToUpdate = tags
+    const BATCH_SIZE = 10;
+    
+    // Filter tags that need attention and prioritize empty ones
+    const tagsNeedingUpdate = tags
         .filter(tag => !tag.description?.trim() || !tag.meta?._yoast_wpseo_focuskw)
         .sort((a, b) => {
             const aEmpty = !a.description?.trim() && !a.meta?._yoast_wpseo_focuskw;
@@ -111,7 +114,7 @@ export default function TagTable() {
             return 0;
         });
 
-    if (tagsToUpdate.length === 0) {
+    if (tagsNeedingUpdate.length === 0) {
         toast({
             title: "Optimization Not Needed",
             description: "All your tags already have descriptions and SEO data.",
@@ -119,13 +122,16 @@ export default function TagTable() {
         return;
     }
 
+    // Limit to BATCH_SIZE for effectiveness and to stay within AI limits
+    const tagsToUpdate = tagsNeedingUpdate.slice(0, BATCH_SIZE);
+
     const taskId = `bulk-seo-${Date.now()}`;
     setIsBulkGenerating(true);
     
     addTask({
         id: taskId,
-        title: "Generating All Tag SEO",
-        description: `Preparing to optimize ${tagsToUpdate.length} tags...`,
+        title: "Generating Tag SEO (Batch)",
+        description: `Processing batch of ${tagsToUpdate.length} tags...`,
         progress: 0
     });
 
@@ -146,38 +152,46 @@ export default function TagTable() {
             const response = await fetch(`/api/tags/${tag.id}/auto-optimize`, { method: 'POST' });
             
             if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error(`Failed to optimize tag ${tag.name}:`, errorData.message || response.statusText);
                 failCount++;
             } else {
                 successCount++;
             }
             
-            // Respect AI rate limits
-            await new Promise(r => setTimeout(r, 1200));
-        } catch (err) {
+            // Respect AI rate limits with a safer 2-second delay
+            await new Promise(r => setTimeout(r, 2000));
+        } catch (err: any) {
+            console.error(`Network error optimizing tag ${tag.name}:`, err.message);
             failCount++;
         }
         setOptimizingTagId(null);
     }
 
     setIsBulkGenerating(false);
+    const finalDescription = failCount === 0 
+        ? `Successfully generated ${successCount} tags.` 
+        : `Generated ${successCount} tags. Failed: ${failCount}. Check console for details.`;
+        
     updateTask(taskId, {
         status: failCount === 0 ? 'success' : (successCount > 0 ? 'success' : 'error'),
-        description: `Generated ${successCount} tags.${failCount > 0 ? ` Failed: ${failCount}` : ''}`,
+        description: finalDescription,
         progress: 100
     });
 
     toast({
-      title: "Bulk Generation Finished",
-      description: `Successfully optimized ${successCount} tags.${failCount > 0 ? ` Failed to optimize ${failCount} tags.` : ''}`,
+      title: "Batch Finished",
+      description: finalDescription,
     });
 
     fetchTags();
   }
 
   const handleBulkImageSync = async () => {
-    const tagsToSync = tags.filter(tag => tag.count > 0);
+    const BATCH_SIZE = 10;
+    const tagsNeedingSync = tags.filter(tag => tag.count > 0);
 
-    if (tagsToSync.length === 0) {
+    if (tagsNeedingSync.length === 0) {
         toast({
             title: "Sync Not Needed",
             description: "No tags found with products to synchronize.",
@@ -185,13 +199,15 @@ export default function TagTable() {
         return;
     }
 
+    const tagsToSync = tagsNeedingSync.slice(0, BATCH_SIZE);
+
     const taskId = `bulk-sync-${Date.now()}`;
     setIsSyncingImages(true);
 
     addTask({
         id: taskId,
-        title: "Syncing All Tag Images",
-        description: `Preparing to sync ${tagsToSync.length} tags...`,
+        title: "Syncing Tag Images (Batch)",
+        description: `Processing batch of ${tagsToSync.length} tags...`,
         progress: 0
     });
 
@@ -215,7 +231,8 @@ export default function TagTable() {
             } else {
                 failCount++;
             }
-            await new Promise(r => setTimeout(r, 600));
+            // Safer delay
+            await new Promise(r => setTimeout(r, 1000));
         } catch (err) {
             failCount++;
         }
@@ -230,7 +247,7 @@ export default function TagTable() {
     });
 
     toast({
-      title: "Image Sync Complete",
+      title: "Batch Sync Complete",
       description: `Successfully updated galleries for ${successCount} tags.${failCount > 0 ? ` Failed: ${failCount}` : ''}`,
     });
 
@@ -286,11 +303,11 @@ export default function TagTable() {
               </Button>
               <Button onClick={handleBulkImageSync} className="w-full sm:w-auto" variant="secondary" disabled={isSyncingImages || isLoading} size="sm">
                   {isSyncingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  Sync All Images
+                  Sync Images (10)
               </Button>
               <Button onClick={handleBulkGenerate} className="w-full sm:w-auto" disabled={isBulkGenerating || isLoading} size="sm">
                   {isBulkGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                  Generate All SEO
+                  Generate SEO (10)
               </Button>
             </div>
         </div>
@@ -316,7 +333,7 @@ export default function TagTable() {
                     </TableHeader>
                     <TableBody>
                     {tags.length > 0 ? tags.map((tag) => (
-                        <TableRow key={tag.id}>
+                        <TableRow key={tag.id} className={cn(optimizingTagId === tag.id && "bg-primary/5", syncingTagId === tag.id && "bg-secondary/5")}>
                             <TableCell>
                                 {tag.meta?._zenbaba_tag_image ? (
                                     <div className="relative w-8 h-8 rounded-sm overflow-hidden border">
@@ -333,7 +350,12 @@ export default function TagTable() {
                                     </div>
                                 )}
                             </TableCell>
-                            <TableCell className="font-medium">{tag.name}</TableCell>
+                            <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                    {tag.name}
+                                    {(optimizingTagId === tag.id || syncingTagId === tag.id) && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                                </div>
+                            </TableCell>
                             <TableCell className="hidden md:table-cell max-w-sm">
                                 <div 
                                     className="truncate text-sm text-muted-foreground [&_img]:h-5 [&_img]:w-5 [&_img]:inline-block [&_img]:align-middle [&_img]:mr-1 [&_img]:rounded-sm [&_img]:object-cover" 
@@ -357,7 +379,7 @@ export default function TagTable() {
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button variant="ghost" size="icon" onClick={() => handleSingleImageSync(tag.id)} disabled={syncingTagId === tag.id || optimizingTagId === tag.id}>
-                                                {syncingTagId === tag.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                                                {syncingTagId === tag.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent><p>Sync Product Images</p></TooltipContent>
