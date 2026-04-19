@@ -92,7 +92,7 @@ export default function TagTable() {
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: error.message || 'Could not delete tag.',
+        description: error.message || 'Could not delete category.',
         variant: 'destructive',
       });
     } finally {
@@ -154,13 +154,23 @@ export default function TagTable() {
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 console.error(`Failed to optimize tag ${tag.name}:`, errorData.message || response.statusText);
+                
+                // If AI is rate limited, wait longer before continuing
+                if (response.status === 429) {
+                  updateTask(taskId, {
+                      description: `AI Rate Limited - Waiting 15s to resume...`
+                  });
+                  await new Promise(r => setTimeout(r, 15000));
+                  // Decrement loop counter to retry this same tag? 
+                  // For simplicity in bulk, we just move on but notify user.
+                }
                 failCount++;
             } else {
                 successCount++;
             }
             
-            // Respect AI rate limits with a safer 2-second delay
-            await new Promise(r => setTimeout(r, 2000));
+            // Respect AI rate limits with a safer 3-second delay between requests
+            await new Promise(r => setTimeout(r, 3000));
         } catch (err: any) {
             console.error(`Network error optimizing tag ${tag.name}:`, err.message);
             failCount++;
