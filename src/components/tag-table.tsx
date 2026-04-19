@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon, RefreshCw, Wand2 } from "lucide-react";
+import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon, RefreshCw } from "lucide-react";
 import { WooTag } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { useTasks } from "@/context/task-context";
 
 export default function TagTable() {
   const [tags, setTags] = useState<WooTag[]>([]);
@@ -38,6 +39,7 @@ export default function TagTable() {
   const [syncingTagId, setSyncingTagId] = useState<number | null>(null);
   const [optimizingTagId, setOptimizingTagId] = useState<number | null>(null);
   const { toast } = useToast();
+  const { addTask, updateTask } = useTasks();
 
   const fetchTags = async () => {
     setIsLoading(true);
@@ -117,38 +119,53 @@ export default function TagTable() {
         return;
     }
 
+    const taskId = `bulk-seo-${Date.now()}`;
     setIsBulkGenerating(true);
-    toast({
-      title: "Bulk SEO Generation Started",
-      description: `Processing ${tagsToUpdate.length} tags. Each tag is being optimized individually to ensure accuracy.`,
+    
+    addTask({
+        id: taskId,
+        title: "Generating All Tag SEO",
+        description: `Preparing to optimize ${tagsToUpdate.length} tags...`,
+        progress: 0
     });
 
     let successCount = 0;
     let failCount = 0;
 
-    for (const tag of tagsToUpdate) {
+    for (let i = 0; i < tagsToUpdate.length; i++) {
+        const tag = tagsToUpdate[i];
         setOptimizingTagId(tag.id);
+        
+        const progress = Math.round((i / tagsToUpdate.length) * 100);
+        updateTask(taskId, {
+            description: `Optimizing: '${tag.name}' (${i + 1} of ${tagsToUpdate.length})`,
+            progress
+        });
+
         try {
             const response = await fetch(`/api/tags/${tag.id}/auto-optimize`, { method: 'POST' });
             
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.warn(`Optimization failed for tag "${tag.name}": ${errorData.message || response.statusText}`);
                 failCount++;
             } else {
                 successCount++;
             }
             
-            // Small pause to respect AI rate limits and allow background saving
-            await new Promise(r => setTimeout(r, 1000));
+            // Respect AI rate limits
+            await new Promise(r => setTimeout(r, 1200));
         } catch (err) {
-            console.error(`Unexpected error during optimization for "${tag.name}":`, err);
             failCount++;
         }
         setOptimizingTagId(null);
     }
 
     setIsBulkGenerating(false);
+    updateTask(taskId, {
+        status: failCount === 0 ? 'success' : (successCount > 0 ? 'success' : 'error'),
+        description: `Generated ${successCount} tags.${failCount > 0 ? ` Failed: ${failCount}` : ''}`,
+        progress: 100
+    });
+
     toast({
       title: "Bulk Generation Finished",
       description: `Successfully optimized ${successCount} tags.${failCount > 0 ? ` Failed to optimize ${failCount} tags.` : ''}`,
@@ -168,17 +185,29 @@ export default function TagTable() {
         return;
     }
 
+    const taskId = `bulk-sync-${Date.now()}`;
     setIsSyncingImages(true);
-    toast({
-      title: "Image Synchronization Started",
-      description: `Updating galleries for ${tagsToSync.length} tags...`,
+
+    addTask({
+        id: taskId,
+        title: "Syncing All Tag Images",
+        description: `Preparing to sync ${tagsToSync.length} tags...`,
+        progress: 0
     });
 
     let successCount = 0;
     let failCount = 0;
 
-    for (const tag of tagsToSync) {
+    for (let i = 0; i < tagsToSync.length; i++) {
+        const tag = tagsToSync[i];
         setSyncingTagId(tag.id);
+
+        const progress = Math.round((i / tagsToSync.length) * 100);
+        updateTask(taskId, {
+            description: `Syncing: '${tag.name}' (${i + 1} of ${tagsToSync.length})`,
+            progress
+        });
+
         try {
             const response = await fetch(`/api/tags/${tag.id}/sync-images`, { method: 'POST' });
             if (response.ok) {
@@ -186,16 +215,20 @@ export default function TagTable() {
             } else {
                 failCount++;
             }
-            // Small pause between tags
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 600));
         } catch (err) {
-            console.error(`Failed to sync images for tag ${tag.name}:`, err);
             failCount++;
         }
         setSyncingTagId(null);
     }
 
     setIsSyncingImages(false);
+    updateTask(taskId, {
+        status: failCount === 0 ? 'success' : (successCount > 0 ? 'success' : 'error'),
+        description: `Synced ${successCount} galleries.${failCount > 0 ? ` Failed: ${failCount}` : ''}`,
+        progress: 100
+    });
+
     toast({
       title: "Image Sync Complete",
       description: `Successfully updated galleries for ${successCount} tags.${failCount > 0 ? ` Failed: ${failCount}` : ''}`,
