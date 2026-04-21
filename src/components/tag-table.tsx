@@ -103,7 +103,6 @@ export default function TagTable() {
   const handleBulkGenerate = async () => {
     const BATCH_SIZE = 10;
     
-    // Filter tags that need attention and prioritize empty ones
     const tagsNeedingUpdate = tags
         .filter(tag => !tag.description?.trim() || !tag.meta?._yoast_wpseo_focuskw)
         .sort((a, b) => {
@@ -122,7 +121,6 @@ export default function TagTable() {
         return;
     }
 
-    // Limit to BATCH_SIZE for effectiveness and to stay within AI limits
     const tagsToUpdate = tagsNeedingUpdate.slice(0, BATCH_SIZE);
 
     const taskId = `bulk-seo-${Date.now()}`;
@@ -155,21 +153,17 @@ export default function TagTable() {
                 const errorData = await response.json().catch(() => ({}));
                 console.error(`Failed to optimize tag ${tag.name}:`, errorData.message || response.statusText);
                 
-                // If AI is rate limited, wait longer before continuing
                 if (response.status === 429) {
                   updateTask(taskId, {
                       description: `AI Rate Limited - Waiting 15s to resume...`
                   });
                   await new Promise(r => setTimeout(r, 15000));
-                  // Decrement loop counter to retry this same tag? 
-                  // For simplicity in bulk, we just move on but notify user.
                 }
                 failCount++;
             } else {
                 successCount++;
             }
             
-            // Respect AI rate limits with a safer 3-second delay between requests
             await new Promise(r => setTimeout(r, 3000));
         } catch (err: any) {
             console.error(`Network error optimizing tag ${tag.name}:`, err.message);
@@ -241,7 +235,6 @@ export default function TagTable() {
             } else {
                 failCount++;
             }
-            // Safer delay
             await new Promise(r => setTimeout(r, 1000));
         } catch (err) {
             failCount++;
@@ -342,7 +335,11 @@ export default function TagTable() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {tags.length > 0 ? tags.map((tag) => (
+                    {tags.length > 0 ? tags.map((tag) => {
+                        const hasDescription = !!tag.description?.trim();
+                        const hasSEO = !!tag.meta?._yoast_wpseo_focuskw?.trim();
+
+                        return (
                         <TableRow key={tag.id} className={cn(optimizingTagId === tag.id && "bg-primary/5", syncingTagId === tag.id && "bg-secondary/5")}>
                             <TableCell>
                                 {tag.meta?._zenbaba_tag_image ? (
@@ -361,9 +358,33 @@ export default function TagTable() {
                                 )}
                             </TableCell>
                             <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
-                                    {tag.name}
-                                    {(optimizingTagId === tag.id || syncingTagId === tag.id) && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2">
+                                        {tag.name}
+                                        {(optimizingTagId === tag.id || syncingTagId === tag.id) && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                                    </div>
+                                    <div className="flex gap-1.5 mt-0.5">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className={cn("w-2 h-2 rounded-full", hasDescription ? "bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]" : "bg-destructive")} />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{hasDescription ? "Description filled" : "Description missing"}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className={cn("w-2 h-2 rounded-full", hasSEO ? "bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]" : "bg-destructive")} />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{hasSEO ? "SEO Metadata filled" : "SEO Metadata missing"}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
                                 </div>
                             </TableCell>
                             <TableCell className="hidden md:table-cell max-w-sm">
@@ -406,7 +427,7 @@ export default function TagTable() {
                               </div>
                             </TableCell>
                         </TableRow>
-                    )) : (
+                    )}) : (
                         <TableRow>
                             <TableCell colSpan={5} className="h-24 text-center">
                                 No tags found.
