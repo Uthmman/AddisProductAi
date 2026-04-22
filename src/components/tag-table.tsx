@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon, RefreshCw } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { PlusCircle, Edit, Trash2, Sparkles, Loader2, Image as ImageIcon, RefreshCw, Search, ArrowUpDown } from "lucide-react";
 import { WooTag } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
@@ -29,6 +29,10 @@ import { Skeleton } from "./ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { useTasks } from "@/context/task-context";
+import { Input } from "./ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+
+type SortOption = "name" | "count" | "status";
 
 export default function TagTable() {
   const [tags, setTags] = useState<WooTag[]>([]);
@@ -38,6 +42,11 @@ export default function TagTable() {
   const [isSyncingImages, setIsSyncingImages] = useState(false);
   const [syncingTagId, setSyncingTagId] = useState<number | null>(null);
   const [optimizingTagId, setOptimizingTagId] = useState<number | null>(null);
+  
+  // Search and Sort State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("name");
+
   const { toast } = useToast();
   const { addTask, updateTask } = useTasks();
 
@@ -67,9 +76,25 @@ export default function TagTable() {
     fetchTags();
   }, []);
 
-  const openDeleteDialog = (tag: WooTag) => {
-    setDeletingTag(tag);
-  }
+  // Filter and Sort Logic
+  const processedTags = useMemo(() => {
+    let result = tags.filter(tag => 
+        tag.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tag.slug.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    result.sort((a, b) => {
+        if (sortBy === "count") return b.count - a.count;
+        if (sortBy === "status") {
+            const aComplete = (a.description?.trim() ? 1 : 0) + (a.meta?._yoast_wpseo_focuskw?.trim() ? 1 : 0);
+            const bComplete = (b.description?.trim() ? 1 : 0) + (b.meta?._yoast_wpseo_focuskw?.trim() ? 1 : 0);
+            return aComplete - bComplete; // Show incomplete first
+        }
+        return a.name.localeCompare(b.name);
+    });
+
+    return result;
+  }, [tags, searchTerm, sortBy]);
 
   const handleDeleteTag = async () => {
     if (!deletingTag) return;
@@ -192,10 +217,10 @@ export default function TagTable() {
   }
 
   const handleBulkImageSync = async () => {
-    const BATCH_SIZE = 10;
-    const tagsNeedingSync = tags.filter(tag => tag.count > 0);
+    // Process all tags that have products
+    const tagsToSync = tags.filter(tag => tag.count > 0);
 
-    if (tagsNeedingSync.length === 0) {
+    if (tagsToSync.length === 0) {
         toast({
             title: "Sync Not Needed",
             description: "No tags found with products to synchronize.",
@@ -203,15 +228,13 @@ export default function TagTable() {
         return;
     }
 
-    const tagsToSync = tagsNeedingSync.slice(0, BATCH_SIZE);
-
     const taskId = `bulk-sync-${Date.now()}`;
     setIsSyncingImages(true);
 
     addTask({
         id: taskId,
-        title: "Syncing Tag Images (Batch)",
-        description: `Processing batch of ${tagsToSync.length} tags...`,
+        title: "Syncing All Tag Images",
+        description: `Processing all ${tagsToSync.length} tags with products...`,
         progress: 0
     });
 
@@ -235,6 +258,7 @@ export default function TagTable() {
             } else {
                 failCount++;
             }
+            // Small delay to prevent hitting API limits or overwhelming WordPress
             await new Promise(r => setTimeout(r, 1000));
         } catch (err) {
             failCount++;
@@ -250,7 +274,7 @@ export default function TagTable() {
     });
 
     toast({
-      title: "Batch Sync Complete",
+      title: "Sync Complete",
       description: `Successfully updated galleries for ${successCount} tags.${failCount > 0 ? ` Failed: ${failCount}` : ''}`,
     });
 
@@ -295,23 +319,50 @@ export default function TagTable() {
 
   return (
     <div>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-            <h1 className="text-2xl sm:text-3xl font-bold font-headline">Product Tags</h1>
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <Button asChild className="w-full sm:w-auto" variant="outline" size="sm">
-                  <Link href="/tags/new">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    New Tag
-                  </Link>
-              </Button>
-              <Button onClick={handleBulkImageSync} className="w-full sm:w-auto" variant="secondary" disabled={isSyncingImages || isLoading} size="sm">
-                  {isSyncingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                  Sync Images (10)
-              </Button>
-              <Button onClick={handleBulkGenerate} className="w-full sm:w-auto" disabled={isBulkGenerating || isLoading} size="sm">
-                  {isBulkGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                  Generate SEO (10)
-              </Button>
+        <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h1 className="text-2xl sm:text-3xl font-bold font-headline">Product Tags</h1>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <Button asChild className="w-full sm:w-auto" variant="outline" size="sm">
+                        <Link href="/tags/new">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            New Tag
+                        </Link>
+                    </Button>
+                    <Button onClick={handleBulkImageSync} className="w-full sm:w-auto" variant="secondary" disabled={isSyncingImages || isLoading} size="sm">
+                        {isSyncingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Sync All Images
+                    </Button>
+                    <Button onClick={handleBulkGenerate} className="w-full sm:w-auto" disabled={isBulkGenerating || isLoading} size="sm">
+                        {isBulkGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        Generate SEO (10)
+                    </Button>
+                </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <div className="relative flex-1 w-full">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search tags..."
+                        className="pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                            <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="name">Sort by Name</SelectItem>
+                            <SelectItem value="count">Sort by Products</SelectItem>
+                            <SelectItem value="status">Sort by Missing SEO</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
         </div>
   
@@ -335,7 +386,7 @@ export default function TagTable() {
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {tags.length > 0 ? tags.map((tag) => {
+                    {processedTags.length > 0 ? processedTags.map((tag) => {
                         const hasDescription = !!tag.description?.trim();
                         const hasSEO = !!tag.meta?._yoast_wpseo_focuskw?.trim();
 
@@ -430,7 +481,7 @@ export default function TagTable() {
                     )}) : (
                         <TableRow>
                             <TableCell colSpan={5} className="h-24 text-center">
-                                No tags found.
+                                {searchTerm ? "No tags match your search." : "No tags found."}
                             </TableCell>
                         </TableRow>
                     )}
