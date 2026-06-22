@@ -74,7 +74,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         >
           <Header />
-          <main className="flex-1 p-4 sm:p-6">{children}</main>
+          <main className="flex-1 px-2 sm:px-4 py-2 sm:py-4">{children}</main>
         </div>
         <TaskProgressFloating />
       </div>

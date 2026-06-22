@@ -1035,7 +1035,7 @@ function ContentPageInner() {
   const renderSidebar = () => <SidebarNav onLinkClick={() => setIsSheetOpen(false)} />;
 
   return (
-    <div className="container mx-auto py-10 max-w-7xl">
+    <div className="container mx-auto py-6 sm:py-10">
       <div className="md:hidden mb-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold font-headline">Content Tools</h1>
         {mounted ? (
@@ -1068,7 +1068,7 @@ function ContentPageInner() {
         <aside className="hidden md:block md:w-1/5">
           {renderSidebar()}
         </aside>
-        <div className="flex-1 w-full md:max-w-4xl lg:max-w-5xl">
+        <div className="flex-1 w-full md:max-w-none">
           {renderContent()}
         </div>
       </div>

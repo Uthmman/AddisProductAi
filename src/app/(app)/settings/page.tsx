@@ -605,6 +605,11 @@ function PromptSettings() {
         }
     }
 
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text);
+        toast({ description: "Prompt content copied." });
+    };
+
     if (isLoading) {
         return <Skeleton className="h-96 w-full" />;
     }
@@ -624,12 +629,15 @@ function PromptSettings() {
                     <AccordionItem value={key} key={key}>
                         <AccordionTrigger>{promptTitles[key] || key}</AccordionTrigger>
                         <AccordionContent>
-                        <Textarea
-                            value={value}
-                            onChange={(e) => handlePromptChange(key, e.target.value)}
-                            rows={15}
-                            className="font-mono text-xs bg-muted/30"
-                        />
+                        <div className="relative">
+                            <Textarea
+                                value={value}
+                                onChange={(e) => handlePromptChange(key, e.target.value)}
+                                rows={15}
+                                className="font-mono text-xs bg-muted/30 pr-10"
+                            />
+                            <Button variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => handleCopy(value)}><Copy className="h-4 w-4" /></Button>
+                        </div>
                         <div className="mt-6 border-t pt-4">
                           <h4 className="font-semibold text-sm mb-2 flex items-center"><Bot className="mr-2 h-4 w-4 text-primary"/>Prompt Assistant</h4>
                           <Card className="p-3 mb-2 max-h-48 overflow-y-auto bg-muted/30">
@@ -753,7 +761,7 @@ function SettingsPageInner() {
   const renderSidebar = () => <SidebarNav onLinkClick={() => setIsSheetOpen(false)} />;
 
   return (
-    <div className="container mx-auto py-10 max-w-7xl">
+    <div className="container mx-auto py-6 sm:py-10">
         <div className="md:hidden mb-4 flex justify-between items-center">
             <h1 className="text-2xl font-bold font-headline">{navTitles[tab]}</h1>
             {mounted ? (
@@ -761,7 +769,7 @@ function SettingsPageInner() {
                 <SheetTrigger asChild>
                     <Button variant="outline"><PanelLeft className="mr-2 h-4 w-4" /> Menu</Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-[250px] p-4">
+                <SheetContent side="left" className="w-[300px] p-0">
                     <SheetTitle className="sr-only">Settings Menu</SheetTitle>
                     <SheetDescription className="sr-only">Select a settings section from the menu.</SheetDescription>
                     <h2 className="text-lg font-semibold mb-4">Settings</h2>
@@ -786,7 +794,7 @@ function SettingsPageInner() {
             <aside className="hidden md:block md:w-1/5">
             {renderSidebar()}
             </aside>
-            <div className="flex-1 w-full md:max-w-4xl lg:max-w-5xl">
+            <div className="flex-1 w-full md:max-w-none">
             {renderContent()}
             </div>
         </div>
