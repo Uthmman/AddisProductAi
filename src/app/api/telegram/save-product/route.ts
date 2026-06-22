@@ -67,8 +67,11 @@ export async function POST(request: NextRequest) {
         return existing ? { id: existing.id } : { name: c };
     }) || [];
 
+    // Strictly use AI-analyzed name if it exists, otherwise fall back to raw input as a last resort
+    const finalName = finalAiContent.name || productState.raw_name;
+
     const finalData = {
-        name: finalAiContent.name || productState.raw_name,
+        name: finalName,
         sku: finalAiContent.sku,
         slug: finalAiContent.slug,
         regular_price: (finalAiContent.regular_price || productState.price_etb)?.toString(),
