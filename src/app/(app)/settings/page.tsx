@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UploadCloud, X as XIcon, Info, Droplet, BrainCircuit, PanelLeft, Bot, Send, User } from 'lucide-react';
+import { Loader2, UploadCloud, X as XIcon, Info, Droplet, BrainCircuit, PanelLeft, Bot, Send, User, Copy } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Settings } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
@@ -799,7 +799,7 @@ function SettingsPageInner() {
             </div>
         </div>
     </div>
-  )
+  );
 }
 
 
