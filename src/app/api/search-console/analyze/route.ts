@@ -2,13 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getGscTopQueries } from '@/lib/gsc-api';
 import { analyzeGscDataFlow } from '@/ai/flows/analyze-gsc-data-flow';
 import type { GscAnalysisOutput } from '@/lib/types';
-import { getGscAnalysis, saveGscAnalysis } from '@/lib/gsc-analysis-api';
+import { getGscAnalysis, saveGscAnalysis, isGscAnalysisStale } from '@/lib/gsc-analysis-api';
 
 export const maxDuration = 120;
 
 // GET handler to retrieve the last saved analysis
+// If checkAuto=true is passed, it returns whether a refresh is needed.
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const checkAuto = searchParams.get('checkAuto') === 'true';
+
+    if (checkAuto) {
+        const stale = await isGscAnalysisStale();
+        return NextResponse.json({ stale });
+    }
+
     const analysis = await getGscAnalysis();
     return NextResponse.json(analysis);
   } catch (error: any) {
@@ -20,7 +29,9 @@ export async function GET(request: NextRequest) {
 // POST handler to trigger a new analysis
 export async function POST(request: NextRequest) {
   try {
-    const { days } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const days = body.days || 30;
+    
     const gscData = await getGscTopQueries(days);
 
     if (gscData === null) {

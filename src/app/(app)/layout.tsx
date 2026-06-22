@@ -9,6 +9,7 @@ import { MainNav } from '@/components/main-nav';
 import Header from '@/components/header';
 import { TaskProvider } from '@/context/task-context';
 import { TaskProgressFloating } from '@/components/task-progress-floating';
+import AutoGscAnalyzer from '@/components/auto-gsc-analyzer';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -77,6 +78,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <main className="flex-1 px-2 sm:px-4 py-2 sm:py-4">{children}</main>
         </div>
         <TaskProgressFloating />
+        <AutoGscAnalyzer />
       </div>
     </TaskProvider>
   );

@@ -46,3 +46,17 @@ export async function saveGscAnalysis(analysis: GscAnalysisOutput): Promise<void
         throw new Error('Failed to save GSC analysis.');
     }
 }
+
+/**
+ * Checks if the GSC analysis is older than 24 hours.
+ */
+export async function isGscAnalysisStale(): Promise<boolean> {
+    const analysis = await getGscAnalysis();
+    if (!analysis || !analysis.lastAnalyzed) return true;
+
+    const lastAnalyzedDate = new Date(analysis.lastAnalyzed);
+    const now = new Date();
+    const diffInHours = (now.getTime() - lastAnalyzedDate.getTime()) / (1000 * 60 * 60);
+
+    return diffInHours >= 24;
+}
