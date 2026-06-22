@@ -21,21 +21,19 @@ import { useToast } from "@/hooks/use-toast";
 
 function ProductGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
       {[...Array(12)].map((_, i) => (
         <div key={i} className="rounded-lg border bg-card flex flex-col">
             <div className="aspect-square w-full">
                 <Skeleton className="h-full w-full rounded-t-lg rounded-b-none" />
             </div>
             <div className="p-3 flex-grow">
-                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-3/4" />
             </div>
             <div className="p-3 flex justify-between items-center">
-                <Skeleton className="h-7 w-20" />
+                <Skeleton className="h-6 w-16" />
                 <div className="flex items-center">
-                  <Skeleton className="h-7 w-7 rounded-md ml-1" />
-                  <Skeleton className="h-7 w-7 rounded-md ml-1" />
-                  <Skeleton className="h-7 w-7 rounded-md ml-1" />
+                  <Skeleton className="h-7 w-7 rounded-full ml-1" />
                 </div>
             </div>
         </div>
@@ -158,11 +156,11 @@ export default function ProductTable() {
 
   return (
     <div className="w-full">
-       <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-           <div className="text-sm text-muted-foreground flex-1 hidden sm:block">
+       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+           <div className="text-sm text-muted-foreground flex-1 hidden sm:block font-medium">
              {totalProducts > 0 ? (
                 <span>
-                    Showing <strong>{products.length}</strong> of <strong>{totalProducts}</strong> products
+                    Showing <span className="text-foreground">{products.length}</span> of <span className="text-foreground">{totalProducts}</span> masterfully crafted pieces
                 </span>
              ) : (
                 <span>&nbsp;</span>
@@ -170,7 +168,7 @@ export default function ProductTable() {
            </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px] bg-background/50 backdrop-blur-sm">
                 <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -183,7 +181,7 @@ export default function ProductTable() {
                 </SelectContent>
             </Select>
             <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px] bg-background/50 backdrop-blur-sm">
                 <SelectValue placeholder="Items per page" />
                 </SelectTrigger>
                 <SelectContent>
@@ -199,51 +197,56 @@ export default function ProductTable() {
         {(isLoading || isPending) ? (
             <ProductGridSkeleton />
         ) : products.length > 0 ? (
-             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6">
                 {products.map((product) => (
                     <ProductCard key={product.id} product={product} onDelete={setDeletingProduct} />
                 ))}
             </div>
         ) : (
-            <div className="h-24 flex items-center justify-center text-center text-muted-foreground col-span-full">
-                No products found.
+            <div className="h-40 flex flex-col items-center justify-center text-center text-muted-foreground col-span-full bg-muted/20 rounded-xl border border-dashed">
+                <p className="font-headline text-lg">No products found.</p>
+                <p className="text-sm">Try changing your filters or add a new piece to your catalog.</p>
             </div>
         )}
       
-      <div className="flex items-center justify-between space-x-2 py-4 mt-4">
-        <div className="flex-1 text-sm text-muted-foreground">
+      <div className="flex items-center justify-between space-x-2 py-8 mt-4 border-t border-border/10">
+        <div className="flex-1 text-sm text-muted-foreground font-medium">
           Page {page} of {totalPages}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePreviousPage}
-          disabled={page <= 1 || isLoading || isPending}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleNextPage}
-          disabled={page >= totalPages || isLoading || isPending}
-        >
-          Next
-        </Button>
+        <div className="flex gap-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={page <= 1 || isLoading || isPending}
+                className="bg-background/50"
+            >
+            Previous
+            </Button>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={page >= totalPages || isLoading || isPending}
+                className="bg-background/50"
+            >
+            Next
+            </Button>
+        </div>
       </div>
 
       <AlertDialog open={!!deletingProduct} onOpenChange={() => setDeletingProduct(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-background/95 backdrop-blur-xl border-primary/20">
             <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this product?</AlertDialogTitle>
-            <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the <strong>{deletingProduct?.name}</strong> product.
+            <AlertDialogTitle className="font-headline text-2xl">Delete Product?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+                This will permanently remove <strong>{deletingProduct?.name}</strong> from your WooCommerce store. This action cannot be reversed.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteProduct} className={buttonVariants({ variant: "destructive" })}>
-                Delete
+            <AlertDialogCancel className="rounded-full">Keep Product</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProduct} className={cn(buttonVariants({ variant: "destructive" }), "rounded-full")}>
+                Yes, Delete Permanently
             </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
