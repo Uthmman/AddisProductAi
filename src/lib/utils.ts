@@ -29,10 +29,10 @@ export function fileToBase64(file: File): Promise<string> {
 }
 
 /**
- * Resizes a base64 image string to a maximum dimension on the client side.
- * This is crucial for performance to prevent huge payloads and timeouts.
+ * Resizes and compresses a base64 image string on the client side.
+ * Balanced for high quality furniture photography (85% quality, 1200px max).
  */
-export async function resizeImage(base64Str: string, maxDimension: number = 1024): Promise<string> {
+export async function resizeImage(base64Str: string, maxDimension: number = 1200): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.src = base64Str;
@@ -56,9 +56,21 @@ export async function resizeImage(base64Str: string, maxDimension: number = 1024
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, 0, 0, width, height);
-      // Using 0.7 quality provides a great balance between visual clarity and small file size.
-      resolve(canvas.toDataURL('image/jpeg', 0.7));
+      if (ctx) {
+          // Use high quality image smoothing
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          // Background fill for transparency conversion
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
+          
+          ctx.drawImage(img, 0, 0, width, height);
+      }
+      
+      // 0.85 quality is the "Goldilocks" zone for product photos:
+      // High detail for furniture textures, but small enough for web.
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
     };
   });
 }
@@ -135,8 +147,8 @@ export function applyWatermark(originalImageSrc: string, watermarkImageSrc: stri
         ctx.globalAlpha = watermarkOpacity;
         ctx.drawImage(watermarkImage, x, y, watermarkWidth, watermarkHeight);
         
-        // Quality 0.75 is sufficient for web-optimized product photos.
-        resolve(canvas.toDataURL('image/jpeg', 0.75));
+        // Quality 0.8 for watermarked outputs
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
       };
       watermarkImage.onerror = () => reject(new Error('Watermark image failed to load'));
       watermarkImage.src = watermarkImageSrc;

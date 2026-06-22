@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent, WooCategory, Settings, WooTag } from "@/lib/types";
 import { fileToBase64, cn, applyWatermark as applyWatermarkUtil, resizeImage } from "@/lib/utils";
-import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save, Image as ImageIcon } from "lucide-react";
+import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
@@ -219,6 +219,24 @@ export default function ProductForm({ product }: ProductFormProps) {
         return { ...p, images: newAiImages };
     });
   }
+
+  const moveImage = (index: number, direction: 'left' | 'right') => {
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= images.length) return;
+
+    setImages(prev => {
+        const newImages = [...prev];
+        [newImages[index], newImages[targetIndex]] = [newImages[targetIndex], newImages[index]];
+        return newImages;
+    });
+
+    setAiContent(p => {
+        if (!p.images) return p;
+        const newAiImages = [...p.images];
+        [newAiImages[index], newAiImages[targetIndex]] = [newAiImages[targetIndex], newAiImages[index]];
+        return { ...p, images: newAiImages };
+    });
+  };
   
   const handleAltTextChange = (index: number, alt: string) => {
     setImages(prev => prev.map((img, i) => i === index ? { ...img, alt } : img));
@@ -359,11 +377,6 @@ export default function ProductForm({ product }: ProductFormProps) {
             let imageBase64;
             let imageName = image.fileName || `product-image-${Date.now()}.jpg`;
 
-            updateTask(taskId, { 
-              description: `Optimizing ${imageName}...`,
-              progress: Math.round((currentStep / totalSteps) * 100)
-            });
-
             if (image.file) {
                 imageBase64 = await fileToBase64(image.file);
             } else {
@@ -371,6 +384,10 @@ export default function ProductForm({ product }: ProductFormProps) {
             }
 
             if (imageBase64.startsWith('data:image')) {
+                updateTask(taskId, { 
+                    description: `Optimizing and Compressing ${imageName}...`,
+                    progress: Math.round((currentStep / totalSteps) * 100)
+                });
                 imageBase64 = await resizeImage(imageBase64, 1200);
             }
             
@@ -617,20 +634,33 @@ export default function ProductForm({ product }: ProductFormProps) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                      <div className="space-y-2">
-                        <Label>Product Images</Label>
+                        <Label>Product Images (First is Main)</Label>
                         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2">
                            {images.map((image, index) => (
-                               <div key={index} className="relative aspect-square rounded-md overflow-hidden group">
+                               <div key={index} className="relative aspect-square rounded-md overflow-hidden group border">
                                    <Image src={image.src} alt={`Product preview ${index + 1}`} fill style={{objectFit: 'cover'}} data-ai-hint="product image"/>
-                                   <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removeImage(index)}>
-                                        <XIcon className="h-4 w-4" />
-                                   </Button>
+                                   {index === 0 && <Badge className="absolute top-1 left-1 z-10 text-[10px] h-5 bg-primary/90">Main</Badge>}
+                                   <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                       <Button variant="destructive" size="icon" className="h-6 w-6 rounded-full" onClick={() => removeImage(index)}>
+                                            <XIcon className="h-3 w-3" />
+                                       </Button>
+                                       {index > 0 && (
+                                           <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full" onClick={() => moveImage(index, 'left')}>
+                                               <ChevronLeft className="h-3 w-3" />
+                                           </Button>
+                                       )}
+                                       {index < images.length - 1 && (
+                                           <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full" onClick={() => moveImage(index, 'right')}>
+                                               <ChevronRight className="h-3 w-3" />
+                                           </Button>
+                                       )}
+                                   </div>
                                </div>
                            ))}
                             <div className="w-full aspect-square rounded-md border-2 border-dashed border-muted-foreground/50 flex items-center justify-center relative overflow-hidden">
                                <div className="text-center text-muted-foreground p-2">
                                    <UploadCloud className="mx-auto h-8 w-8" />
-                                   <p className="text-xs">Click to upload</p>
+                                   <p className="text-[10px]">Upload</p>
                                </div>
                                <Input id="product-image" type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleImageChange} multiple />
                            </div>
@@ -640,12 +670,12 @@ export default function ProductForm({ product }: ProductFormProps) {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className="w-full"
+                                    className="w-full h-8 text-xs"
                                     onClick={openPicker}
                                     disabled={isPickerLoading}
                                 >
-                                    {isPickerLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
-                                    Select from Google Photos
+                                    {isPickerLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <ImageIcon className="mr-2 h-3 w-3" />}
+                                    Google Photos
                                 </Button>
                             </div>
                         )}
@@ -785,11 +815,12 @@ export default function ProductForm({ product }: ProductFormProps) {
                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                            {images.map((image, index) => (
                               <div key={index} className="space-y-2">
-                                <Image src={image.src} alt={image.alt || `Product gallery image ${index + 1}`} width={150} height={150} className="rounded-md object-cover aspect-square w-full" />
+                                <Image src={image.src} alt={image.alt || `Product gallery image ${index + 1}`} width={150} height={150} className="rounded-md object-cover aspect-square w-full border" />
                                 <Input 
                                   value={image.alt}
                                   onChange={(e) => handleAltTextChange(index, e.target.value)}
-                                  placeholder={`Alt text for image ${index + 1}...`}
+                                  placeholder={`Alt text...`}
+                                  className="h-8 text-xs"
                                 />
                               </div>
                            ))}
