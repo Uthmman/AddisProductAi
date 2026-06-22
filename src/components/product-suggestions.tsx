@@ -16,28 +16,28 @@ type Suggestion = {
 
 function SuggestionSkeleton() {
   return (
-    <div className="mb-8">
-        <h2 className="text-2xl font-bold font-headline mb-4 flex items-center">
-            <Lightbulb className="mr-2 h-6 w-6" />
+    <div className="mb-4">
+        <h2 className="text-lg font-bold font-headline mb-2 flex items-center">
+            <Lightbulb className="mr-2 h-5 w-5" />
             Suggested Products
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(3)].map((_, i) => (
                 <Card key={i}>
-                    <CardHeader>
-                       <Skeleton className="h-6 w-3/4" />
+                    <CardHeader className="p-4">
+                       <Skeleton className="h-5 w-3/4" />
                     </CardHeader>
-                    <CardContent>
-                         <Skeleton className="h-4 w-full mb-2" />
+                    <CardContent className="p-4 pt-0">
+                         <Skeleton className="h-4 w-full mb-1" />
                          <Skeleton className="h-4 w-2/3" />
                     </CardContent>
-                    <CardFooter>
-                        <Skeleton className="h-10 w-36" />
+                    <CardFooter className="p-4 pt-0">
+                        <Skeleton className="h-9 w-32" />
                     </CardFooter>
                 </Card>
             ))}
         </div>
-        <Separator className="my-8" />
+        <Separator className="my-4" />
     </div>
   );
 }
@@ -61,13 +61,11 @@ export default function ProductSuggestions() {
       const data = await res.json();
       
       if (!res.ok) {
-        // Use the friendly message from the server if available
         throw new Error(data.message || 'Failed to fetch suggestions.');
       }
       
       setSuggestions(data.suggestions || []);
     } catch (err: any) {
-      // Don't log demand spike errors as full exceptions to avoid dev overlay crashes
       if (!err.message.includes('overloaded') && !err.message.includes('busy')) {
           console.error("Suggestion loading error:", err.message);
       }
@@ -80,16 +78,16 @@ export default function ProductSuggestions() {
 
   if (!hasFetched) {
       return (
-        <div className="mb-8">
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center bg-card">
-              <h3 className="text-xl font-bold font-headline">Get Product Ideas</h3>
-              <p className="text-muted-foreground mt-2 mb-4 max-w-md">Analyze your Google Search Console data to uncover new product opportunities based on what your customers are searching for.</p>
-              <Button onClick={fetchSuggestions} disabled={isLoading}>
-                  <Lightbulb className="mr-2 h-5 w-5" />
+        <div className="mb-4">
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-4 text-center bg-card">
+              <h3 className="text-lg font-bold font-headline">Get Product Ideas</h3>
+              <p className="text-xs text-muted-foreground mt-1 mb-3 max-w-md">Uncover new furniture opportunities based on customer searches.</p>
+              <Button onClick={fetchSuggestions} disabled={isLoading} size="sm">
+                  <Lightbulb className="mr-2 h-4 w-4" />
                   Suggest New Products
               </Button>
           </div>
-          <Separator className="my-8" />
+          <Separator className="my-4" />
         </div>
       );
   }
@@ -99,42 +97,42 @@ export default function ProductSuggestions() {
   }
 
   return (
-    <div className="mb-8">
-      <div className="flex flex-row justify-between items-center mb-4 gap-4">
-        <h2 className="text-2xl font-bold font-headline flex items-center">
-            <Lightbulb className="mr-2 h-6 w-6 text-primary" />
+    <div className="mb-4">
+      <div className="flex flex-row justify-between items-center mb-3 gap-4">
+        <h2 className="text-lg font-bold font-headline flex items-center">
+            <Lightbulb className="mr-2 h-5 w-5 text-primary" />
             Suggested Products
         </h2>
-        <Button variant="outline" onClick={fetchSuggestions} disabled={isLoading}>
-            <RefreshCw className="mr-2 h-4 w-4" />
+        <Button variant="outline" onClick={fetchSuggestions} disabled={isLoading} size="xs" className="h-7 text-xs px-2">
+            <RefreshCw className="mr-2 h-3 w-3" />
             Reload
         </Button>
       </div>
 
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="mb-4 py-2">
             <Terminal className="h-4 w-4" />
-            <AlertTitle>Suggestion Failed</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <AlertTitle className="text-sm">Suggestion Failed</AlertTitle>
+            <AlertDescription className="text-xs">{error}</AlertDescription>
         </Alert>
       )}
 
       {!error && !isLoading && suggestions.length === 0 && hasFetched && (
-        <p className="text-muted-foreground text-center p-4">No new product suggestions found based on your current search data.</p>
+        <p className="text-xs text-muted-foreground text-center p-2">No new suggestions found.</p>
       )}
 
       {!error && suggestions.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {suggestions.map((suggestion, index) => (
             <Card key={index} className="flex flex-col">
-              <CardHeader>
-                <CardTitle>{suggestion.name}</CardTitle>
+              <CardHeader className="p-4">
+                <CardTitle className="text-base">{suggestion.name}</CardTitle>
               </CardHeader>
-              <CardContent className="flex-grow">
-                <p className="text-sm text-muted-foreground">{suggestion.reason}</p>
+              <CardContent className="flex-grow p-4 pt-0">
+                <p className="text-xs text-muted-foreground">{suggestion.reason}</p>
               </CardContent>
-              <CardFooter>
-                <Button asChild>
+              <CardFooter className="p-4 pt-0">
+                <Button asChild size="sm" className="w-full">
                   <Link href={`/products/new?name=${encodeURIComponent(suggestion.name)}`}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Create Product
@@ -145,7 +143,7 @@ export default function ProductSuggestions() {
           ))}
         </div>
       )}
-       <Separator className="my-8" />
+       <Separator className="my-4" />
     </div>
   );
 }

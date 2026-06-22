@@ -12,12 +12,12 @@ export const metadata = {
 
 export default function DashboardPage() {
   return (
-    <div className="container mx-auto py-6 sm:py-10">
+    <div className="container mx-auto py-2 sm:py-4">
       <ProductSuggestions />
 
-      <div className="flex flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold font-headline">Products</h1>
-        <Button asChild>
+      <div className="flex flex-row justify-between items-center mb-4 gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold font-headline">Products</h1>
+        <Button asChild size="sm">
           <Link href="/products/new">
             <PlusCircle className="mr-2 h-4 w-4" />
             New Product
@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
 function TableSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
        {[...Array(12)].map((_, i) => (
         <div key={i} className="rounded-lg border bg-card flex flex-col">
             <div className="aspect-square w-full">

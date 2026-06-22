@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function CategoriesPage() {
   return (
-    <div className="container mx-auto py-6 sm:py-10">
+    <div className="container mx-auto py-2 sm:py-4">
       <Suspense fallback={<CategoryTableSkeleton />}>
         <CategoryTable />
       </Suspense>
@@ -18,30 +18,30 @@ export default function CategoriesPage() {
 
 function CategoryTableSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-10 w-36" />
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-8 w-32" />
       </div>
       <div className="rounded-md border">
         <div className="w-full">
           <div className="border-b">
-            <div className="flex h-12 items-center px-4">
-              <Skeleton className="h-6 w-16" />
-              <Skeleton className="h-6 w-1/4 ml-4" />
-              <Skeleton className="h-6 w-1/4 ml-auto hidden md:block" />
-              <Skeleton className="h-6 w-1/4 ml-auto hidden lg:block" />
-              <Skeleton className="h-6 w-16 ml-auto" />
+            <div className="flex h-10 items-center px-4">
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-4 w-1/4 ml-4" />
+              <Skeleton className="h-4 w-1/4 ml-auto hidden md:block" />
+              <Skeleton className="h-4 w-1/4 ml-auto hidden lg:block" />
+              <Skeleton className="h-4 w-12 ml-auto" />
             </div>
           </div>
           <div>
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="flex h-16 items-center px-4 border-b">
-                <Skeleton className="h-12 w-12 rounded-md" />
-                <Skeleton className="h-8 flex-1 ml-4" />
-                 <Skeleton className="h-8 w-1/4 ml-auto hidden md:block" />
-                 <Skeleton className="h-8 w-1/4 ml-auto hidden lg:block" />
-                <Skeleton className="h-8 w-16 ml-auto" />
+              <div key={i} className="flex h-12 items-center px-4 border-b">
+                <Skeleton className="h-8 w-8 rounded-md" />
+                <Skeleton className="h-5 flex-1 ml-4" />
+                 <Skeleton className="h-5 w-1/4 ml-auto hidden md:block" />
+                 <Skeleton className="h-5 w-1/4 ml-auto hidden lg:block" />
+                <Skeleton className="h-5 w-12 ml-auto" />
               </div>
             ))}
           </div>
