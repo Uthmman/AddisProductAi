@@ -17,11 +17,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-
+import { cn } from "@/lib/utils";
 
 function ProductGridSkeleton() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
       {[...Array(12)].map((_, i) => (
         <div key={i} className="rounded-lg border bg-card flex flex-col">
             <div className="aspect-square w-full">
@@ -153,7 +153,6 @@ export default function ProductTable() {
     }
   };
 
-
   return (
     <div className="w-full">
        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -235,7 +234,7 @@ export default function ProductTable() {
         </div>
       </div>
 
-      <AlertDialog open={!!deletingProduct} onOpenChange={() => setDeletingProduct(null)}>
+      <AlertDialog open={!!deletingProduct} onOpenChange={(open) => !open && setDeletingProduct(null)}>
         <AlertDialogContent className="bg-background/95 backdrop-blur-xl border-primary/20">
             <AlertDialogHeader>
             <AlertDialogTitle className="font-headline text-2xl">Delete Product?</AlertDialogTitle>
@@ -251,7 +250,6 @@ export default function ProductTable() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 }

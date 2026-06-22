@@ -7,7 +7,7 @@ import { Edit, Trash2, MessageSquare, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { WooProduct } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "./ui/input";
@@ -45,7 +45,7 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
         
         toast({ description: "Price updated successfully." });
         setIsEditingPrice(false);
-        product.regular_price = price; // Update local ref
+        product.regular_price = price; 
         product.price = price;
     } catch (error: any) {
         toast({ variant: "destructive", title: "Update Failed", description: error.message });
@@ -86,21 +86,21 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
                     <Input 
                         value={price} 
                         onChange={(e) => setPrice(e.target.value)}
-                        className="h-8 text-xs font-bold w-full"
+                        className="h-8 text-xs font-bold w-full bg-background"
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
                     />
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600" onClick={handleSavePrice} disabled={isSaving}>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={handleSavePrice} disabled={isSaving}>
                         {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-4 w-4" />}
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={(e) => { e.stopPropagation(); setIsEditingPrice(false); setPrice(product.regular_price); }} disabled={isSaving}>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/5" onClick={(e) => { e.stopPropagation(); setIsEditingPrice(false); setPrice(product.regular_price); }} disabled={isSaving}>
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
             ) : (
                 <button 
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditingPrice(true); }}
-                    className="text-sm sm:text-base font-bold text-accent hover:text-primary transition-colors"
+                    className="text-sm sm:text-base font-bold text-accent hover:text-primary transition-colors py-1 px-1 -ml-1 rounded hover:bg-accent/5"
                 >
                     {formatCurrency(price)}
                 </button>
