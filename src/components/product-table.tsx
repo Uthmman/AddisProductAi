@@ -55,8 +55,8 @@ export default function ProductTable() {
   const [isPending, startTransition] = useTransition();
   const [deletingProduct, setDeletingProduct] = useState<WooProduct | null>(null);
   
-  // Undo/Recovery state
-  const [pendingDeletes, setPendingDeletes] = useState<Map<number, NodeJS.Timeout>>(new Map());
+  // Undo/Recovery state tracking timeouts for individual products
+  const pendingDeletesRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
   
   const { toast } = useToast();
 
@@ -144,12 +144,13 @@ export default function ProductTable() {
 
     // 1. Optimistic UI update: Remove from local list
     setProducts(prev => prev.filter(p => p.id !== productToProcess.id));
-    setDeletingProduct(null);
+    const productId = productToProcess.id;
+    setDeletingProduct(null); // Close the "Are you sure?" dialog
 
     // 2. Start a recovery countdown timer (5 seconds)
     const timeoutId = setTimeout(async () => {
         try {
-            const response = await fetch(`/api/products/${productToProcess.id}`, {
+            const response = await fetch(`/api/products/${productId}`, {
                 method: 'DELETE',
             });
             if (!response.ok) {
@@ -158,13 +159,8 @@ export default function ProductTable() {
             }
             
             // Clean up the tracking map
-            setPendingDeletes(prev => {
-                const next = new Map(prev);
-                next.delete(productToProcess.id);
-                return next;
-            });
-            
-            console.log(`Product ${productToProcess.id} moved to trash permanently.`);
+            pendingDeletesRef.current.delete(productId);
+            console.log(`Product ${productId} moved to trash permanently.`);
         } catch (error: any) {
             // Rollback on hard failure
             setProducts(originalProducts);
@@ -177,18 +173,18 @@ export default function ProductTable() {
     }, 5000);
 
     // Store the timer so we can clear it if the user clicks "Undo"
-    setPendingDeletes(prev => new Map(prev).set(productToProcess.id, timeoutId));
+    pendingDeletesRef.current.set(productId, timeoutId);
 
     // 3. Show Undo Toast
     toast({
-        title: "Product deleted",
-        description: `"${productToProcess.name}" has been moved to trash.`,
+        title: "Product removed",
+        description: `"${productToProcess.name}" is being moved to trash.`,
         action: (
             <ToastAction 
                 altText="Recover product" 
                 onClick={() => {
-                    // CLEAR the timeout to prevent API execution
-                    const timer = pendingDeletes.get(productToProcess.id);
+                    // CLEAR the specific timeout to prevent API execution
+                    const timer = pendingDeletesRef.current.get(productId);
                     if (timer) {
                         clearTimeout(timer);
                     }
@@ -197,13 +193,9 @@ export default function ProductTable() {
                     setProducts(originalProducts);
                     
                     // Remove from tracking
-                    setPendingDeletes(prev => {
-                        const next = new Map(prev);
-                        next.delete(productToProcess.id);
-                        return next;
-                    });
+                    pendingDeletesRef.current.delete(productId);
 
-                    toast({ description: "Restored successfully." });
+                    toast({ description: "Product restored." });
                 }}
             >
                 Recover (5s)
@@ -298,7 +290,7 @@ export default function ProductTable() {
             <AlertDialogHeader>
             <AlertDialogTitle className="font-headline text-xl">Delete Product?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
-                This will move <strong>{deletingProduct?.name}</strong> to the trash. You can recover it within 5 seconds.
+                Are you sure you want to delete <strong>{deletingProduct?.name}</strong>? It will be moved to the trash and can be recovered within 5 seconds.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
