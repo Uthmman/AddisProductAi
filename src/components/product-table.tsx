@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useRef } from "react";
 import { WooProduct, WooCategory } from "@/lib/types";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "./ui/skeleton";
@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 function ProductGridSkeleton() {
@@ -53,6 +54,10 @@ export default function ProductTable() {
   const [totalProducts, setTotalProducts] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [deletingProduct, setDeletingProduct] = useState<WooProduct | null>(null);
+  
+  // Undo/Recovery state
+  const [pendingDeletes, setPendingDeletes] = useState<Map<number, NodeJS.Timeout>>(new Map());
+  
   const { toast } = useToast();
 
   const fetchProducts = async () => {
@@ -127,30 +132,84 @@ export default function ProductTable() {
     }
   };
 
+  /**
+   * Safe Delete with Recovery Logic.
+   * Optimistically removes the product and starts a 5-second countdown.
+   */
   const handleDeleteProduct = async () => {
     if (!deletingProduct) return;
-    try {
-        const response = await fetch(`/api/products/${deletingProduct.id}`, {
-            method: 'DELETE',
-        });
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to delete product.');
+    
+    const productToProcess = deletingProduct;
+    const originalProducts = [...products];
+
+    // 1. Optimistic UI update: Remove from local list
+    setProducts(prev => prev.filter(p => p.id !== productToProcess.id));
+    setDeletingProduct(null);
+
+    // 2. Start a recovery countdown timer (5 seconds)
+    const timeoutId = setTimeout(async () => {
+        try {
+            const response = await fetch(`/api/products/${productToProcess.id}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to delete product.');
+            }
+            
+            // Clean up the tracking map
+            setPendingDeletes(prev => {
+                const next = new Map(prev);
+                next.delete(productToProcess.id);
+                return next;
+            });
+            
+            console.log(`Product ${productToProcess.id} moved to trash permanently.`);
+        } catch (error: any) {
+            // Rollback on hard failure
+            setProducts(originalProducts);
+            toast({
+                title: 'Delete Failed',
+                description: error.message || 'Could not move product to trash.',
+                variant: 'destructive',
+            });
         }
-        toast({
-            title: 'Success!',
-            description: `Product "${deletingProduct.name}" has been deleted.`,
-        });
-        fetchProducts(); // Refresh the list
-    } catch (error: any) {
-        toast({
-            title: 'Error',
-            description: error.message || 'Could not delete product.',
-            variant: 'destructive',
-        });
-    } finally {
-        setDeletingProduct(null);
-    }
+    }, 5000);
+
+    // Store the timer so we can clear it if the user clicks "Undo"
+    setPendingDeletes(prev => new Map(prev).set(productToProcess.id, timeoutId));
+
+    // 3. Show Undo Toast
+    toast({
+        title: "Product deleted",
+        description: `"${productToProcess.name}" has been moved to trash.`,
+        action: (
+            <ToastAction 
+                altText="Recover product" 
+                onClick={() => {
+                    // CLEAR the timeout to prevent API execution
+                    const timer = pendingDeletes.get(productToProcess.id);
+                    if (timer) {
+                        clearTimeout(timer);
+                    }
+                    
+                    // Restore the product to the list
+                    setProducts(originalProducts);
+                    
+                    // Remove from tracking
+                    setPendingDeletes(prev => {
+                        const next = new Map(prev);
+                        next.delete(productToProcess.id);
+                        return next;
+                    });
+
+                    toast({ description: "Restored successfully." });
+                }}
+            >
+                Recover (5s)
+            </ToastAction>
+        ),
+    });
   };
 
   return (
@@ -226,7 +285,7 @@ export default function ProductTable() {
                 variant="outline"
                 size="xs"
                 onClick={handleNextPage}
-                disabled={page >= totalPages || isLoading || isPending}
+                disabled={page < totalPages ? false : true || isLoading || isPending}
                 className="bg-background/50 h-7 text-xs"
             >
             Next
@@ -239,13 +298,13 @@ export default function ProductTable() {
             <AlertDialogHeader>
             <AlertDialogTitle className="font-headline text-xl">Delete Product?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm">
-                This will permanently remove <strong>{deletingProduct?.name}</strong>. This action cannot be reversed.
+                This will move <strong>{deletingProduct?.name}</strong> to the trash. You can recover it within 5 seconds.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel className="rounded-full h-8 text-xs">Keep Product</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteProduct} className={cn(buttonVariants({ variant: "destructive" }), "rounded-full h-8 text-xs")}>
-                Yes, Delete Permanently
+                Move to Trash
             </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

@@ -152,9 +152,14 @@ export async function updateProduct(id: number, productData: any): Promise<WooPr
     return handleResponse(response, `Failed to update product ${id}`);
 }
 
-export async function deleteProduct(id: number): Promise<{id: number}> {
+/**
+ * Deletes a product. 
+ * force=false (default) moves it to the trash.
+ * force=true deletes it permanently.
+ */
+export async function deleteProduct(id: number, force: boolean = false): Promise<{id: number}> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/${id}?force=true`, {
+    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/${id}?force=${force}`, {
         method: 'DELETE',
         headers
     });
