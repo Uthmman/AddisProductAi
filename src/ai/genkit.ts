@@ -12,7 +12,7 @@ export const ai = genkit({
 });
 
 
-const model = 'googleai/gemini-2.5-flash';
+const model = 'googleai/gemini-3.5-flash';
 
 // Wrapper for direct `ai.generate` calls.
 export async function generate(request: Omit<GenerateRequest, 'model'>) {
