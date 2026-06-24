@@ -52,7 +52,6 @@ export function getCategoryCode(rawProductName: string): string | null {
 
 /**
  * Initializes all SKU counters to 20 in Firestore.
- * Run this once during setup if needed.
  */
 export async function initSkuCounters() {
   const counters: { [key: string]: number } = {};
@@ -65,6 +64,7 @@ export async function initSkuCounters() {
 
 /**
  * Gets the next unique SKU for a given category code using an atomic transaction.
+ * If the document doesn't exist, it initializes it automatically.
  * Format: ZF + 2-digit category code + 2-digit sequence number.
  */
 export async function getNextSku(categoryCode: string): Promise<string> {
@@ -73,11 +73,21 @@ export async function getNextSku(categoryCode: string): Promise<string> {
   return await runTransaction(db, async (transaction) => {
     const counterDoc = await transaction.get(counterRef);
     
+    let counters: { [key: string]: number };
+
     if (!counterDoc.exists()) {
-      throw new Error("SKU counters not initialized in Firestore.");
+      // Document missing: Initialize counters in the transaction
+      counters = {};
+      for (let i = 1; i <= 22; i++) {
+        const code = i.toString().padStart(2, '0');
+        counters[code] = 20;
+      }
+      transaction.set(counterRef, counters);
+    } else {
+      counters = counterDoc.data() as { [key: string]: number };
     }
 
-    const currentCount = counterDoc.data()[categoryCode] ?? 20;
+    const currentCount = counters[categoryCode] ?? 20;
     const nextCount = currentCount + 1;
 
     transaction.update(counterRef, {
