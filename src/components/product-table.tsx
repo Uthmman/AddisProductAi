@@ -20,6 +20,11 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
+// Helper to provide a stable fallback for Select during hydration
+function SelectFallback({ width }: { width: string }) {
+  return <div className={cn("h-8 rounded-md border bg-background/50 animate-pulse", width)} />;
+}
+
 function ProductGridSkeleton() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
@@ -54,11 +59,16 @@ export default function ProductTable() {
   const [totalProducts, setTotalProducts] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [deletingProduct, setDeletingProduct] = useState<WooProduct | null>(null);
+  const [mounted, setMounted] = useState(false);
   
   // Undo/Recovery state tracking timeouts for individual products
   const pendingDeletesRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
   
   const { toast } = useToast();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchProducts = async () => {
     setIsLoading(true);
@@ -132,22 +142,16 @@ export default function ProductTable() {
     }
   };
 
-  /**
-   * Safe Delete with Recovery Logic.
-   * Optimistically removes the product and starts a 5-second countdown.
-   */
   const handleDeleteProduct = async () => {
     if (!deletingProduct) return;
     
     const productToProcess = deletingProduct;
     const originalProducts = [...products];
 
-    // 1. Optimistic UI update: Remove from local list
     setProducts(prev => prev.filter(p => p.id !== productToProcess.id));
     const productId = productToProcess.id;
-    setDeletingProduct(null); // Close the "Are you sure?" dialog
+    setDeletingProduct(null);
 
-    // 2. Start a recovery countdown timer (5 seconds)
     const timeoutId = setTimeout(async () => {
         try {
             const response = await fetch(`/api/products/${productId}`, {
@@ -157,12 +161,8 @@ export default function ProductTable() {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to delete product.');
             }
-            
-            // Clean up the tracking map
             pendingDeletesRef.current.delete(productId);
-            console.log(`Product ${productId} moved to trash permanently.`);
         } catch (error: any) {
-            // Rollback on hard failure
             setProducts(originalProducts);
             toast({
                 title: 'Delete Failed',
@@ -172,10 +172,8 @@ export default function ProductTable() {
         }
     }, 5000);
 
-    // Store the timer so we can clear it if the user clicks "Undo"
     pendingDeletesRef.current.set(productId, timeoutId);
 
-    // 3. Show Undo Toast
     toast({
         title: "Product removed",
         description: `"${productToProcess.name}" is being moved to trash.`,
@@ -183,18 +181,12 @@ export default function ProductTable() {
             <ToastAction 
                 altText="Recover product" 
                 onClick={() => {
-                    // CLEAR the specific timeout to prevent API execution
                     const timer = pendingDeletesRef.current.get(productId);
                     if (timer) {
                         clearTimeout(timer);
                     }
-                    
-                    // Restore the product to the list
                     setProducts(originalProducts);
-                    
-                    // Remove from tracking
                     pendingDeletesRef.current.delete(productId);
-
                     toast({ description: "Product restored." });
                 }}
             >
@@ -217,30 +209,39 @@ export default function ProductTable() {
              )}
            </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs bg-background/50 backdrop-blur-sm">
-                <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                    {category.name}
-                    </SelectItem>
-                ))}
-                </SelectContent>
-            </Select>
-            <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
-                <SelectTrigger className="w-full sm:w-[150px] h-8 text-xs bg-background/50 backdrop-blur-sm">
-                <SelectValue placeholder="Items per page" />
-                </SelectTrigger>
-                <SelectContent>
-                <SelectItem value="12">12 per page</SelectItem>
-                <SelectItem value="24">24 per page</SelectItem>
-                <SelectItem value="36">36 per page</SelectItem>
-                <SelectItem value="48">48 per page</SelectItem>
-                </SelectContent>
-            </Select>
+            {mounted ? (
+              <>
+                <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+                    <SelectTrigger className="w-full sm:w-[160px] h-8 text-xs bg-background/50 backdrop-blur-sm">
+                    <SelectValue placeholder="Filter by category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+                <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
+                    <SelectTrigger className="w-full sm:w-[150px] h-8 text-xs bg-background/50 backdrop-blur-sm">
+                    <SelectValue placeholder="Items per page" />
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="12">12 per page</SelectItem>
+                    <SelectItem value="24">24 per page</SelectItem>
+                    <SelectItem value="36">36 per page</SelectItem>
+                    <SelectItem value="48">48 per page</SelectItem>
+                    </SelectContent>
+                </Select>
+              </>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <SelectFallback width="w-full sm:w-[160px]" />
+                <SelectFallback width="w-full sm:w-[150px]" />
+              </div>
+            )}
           </div>
       </div>
 
