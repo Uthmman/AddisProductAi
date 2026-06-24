@@ -16,6 +16,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import CopyProductButton from "@/components/copy-product-button";
 
 type ProductPageProps = {
   params: { id: string };
@@ -67,6 +68,7 @@ export default async function ProductViewPage({ params }: ProductPageProps) {
                 View on Site
               </Link>
             </Button>
+            <CopyProductButton product={product} />
             <Button asChild>
               <Link href={`/products/${product.id}`}>
                 <Edit className="mr-2 h-4 w-4" />
