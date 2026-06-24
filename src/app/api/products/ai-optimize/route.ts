@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWooCommerceProductContent } from '@/ai/flows/generate-woocommerce-product-content';
 import { z } from 'zod';
+import { getCategoryCode, getNextSku } from '@/lib/skuGenerator';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120; // Extend timeout to 120 seconds
@@ -64,6 +65,19 @@ export async function POST(request: NextRequest) {
 
     const inputData = validation.data;
 
+    // Resolve SKU if we are generating a new product ('all') or just the 'name'/'sku'
+    let resolvedSku = inputData.existingContent?.sku;
+    
+    if (!resolvedSku && (inputData.fieldToGenerate === 'all' || inputData.fieldToGenerate === 'name')) {
+      const categoryCode = getCategoryCode(inputData.raw_name);
+      if (!categoryCode) {
+        return NextResponse.json({ 
+          message: `I couldn't identify the furniture category for "${inputData.raw_name}". Please include the type of furniture (e.g., Bed, Table, Wardrobe) in the name.` 
+        }, { status: 400 });
+      }
+      resolvedSku = await getNextSku(categoryCode);
+    }
+
     const processedImagesData = await Promise.all(
         inputData.images_data.map(async (imageData: string) => {
             if (imageData.startsWith('http')) {
@@ -86,6 +100,7 @@ export async function POST(request: NextRequest) {
 
     const aiInput = {
         ...inputData,
+        sku: resolvedSku, // Inject the resolved SKU here
         images_data: validImagesData,
     };
     

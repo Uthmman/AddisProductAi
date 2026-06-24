@@ -20,6 +20,7 @@ import { getGscAnalysis } from '@/lib/gsc-analysis-api';
 // Define the input schema for the flow
 const GenerateWooCommerceProductContentInputSchema = z.object({
   raw_name: z.string().describe('The raw product name provided by the user.'),
+  sku: z.string().optional().describe('A pre-resolved unique SKU for the product.'),
   material: z.string().describe('The material of the product.'),
   amharic_name: z.string().describe('The Amharic name of the product.'),
   focus_keywords: z.string().describe('Comma-separated keywords for SEO.'),
@@ -64,7 +65,7 @@ export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooC
 // Define the output schema for the flow
 const GenerateWooCommerceProductContentOutputSchema = z.object({
   name: z.string().optional().describe('Refined, SEO-Optimized Product Title including both English and Amharic text.'),
-  sku: z.string().optional().describe("A unique product SKU, e.g., 'ZF' + 2 category digits + 2 random digits."),
+  sku: z.string().optional().describe('The unique SKU for the product.'),
   slug: z.string().optional().describe('URL-friendly, English slug based on the new name.'),
   description: z.string().optional().describe('SEO-rich description of about 300 words, formatted with HTML tags. It must include inbound and outbound links.'),
   short_description: z.string().optional().describe('Concise bullet-pointed summary.'),
