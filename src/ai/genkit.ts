@@ -1,20 +1,23 @@
 import { genkit, type GenerateRequest } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
-// Configure Genkit plugins
+// Configure Genkit with the Google AI plugin.
+// The apiKey is read from the GOOGLE_API_KEY environment variable.
 export const ai = genkit({
   plugins: [
     googleAI({
       apiKey: process.env.GOOGLE_API_KEY,
-      apiVersion: 'v1beta', // Use v1beta for newer features and models
     }),
   ],
 });
 
+// Using gemini-1.5-flash as it is the most stable high-performance model.
+// Gemini 3.5 is not currently a valid model name and was causing permission routing issues.
+const model = 'googleai/gemini-1.5-flash';
 
-const model = 'googleai/gemini-3.5-flash';
-
-// Wrapper for direct `ai.generate` calls.
+/**
+ * A wrapper for the Genkit generate function that defaults to the preferred model.
+ */
 export async function generate(request: Omit<GenerateRequest, 'model'>) {
   const newRequest = { ...request, model };
   return ai.generate(newRequest);
