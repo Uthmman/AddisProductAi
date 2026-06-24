@@ -11,9 +11,8 @@ export const ai = genkit({
   ],
 });
 
-// Using gemini-1.5-flash as it is the most stable high-performance model.
-// Gemini 3.5 is not currently a valid model name and was causing permission routing issues.
-const model = 'googleai/gemini-1.5-flash';
+// Using the model requested by the user.
+const model = 'googleai/gemini-3.5-flash';
 
 /**
  * A wrapper for the Genkit generate function that defaults to the preferred model.
