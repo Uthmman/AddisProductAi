@@ -55,6 +55,9 @@ async function urlToDataUri(url: string): Promise<string> {
 
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  console.log(">>> AI Optimization Request Started");
+
   try {
     const body = await request.json();
     const validation = InputSchema.safeParse(body);
@@ -69,6 +72,7 @@ export async function POST(request: NextRequest) {
     let resolvedSku = inputData.existingContent?.sku;
     
     if (!resolvedSku && (inputData.fieldToGenerate === 'all' || inputData.fieldToGenerate === 'name')) {
+      console.time("SKU Resolution");
       const categoryCode = getCategoryCode(inputData.raw_name);
       if (!categoryCode) {
         return NextResponse.json({ 
@@ -78,6 +82,7 @@ export async function POST(request: NextRequest) {
       
       try {
         resolvedSku = await getNextSku(categoryCode);
+        console.timeEnd("SKU Resolution");
       } catch (firestoreError: any) {
         console.error("Firestore SKU error:", firestoreError);
         const isPermissionDenied = firestoreError.message?.includes('PERMISSION_DENIED') || firestoreError.code === 'permission-denied';
@@ -89,6 +94,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.time("Image Processing");
     const processedImagesData = await Promise.all(
         inputData.images_data.map(async (imageData: string) => {
             if (imageData.startsWith('http')) {
@@ -102,6 +108,7 @@ export async function POST(request: NextRequest) {
             return imageData;
         })
     );
+    console.timeEnd("Image Processing");
     
     const validImagesData = processedImagesData.filter(d => d !== null) as string[];
 
@@ -115,8 +122,12 @@ export async function POST(request: NextRequest) {
         images_data: validImagesData,
     };
     
+    console.log(">>> Calling Gemini 3.5 Flash...");
+    console.time("AI Generation");
     const aiContent = await generateWooCommerceProductContent(aiInput);
+    console.timeEnd("AI Generation");
 
+    console.log(`>>> Total Optimization Time: ${Date.now() - startTime}ms`);
     return NextResponse.json(aiContent);
 
   } catch (error: any) {

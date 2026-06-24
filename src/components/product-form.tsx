@@ -64,7 +64,7 @@ export default function ProductForm({ product }: ProductFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { addTask, updateTask } = useTasks();
+  const { addTask, updateTask, removeTask } = useTasks();
   const [isSaving, setIsSaving] = useState(false);
   const [generatingField, setGeneratingField] = useState<GeneratingField>(null);
   
@@ -253,13 +253,23 @@ export default function ProductForm({ product }: ProductFormProps) {
         return;
     }
 
+    const taskId = `ai-gen-${Date.now()}`;
+    addTask({
+        id: taskId,
+        title: "AI Optimizing Product",
+        description: "Preparing sample image...",
+        progress: 10
+    });
+
     setGeneratingField(field);
     try {
         const sampleImage = images[0].src;
         let optimizedSample = sampleImage;
         
         if (sampleImage.startsWith('data:image')) {
+            updateTask(taskId, { description: "Resizing image for faster analysis..." });
             optimizedSample = await resizeImage(sampleImage, 1024);
+            updateTask(taskId, { progress: 30 });
         }
         
         const currentAiContent = {
@@ -269,6 +279,8 @@ export default function ProductForm({ product }: ProductFormProps) {
         
         const primaryCategoryName = selectedCategories[0]?.name;
         const primaryCategory = availableCategories.find(c => c.name === primaryCategoryName);
+
+        updateTask(taskId, { description: "Processing with Gemini 3.5 Flash...", progress: 50 });
 
         const response = await fetch('/api/products/ai-optimize', {
             method: 'POST',
@@ -288,12 +300,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
         if (!response.ok) {
             const errorBody = await response.json().catch(() => ({ message: 'The AI service is currently unavailable.' }));
-            toast({
-                variant: "destructive",
-                title: "Generation Failed",
-                description: errorBody.message || `Failed to generate AI content for ${field}.`,
-            });
-            return;
+            throw new Error(errorBody.message || `Failed to generate AI content for ${field}.`);
         }
 
         const rawData: any = await response.json();
@@ -338,14 +345,19 @@ export default function ProductForm({ product }: ProductFormProps) {
             form.setValue('focus_keywords', rawData.yoast.focus_keyphrase);
         }
 
-
+        updateTask(taskId, { status: 'success', description: "Optimization complete!", progress: 100 });
+        
         toast({
             title: "Content Generated",
-            description: `AI-optimized content for ${field} has been populated based on the new strict guidelines.`,
+            description: `AI-optimized content for ${field} has been populated.`,
         });
+
+        // Auto-remove success task after 3 seconds
+        setTimeout(() => removeTask(taskId), 3000);
 
     } catch (error: any) {
         console.error(error);
+        updateTask(taskId, { status: 'error', description: error.message });
         toast({
             variant: "destructive",
             title: "Error",
