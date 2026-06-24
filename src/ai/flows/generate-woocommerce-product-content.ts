@@ -62,25 +62,22 @@ const GenerateWooCommerceProductContentInputSchema = z.object({
 });
 export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooCommerceProductContentInputSchema>;
 
-// Define the output schema for the flow
+// Define the output schema for the flow matching the user's prompt structure
 const GenerateWooCommerceProductContentOutputSchema = z.object({
-  name: z.string().optional().describe('Refined, SEO-Optimized Product Title including both English and Amharic text.'),
-  sku: z.string().optional().describe('The unique SKU for the product.'),
-  slug: z.string().optional().describe('URL-friendly, English slug based on the new name.'),
-  description: z.string().optional().describe('SEO-rich description of about 300 words, formatted with HTML tags. It must include inbound and outbound links.'),
-  short_description: z.string().optional().describe('Concise bullet-pointed summary.'),
-  tags: z.array(z.string()).optional().describe('English and Amharic keywords.'),
-  categories: z.array(z.string()).optional().describe('An array of category names, chosen from the provided list or newly created if appropriate.'),
-  meta_data: z
-    .array(z.object({key: z.string(), value: z.string()}))
-    .optional()
-    .describe('Meta data for SEO, including _yoast_wpseo_metadesc and _yoast_wpseo_focuskw (the focus keyphrase).'),
-  attributes: z
-    .array(z.object({name: z.string(), option: z.string()}))
-    .optional()
-    .describe('Product attributes.'),
-  images: z.array(z.object({alt: z.string()})).optional().describe('Image alt texts for each provided image.'),
-  regular_price: z.number().optional().describe('The price of the product.'),
+  name: z.string(),
+  sku: z.string(),
+  regular_price: z.string(),
+  categories: z.array(z.string()),
+  tags: z.array(z.string()),
+  short_description: z.string(),
+  description: z.string(),
+  yoast: z.object({
+    focus_keyphrase: z.string(),
+    title: z.string(),
+    meta_description: z.string(),
+    slug: z.string(),
+  }),
+  image_alt_texts: z.array(z.string()),
 });
 export type GenerateWooCommerceProductContentOutput = z.infer<typeof GenerateWooCommerceProductContentOutputSchema>;
 

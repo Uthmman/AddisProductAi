@@ -296,41 +296,52 @@ export default function ProductForm({ product }: ProductFormProps) {
             return;
         }
 
-        const data: Partial<AIProductContent> = await response.json();
+        const rawData: any = await response.json();
         
+        // Map the new strict nested structure back to the format the UI expectations
+        const mappedData: Partial<AIProductContent> = {
+          ...rawData,
+          slug: rawData.yoast?.slug,
+          meta_data: [
+            { key: '_yoast_wpseo_focuskw', value: rawData.yoast?.focus_keyphrase },
+            { key: '_yoast_wpseo_metadesc', value: rawData.yoast?.meta_description },
+            { key: '_yoast_wpseo_title', value: rawData.yoast?.title },
+          ],
+          images: rawData.image_alt_texts?.map((alt: string) => ({ alt })),
+          regular_price: parseFloat(rawData.regular_price) || values.price_etb,
+        };
+
         setAiContent(prev => ({
           ...prev,
-          ...data,
+          ...mappedData,
         }));
         
-        if (data.images) {
+        // Update images state with generated alt texts
+        if (rawData.image_alt_texts) {
             setImages(prevImages => {
                 return prevImages.map((img, index) => ({
                     ...img,
-                    alt: data.images?.[index]?.alt || img.alt
+                    alt: rawData.image_alt_texts[index] || img.alt
                 }));
             });
         }
         
-        if (data.categories) {
-            const aiSelectedCategories: DisplayCategory[] = data.categories.map(catName => {
+        if (rawData.categories) {
+            const aiSelectedCategories: DisplayCategory[] = rawData.categories.map((catName: string) => {
                 const existing = availableCategories.find(c => c.name.toLowerCase() === catName.toLowerCase());
                 return existing ? { id: existing.id, name: existing.name } : { name: catName };
             });
             setSelectedCategories(aiSelectedCategories);
         }
         
-        if (data.meta_data) {
-            const focusKw = data.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value;
-            if(focusKw) {
-                form.setValue('focus_keywords', focusKw);
-            }
+        if (rawData.yoast?.focus_keyphrase) {
+            form.setValue('focus_keywords', rawData.yoast.focus_keyphrase);
         }
 
 
         toast({
             title: "Content Generated",
-            description: `AI-optimized content for ${field} has been populated.`,
+            description: `AI-optimized content for ${field} has been populated based on the new strict guidelines.`,
         });
 
     } catch (error: any) {
@@ -743,7 +754,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                    
                    <div className="space-y-2">
                        <div className="flex justify-between items-center"><Label>Regular Price (ETB)</Label>{renderGenButton('regular_price', 'Price')}</div>
-                       <Input type="number" value={aiContent.regular_price || ''} onChange={(e) => setAiContent(p => ({ ...p, regular_price: parseFloat(e.target.value) || 0 }))} placeholder="Analyzed price..."/>
+                       <Input type="number" value={aiContent.regular_price || ''} onChange={(e) => setAiContent(p => ({ ...p, regular_price: parseFloat(e.target.value.toString()) || 0 }))} placeholder="Analyzed price..."/>
                    </div>
 
                     <div className="space-y-2">

@@ -28,15 +28,23 @@ export interface WooProduct {
 export type AIProductContent = {
   name?: string;
   sku?: string;
-  slug?: string;
-  description?: string;
-  short_description?: string;
-  tags?: string[];
+  regular_price?: string | number;
   categories?: string[];
+  tags?: string[];
+  short_description?: string;
+  description?: string;
+  yoast?: {
+    focus_keyphrase: string;
+    title: string;
+    meta_description: string;
+    slug: string;
+  };
+  image_alt_texts?: string[];
+  // Maintain some existing fields for backward compatibility and internal logic
+  slug?: string;
   meta_data?: { key: string; value: string }[];
   attributes?: { name: string; option: string }[];
   images?: { alt: string }[];
-  regular_price?: number;
 };
 
 export interface WooCategory {
