@@ -423,8 +423,15 @@ export default function ProductForm({ product }: ProductFormProps) {
             });
 
             if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || `Image upload failed for ${imageName}.`);
+              let errorMessage = `Image upload failed for ${imageName}.`;
+              try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorMessage;
+              } catch (e) {
+                const text = await response.text();
+                errorMessage = text.substring(0, 100) || errorMessage;
+              }
+              throw new Error(errorMessage);
             }
 
             currentStep++;
@@ -543,8 +550,15 @@ export default function ProductForm({ product }: ProductFormProps) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to save product details.');
+            let errorMsg = 'Failed to save product details.';
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.message || errorMsg;
+            } catch (e) {
+                const text = await response.text();
+                errorMsg = text.substring(0, 100) || errorMsg;
+            }
+            throw new Error(errorMsg);
         }
 
         const savedProduct = await response.json();

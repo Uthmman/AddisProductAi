@@ -62,12 +62,13 @@ async function handleResponse(response: Response, errorMessage: string) {
             }
         } catch (e) {
              try {
-                message = stripHtml(await response.text());
+                const text = await response.text();
+                message = stripHtml(text).substring(0, 200);
              } catch (textError) {
                 // message stays as default
              }
         }
-        console.error("API Error:", message);
+        console.error("API Error Response:", message);
         throw new Error(message);
     }
     return response.json();
@@ -217,13 +218,24 @@ export async function uploadImage(imageName: string, imageData: string): Promise
     mediaHeaders['Content-Type'] = mimeType;
     mediaHeaders['Content-Disposition'] = `attachment; filename="${sanitizedImageName}"`;
 
-    const response = await fetch(`${wpApiUrl}/media`, {
-      method: 'POST',
-      headers: mediaHeaders,
-      body: imageBuffer
-    });
+    try {
+        const response = await fetch(`${wpApiUrl}/media`, {
+          method: 'POST',
+          headers: mediaHeaders,
+          body: imageBuffer,
+          signal: AbortSignal.timeout(115000) // 115s timeout
+        });
 
-    return handleResponse(response, 'Failed to upload image to WordPress media library');
+        return handleResponse(response, 'Failed to upload image to WordPress media library');
+    } catch (error: any) {
+        if (error.name === 'TimeoutError') {
+            throw new Error("The image upload timed out. The WordPress server took too long to process the image.");
+        }
+        if (error.message.includes('fetch failed')) {
+            throw new Error(`Connection to WordPress failed. Please check if ${WOOCOMMERCE_SITE_URL} is accessible.`);
+        }
+        throw error;
+    }
 }
 
 export async function updateProductBatch(updates: { update: any[] }): Promise<any> {
