@@ -1,12 +1,11 @@
-
 'use server';
 /**
  * @fileOverview An AI flow to analyze Google Search Console data for Zenbaba Furniture.
  *
- * - analyzeGscDataFlow - A function that takes GSC data and returns an AI-powered analysis focused on furniture.
+ * - analyzeGscData - A function that takes GSC data and returns an AI-powered analysis focused on furniture.
  */
 
-import { generate } from '@/ai/genkit';
+import { ai, generate } from '@/ai/genkit';
 import { z } from 'zod';
 import type { GscAnalysisOutput } from '@/lib/types';
 
@@ -20,8 +19,20 @@ const GscAnalysisOutputSchema = z.object({
   productSuggestions: z.array(z.string()).describe("A list of 2-3 potential new furniture or woodworking products."),
 });
 
-// The main exported function
+/**
+ * Main function to analyze Search Console data using AI.
+ */
 export async function analyzeGscDataFlow(gscData: any[]): Promise<GscAnalysisOutput> {
+    return analyzeGscFlow(gscData);
+}
+
+const analyzeGscFlow = ai.defineFlow(
+  {
+    name: 'analyzeGscFlow',
+    inputSchema: z.array(z.any()),
+    outputSchema: GscAnalysisOutputSchema,
+  },
+  async (gscData) => {
     const gscDataString = JSON.stringify(gscData, null, 2);
 
     const prompt = `You are the lead SEO analyst for Zenbaba Furniture, the premier woodworking company in Addis Ababa, Ethiopia.
@@ -52,4 +63,5 @@ ${gscDataString}
     });
     
     return output!;
-}
+  }
+);

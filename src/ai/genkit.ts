@@ -11,8 +11,8 @@ export const ai = genkit({
   ],
 });
 
-// Using the model requested by the user.
-const model = 'googleai/gemini-3.5-flash';
+// Using the standard high-performance model.
+const model = 'googleai/gemini-2.0-flash';
 
 /**
  * A wrapper for the Genkit generate function that defaults to the preferred model.
