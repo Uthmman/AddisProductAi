@@ -64,7 +64,7 @@ export async function initSkuCounters() {
 
 /**
  * Gets the next unique SKU for a given category code using an atomic transaction.
- * If the document doesn't exist, it initializes it automatically.
+ * If the document doesn't exist, it initializes it automatically within the transaction.
  * Format: ZF + 2-digit category code + 2-digit sequence number.
  */
 export async function getNextSku(categoryCode: string): Promise<string> {
@@ -74,25 +74,26 @@ export async function getNextSku(categoryCode: string): Promise<string> {
     const counterDoc = await transaction.get(counterRef);
     
     let counters: { [key: string]: number };
+    let currentCount: number;
 
     if (!counterDoc.exists()) {
-      // Document missing: Initialize counters in the transaction
+      // Document missing: Initialize counters
       counters = {};
       for (let i = 1; i <= 22; i++) {
         const code = i.toString().padStart(2, '0');
         counters[code] = 20;
       }
+      currentCount = 20;
+      counters[categoryCode] = currentCount + 1;
       transaction.set(counterRef, counters);
     } else {
       counters = counterDoc.data() as { [key: string]: number };
+      currentCount = counters[categoryCode] ?? 20;
+      const nextCount = currentCount + 1;
+      transaction.update(counterRef, {
+        [categoryCode]: nextCount
+      });
     }
-
-    const currentCount = counters[categoryCode] ?? 20;
-    const nextCount = currentCount + 1;
-
-    transaction.update(counterRef, {
-      [categoryCode]: nextCount
-    });
 
     const sequence = currentCount.toString().padStart(2, '0');
     return `ZF${categoryCode}${sequence}`;

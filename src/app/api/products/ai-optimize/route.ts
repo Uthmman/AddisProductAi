@@ -75,7 +75,18 @@ export async function POST(request: NextRequest) {
           message: `I couldn't identify the furniture category for "${inputData.raw_name}". Please include the type of furniture (e.g., Bed, Table, Wardrobe) in the name.` 
         }, { status: 400 });
       }
-      resolvedSku = await getNextSku(categoryCode);
+      
+      try {
+        resolvedSku = await getNextSku(categoryCode);
+      } catch (firestoreError: any) {
+        console.error("Firestore SKU error:", firestoreError);
+        const isPermissionDenied = firestoreError.message?.includes('PERMISSION_DENIED') || firestoreError.code === 'permission-denied';
+        return NextResponse.json({ 
+          message: isPermissionDenied 
+            ? "Database access denied. Please ensure your Firebase security rules are set up correctly in the Firebase Console." 
+            : `Failed to generate SKU: ${firestoreError.message}`
+        }, { status: 500 });
+      }
     }
 
     const processedImagesData = await Promise.all(
@@ -100,7 +111,7 @@ export async function POST(request: NextRequest) {
 
     const aiInput = {
         ...inputData,
-        sku: resolvedSku, // Inject the resolved SKU here
+        sku: resolvedSku,
         images_data: validImagesData,
     };
     
