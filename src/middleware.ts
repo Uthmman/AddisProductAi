@@ -17,6 +17,8 @@ export function middleware(request: NextRequest) {
   // If the user is NOT authenticated and trying to access a restricted path
   if (!isAuthenticated && !isPublicPath) {
     const loginUrl = new URL('/login', request.url);
+    // Store the intended destination to redirect back after login
+    loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
