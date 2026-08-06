@@ -2,32 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const isAuthenticated = request.cookies.has('authenticated');
-
-  // Define public paths that DON'T need authentication
-  const isPublicPath = 
-    pathname === '/login' || 
-    pathname.startsWith('/api/auth') || 
-    pathname.startsWith('/api/bot') || 
-    pathname.startsWith('/telegram') || 
-    pathname.startsWith('/_next') || 
-    pathname === '/favicon.ico';
-
-  // If the user is NOT authenticated and trying to access a restricted path
-  if (!isAuthenticated && !isPublicPath) {
-    const loginUrl = new URL('/login', request.url);
-    // Store the intended destination to redirect back after login
-    loginUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // If the user IS authenticated and trying to go to login page, send to dashboard
-  if (isAuthenticated && pathname === '/login') {
-    const dashboardUrl = new URL('/dashboard', request.url);
-    return NextResponse.redirect(dashboardUrl);
-  }
-
+  // Login is disabled for now. Allow all requests to proceed.
   return NextResponse.next();
 }
 

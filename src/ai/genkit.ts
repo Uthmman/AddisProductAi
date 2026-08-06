@@ -11,7 +11,7 @@ export const ai = genkit({
   ],
 });
 
-// Using the standard high-performance model.
+// Using the latest stable high-performance model.
 const model = 'googleai/gemini-2.0-flash';
 
 /**
