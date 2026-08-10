@@ -251,13 +251,13 @@ export default function ProductTable() {
             )}
 
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
                   placeholder="Search masterfully crafted furniture..." 
                   className="pl-10 h-11 bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm focus-visible:ring-primary"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
               />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
             </div>
             
             {mounted ? (
