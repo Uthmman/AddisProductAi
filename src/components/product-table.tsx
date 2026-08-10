@@ -20,11 +20,11 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { Input } from "./ui/input";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, ListFilter, ArrowUpDown, FolderTree } from "lucide-react";
 
 // Helper to provide a stable fallback for Select during hydration
 function SelectFallback({ width }: { width: string }) {
-  return <div className={cn("h-8 rounded-md border bg-background/50 animate-pulse", width)} />;
+  return <div className={cn("h-11 rounded-md border bg-background/50 animate-pulse", width)} />;
 }
 
 function ProductGridSkeleton() {
@@ -95,7 +95,7 @@ export default function ProductTable() {
         params.append('orderby', 'date');
         params.append('order', 'desc');
       } else if (sortBy === 'price_asc') {
-        params.append('orderby', 'price'); // Note: Works if supported by backend/plugins
+        params.append('orderby', 'price');
         params.append('order', 'asc');
       } else if (sortBy === 'price_desc') {
         params.append('orderby', 'price');
@@ -167,10 +167,6 @@ export default function ProductTable() {
   const handleCategoryChange = (categoryId: string) => {
     setSelectedCategory(categoryId);
   }
-  
-  const handlePerPageChange = (value: string) => {
-    setPerPage(parseInt(value, 10));
-  }
 
   const handleSortChange = (value: string) => {
     setSortBy(value);
@@ -233,76 +229,60 @@ export default function ProductTable() {
   return (
     <div className="w-full space-y-6">
        <div className="flex flex-col gap-4">
-          <div className="relative w-full max-w-2xl mx-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-                placeholder="Search masterfully crafted furniture..." 
-                className="pl-10 h-11 bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm focus-visible:ring-primary"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex items-center gap-2 w-full max-w-2xl mx-auto">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                  placeholder="Search masterfully crafted furniture..." 
+                  className="pl-10 h-11 bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm focus-visible:ring-primary"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            {mounted ? (
+              <>
+                <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+                  <SelectTrigger className="w-11 h-11 p-0 flex items-center justify-center bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm transition-colors hover:bg-accent focus:ring-primary [&>span]:hidden [&>svg]:opacity-100">
+                    <FolderTree className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                        </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={sortBy} onValueChange={handleSortChange}>
+                  <SelectTrigger className="w-11 h-11 p-0 flex items-center justify-center bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm transition-colors hover:bg-accent focus:ring-primary [&>span]:hidden [&>svg]:opacity-100">
+                    <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="recent">Recent Arrivals</SelectItem>
+                    <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                    <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            ) : (
+              <div className="flex gap-2">
+                <SelectFallback width="w-11" />
+                <SelectFallback width="w-11" />
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-              <div className="text-xs text-muted-foreground font-medium hidden sm:block">
-                {totalProducts > 0 ? (
-                    <span>
-                        Showing <span className="text-foreground">{products.length}</span> of <span className="text-foreground">{totalProducts}</span> unique items
-                    </span>
-                ) : (
-                    <span>&nbsp;</span>
-                )}
-              </div>
-              
-              <div className="flex flex-wrap justify-center gap-2 w-full sm:w-auto">
-                {mounted ? (
-                  <>
-                    <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                        <SelectTrigger className="w-[140px] sm:w-[160px] h-8 text-xs bg-background/50 backdrop-blur-sm">
-                        <SelectValue placeholder="Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id.toString()}>
-                            {category.name}
-                            </SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Select value={sortBy} onValueChange={handleSortChange}>
-                        <SelectTrigger className="w-[140px] sm:w-[160px] h-8 text-xs bg-background/50 backdrop-blur-sm">
-                        <SelectValue placeholder="Sort Order" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="recent">Recent Arrivals</SelectItem>
-                          <SelectItem value="price_asc">Price: Low to High</SelectItem>
-                          <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    {!isMobile && (
-                      <Select value={perPage.toString()} onValueChange={handlePerPageChange}>
-                          <SelectTrigger className="w-[120px] h-8 text-xs bg-background/50 backdrop-blur-sm">
-                          <SelectValue placeholder="Per Page" />
-                          </SelectTrigger>
-                          <SelectContent>
-                          <SelectItem value="12">12 per page</SelectItem>
-                          <SelectItem value="24">24 per page</SelectItem>
-                          <SelectItem value="36">36 per page</SelectItem>
-                          <SelectItem value="48">48 per page</SelectItem>
-                          </SelectContent>
-                      </Select>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <SelectFallback width="w-[140px]" />
-                    <SelectFallback width="w-[140px]" />
-                  </div>
-                )}
-              </div>
+          <div className="flex justify-center text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+            {totalProducts > 0 && (
+                <span>
+                    Showing <span className="text-foreground">{products.length}</span> of <span className="text-foreground">{totalProducts}</span> Items
+                </span>
+            )}
           </div>
        </div>
 
@@ -350,19 +330,19 @@ export default function ProductTable() {
             <div className="flex gap-2">
                 <Button
                     variant="outline"
-                    size="xs"
+                    size="sm"
                     onClick={() => { setPage(p => Math.max(1, p - 1)); fetchProducts(false); }}
                     disabled={page <= 1 || isLoading}
-                    className="bg-background/50 h-7 text-xs"
+                    className="bg-background/50 h-8 text-xs"
                 >
                 Previous
                 </Button>
                 <Button
                     variant="outline"
-                    size="xs"
+                    size="sm"
                     onClick={() => { setPage(p => Math.min(totalPages, p + 1)); fetchProducts(false); }}
                     disabled={page >= totalPages || isLoading}
-                    className="bg-background/50 h-7 text-xs"
+                    className="bg-background/50 h-8 text-xs"
                 >
                 Next
                 </Button>
