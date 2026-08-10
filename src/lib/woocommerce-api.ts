@@ -74,13 +74,30 @@ async function handleResponse(response: Response, errorMessage: string) {
     return response.json();
 }
 
-export async function getProducts(page = 1, perPage = 10, category?: string, tag?: string, search?: string): Promise<{products: WooProduct[], totalPages: number, totalProducts: number}> {
+export async function getProducts(
+  page = 1, 
+  perPage = 10, 
+  category?: string, 
+  tag?: string, 
+  search?: string,
+  orderby?: string,
+  order?: 'asc' | 'desc'
+): Promise<{products: WooProduct[], totalPages: number, totalProducts: number}> {
   const headers = getAuthHeaders();
-  const categoryParam = category ? `&category=${category}` : '';
-  const tagParam = tag ? `&tag=${tag}` : '';
-  const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
   
-  const response = await fetch(`${WOOCOMMERCE_API_URL}/products?per_page=${perPage}&page=${page}${categoryParam}${tagParam}${searchParam}&_embed`, { headers, cache: 'no-store' });
+  const params = new URLSearchParams({
+    page: page.toString(),
+    per_page: perPage.toString(),
+    _embed: '',
+  });
+
+  if (category) params.append('category', category);
+  if (tag) params.append('tag', tag);
+  if (search) params.append('search', search);
+  if (orderby) params.append('orderby', orderby);
+  if (order) params.append('order', order);
+  
+  const response = await fetch(`${WOOCOMMERCE_API_URL}/products?${params.toString()}`, { headers, cache: 'no-store' });
 
   if (!response.ok) {
      let message = `Failed to fetch products. Status: ${response.status}`;

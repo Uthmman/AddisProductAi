@@ -6,12 +6,23 @@ export const maxDuration = 120; // Extend timeout to 120 seconds
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1', 10);
-  const perPage = parseInt(searchParams.get('per_page') || '10', 10);
+  const perPage = parseInt(searchParams.get('per_page') || '12', 10);
   const category = searchParams.get('category') || undefined;
   const tag = searchParams.get('tag') || undefined;
+  const search = searchParams.get('search') || undefined;
+  const orderby = searchParams.get('orderby') || undefined;
+  const order = (searchParams.get('order') as 'asc' | 'desc') || undefined;
 
   try {
-    const { products, totalPages, totalProducts } = await wooCommerceApi.getProducts(page, perPage, category, tag);
+    const { products, totalPages, totalProducts } = await wooCommerceApi.getProducts(
+      page, 
+      perPage, 
+      category, 
+      tag, 
+      search, 
+      orderby, 
+      order
+    );
     return NextResponse.json({ products, totalPages, totalProducts });
   } catch (error: any) {
     console.error("API Route Error fetching products:", error.message);
