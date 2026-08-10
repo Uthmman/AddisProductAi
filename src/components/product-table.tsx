@@ -287,7 +287,14 @@ export default function ProductTable() {
        </div>
 
         {/* Product Grid */}
-        <div className="pt-4">
+        <div className="pt-2">
+            {/* Top Count Badge */}
+            <div className="flex justify-center mb-6">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-accent/60 bg-accent/5 px-4 py-1.5 rounded-full">
+                    {products.length} of {totalProducts} Products
+                </div>
+            </div>
+
             {(isLoading && products.length === 0) ? (
                 <ProductGridSkeleton />
             ) : products.length > 0 ? (
