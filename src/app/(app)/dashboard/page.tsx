@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProductTable from "@/components/product-table";
 import { Suspense } from "react";
@@ -12,21 +12,38 @@ export const metadata = {
 
 export default function DashboardPage() {
   return (
-    <div className="container mx-auto py-2 sm:py-4">
-      <ProductSuggestions />
-
-      <div className="flex flex-row justify-between items-center mb-4 gap-4">
-        <h1 className="text-xl sm:text-2xl font-bold font-headline">Products</h1>
-        <Button asChild size="sm">
-          <Link href="/products/new">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            New Product
-          </Link>
-        </Button>
+    <div className="container mx-auto py-4 sm:py-8 space-y-8">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-primary/10 pb-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-accent/60 uppercase tracking-widest text-[10px] font-bold">
+            <LayoutGrid className="w-3 h-3" />
+            <span>Store Management</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold font-headline text-foreground">
+            Product Catalog
+          </h1>
+          <p className="text-muted-foreground text-sm max-w-md">
+            Manage your masterfully crafted furniture and optimize for the Addis Ababa market.
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <ProductSuggestions />
+          <Button asChild size="lg" className="shadow-lg shadow-primary/20 h-12 px-6">
+            <Link href="/products/new">
+              <PlusCircle className="mr-2 h-5 w-5" />
+              New Creation
+            </Link>
+          </Button>
+        </div>
       </div>
-      <Suspense fallback={<TableSkeleton />}>
-        <ProductTable />
-      </Suspense>
+
+      <div className="space-y-6">
+        <Suspense fallback={<TableSkeleton />}>
+          <ProductTable />
+        </Suspense>
+      </div>
     </div>
   );
 }

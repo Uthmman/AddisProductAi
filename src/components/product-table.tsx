@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useTransition, useRef, useCallback } from "react";
@@ -228,13 +227,18 @@ export default function ProductTable() {
   };
 
   return (
-    <div className="w-full space-y-6">
-       <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2 w-full max-w-2xl mx-auto">
+    <div className="w-full space-y-8">
+       {/* Search & Filter Bar */}
+       <div className="relative">
+          <div className="flex items-center gap-0 w-full max-w-3xl mx-auto rounded-xl border border-primary/20 bg-background/80 backdrop-blur-xl shadow-2xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 transition-all">
+            
+            {/* Category Left */}
             {mounted ? (
               <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                <SelectTrigger className="w-11 h-11 p-0 flex items-center justify-center bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm transition-colors hover:bg-accent focus:ring-primary [&>span]:hidden [&>svg]:opacity-100">
-                  <FolderTree className="h-4 w-4 text-muted-foreground" />
+                <SelectTrigger className="w-14 h-14 border-none rounded-none bg-transparent hover:bg-primary/5 transition-colors focus:ring-0 [&>span]:hidden [&>svg]:hidden">
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <FolderTree className="h-5 w-5 text-accent" />
+                  </div>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="start">
@@ -247,23 +251,27 @@ export default function ProductTable() {
                 </SelectContent>
               </Select>
             ) : (
-              <SelectFallback width="w-11" />
+              <div className="w-14 h-14 bg-muted/20 animate-pulse" />
             )}
 
-            <div className="relative flex-1">
+            {/* Search Input */}
+            <div className="relative flex-1 group">
               <Input 
-                  placeholder="Search masterfully crafted furniture..." 
-                  className="pl-10 h-11 bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm focus-visible:ring-primary"
+                  placeholder="Find unique furniture designs..." 
+                  className="pl-12 h-14 border-none rounded-none bg-transparent focus-visible:ring-0 text-base font-medium placeholder:text-muted-foreground/60"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-20 pointer-events-none" />
             </div>
             
+            {/* Sort Right */}
             {mounted ? (
               <Select value={sortBy} onValueChange={handleSortChange}>
-                <SelectTrigger className="w-11 h-11 p-0 flex items-center justify-center bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm transition-colors hover:bg-accent focus:ring-primary [&>span]:hidden [&>svg]:opacity-100">
-                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                <SelectTrigger className="w-14 h-14 border-none rounded-none bg-transparent hover:bg-primary/5 transition-colors focus:ring-0 [&>span]:hidden [&>svg]:hidden border-l border-primary/10">
+                   <div className="flex flex-col items-center justify-center gap-1">
+                    <ArrowUpDown className="h-5 w-5 text-accent" />
+                  </div>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="end">
@@ -273,35 +281,46 @@ export default function ProductTable() {
                 </SelectContent>
               </Select>
             ) : (
-              <SelectFallback width="w-11" />
+              <div className="w-14 h-14 bg-muted/20 animate-pulse border-l border-primary/10" />
             )}
           </div>
 
-          <div className="flex justify-center text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+          {/* Results Badge */}
+          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
             {totalProducts > 0 && (
-                <span>
-                    Showing <span className="text-foreground">{products.length}</span> of <span className="text-foreground">{totalProducts}</span> Items
-                </span>
+                <div className="bg-accent text-accent-foreground px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg">
+                    {products.length} of {totalProducts} Products
+                </div>
             )}
           </div>
        </div>
 
-        {(isLoading && products.length === 0) ? (
-            <ProductGridSkeleton />
-        ) : products.length > 0 ? (
-             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-                {products.map((product) => (
-                    <ProductCard key={product.id} product={product} onDelete={setDeletingProduct} />
-                ))}
-            </div>
-        ) : (
-            <div className="h-60 flex flex-col items-center justify-center text-center text-muted-foreground col-span-full bg-muted/20 rounded-xl border border-dashed">
-                <p className="font-headline text-lg">No matches found.</p>
-                <p className="text-sm">Try different keywords or filters.</p>
-            </div>
-        )}
+        {/* Product Grid */}
+        <div className="pt-4">
+            {(isLoading && products.length === 0) ? (
+                <ProductGridSkeleton />
+            ) : products.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+                    {products.map((product) => (
+                        <ProductCard key={product.id} product={product} onDelete={setDeletingProduct} />
+                    ))}
+                </div>
+            ) : (
+                <div className="h-80 flex flex-col items-center justify-center text-center p-12 bg-muted/10 rounded-2xl border border-dashed border-primary/20">
+                    <div className="bg-muted p-4 rounded-full mb-4">
+                        <Search className="h-8 w-8 text-muted-foreground/40" />
+                    </div>
+                    <p className="font-headline text-2xl text-foreground mb-2">No masterworks found</p>
+                    <p className="text-muted-foreground text-sm max-w-xs">We couldn't find any products matching your search or category filter. Try clearing your filters.</p>
+                    <Button variant="link" onClick={() => { setSearchTerm(""); setSelectedCategory("all"); }} className="mt-4">
+                        Clear all filters
+                    </Button>
+                </div>
+            )}
+        </div>
       
-      <div className="flex flex-col items-center gap-4 py-8 border-t border-border/10">
+      {/* Footer / Pagination */}
+      <div className="flex flex-col items-center gap-4 py-12 border-t border-primary/5 mt-8">
         {isMobile ? (
           <>
             {page < totalPages && (
@@ -309,23 +328,20 @@ export default function ProductTable() {
                 onClick={() => fetchProducts(true)} 
                 disabled={isLoading}
                 variant="outline"
-                className="w-full max-w-xs h-11 bg-background/50 backdrop-blur-sm border-primary/20 shadow-md group"
+                className="w-full max-w-xs h-12 bg-background border-primary/30 shadow-xl group hover:bg-primary hover:text-primary-foreground transition-all rounded-xl font-bold"
               >
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <span className="group-hover:scale-105 transition-transform">Load More Creations</span>
+                  <span className="group-hover:scale-105 transition-transform">Explore More Creations</span>
                 )}
               </Button>
             )}
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-              Items {products.length} of {totalProducts}
-            </p>
           </>
         ) : (
           <div className="flex items-center justify-between w-full">
-            <div className="flex-1 text-xs text-muted-foreground font-medium">
-              Page {page} of {totalPages}
+            <div className="flex-1 text-xs text-muted-foreground font-bold uppercase tracking-wider">
+              Viewing Page {page} of {totalPages}
             </div>
             <div className="flex gap-2">
                 <Button
@@ -333,7 +349,7 @@ export default function ProductTable() {
                     size="sm"
                     onClick={() => { setPage(p => Math.max(1, p - 1)); fetchProducts(false); }}
                     disabled={page <= 1 || isLoading}
-                    className="bg-background/50 h-8 text-xs"
+                    className="bg-background h-10 px-5 border-primary/10 rounded-lg hover:border-primary transition-colors"
                 >
                 Previous
                 </Button>
@@ -342,7 +358,7 @@ export default function ProductTable() {
                     size="sm"
                     onClick={() => { setPage(p => Math.min(totalPages, p + 1)); fetchProducts(false); }}
                     disabled={page >= totalPages || isLoading}
-                    className="bg-background/50 h-8 text-xs"
+                    className="bg-background h-10 px-5 border-primary/10 rounded-lg hover:border-primary transition-colors"
                 >
                 Next
                 </Button>
@@ -351,18 +367,19 @@ export default function ProductTable() {
         )}
       </div>
 
+      {/* Delete Confirmation */}
       <AlertDialog open={!!deletingProduct} onOpenChange={(open) => !open && setDeletingProduct(null)}>
-        <AlertDialogContent className="bg-background/95 backdrop-blur-xl border-primary/20 max-w-[90vw] sm:max-w-lg">
+        <AlertDialogContent className="bg-background/95 backdrop-blur-2xl border-primary/20 max-w-[90vw] sm:max-w-lg shadow-2xl rounded-2xl">
             <AlertDialogHeader>
-            <AlertDialogTitle className="font-headline text-xl">Delete Product?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
-                Are you sure you want to delete <strong>{deletingProduct?.name}</strong>? It will be moved to the trash and can be recovered within 5 seconds.
+            <AlertDialogTitle className="font-headline text-2xl text-accent">Move to Archive?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                You are about to remove <strong>{deletingProduct?.name}</strong> from the active catalog. You will have 5 seconds to undo this action.
             </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full h-8 text-xs">Keep Product</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteProduct} className={cn(buttonVariants({ variant: "destructive" }), "rounded-full h-8 text-xs")}>
-                Move to Trash
+            <AlertDialogFooter className="gap-3 sm:gap-0">
+            <AlertDialogCancel className="rounded-xl h-11 px-6 border-primary/20 font-bold">Keep Creation</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProduct} className={cn(buttonVariants({ variant: "destructive" }), "rounded-xl h-11 px-6 font-bold shadow-lg shadow-destructive/20")}>
+                Archive Now
             </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

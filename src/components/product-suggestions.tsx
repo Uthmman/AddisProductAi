@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Lightbulb, PlusCircle, RefreshCw, Terminal, Sparkles } from "lucide-react";
+import { Lightbulb, PlusCircle, RefreshCw, Terminal, Sparkles, BrainCircuit } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { cn } from "@/lib/utils";
@@ -38,7 +38,6 @@ function SuggestionSkeleton() {
                 </Card>
             ))}
         </div>
-        <Separator className="my-6" />
     </div>
   );
 }
@@ -79,69 +78,80 @@ export default function ProductSuggestions() {
 
   if (!hasFetched) {
       return (
-        <div className="mb-6 flex justify-end">
-            <Button 
-                onClick={fetchSuggestions} 
-                disabled={isLoading} 
-                variant="ghost"
-                size="sm"
-                className="text-accent hover:text-primary hover:bg-primary/10 rounded-full px-4"
-            >
-                <Sparkles className="mr-2 h-4 w-4" />
-                Find AI Product Gaps
-            </Button>
-        </div>
+        <Button 
+            onClick={fetchSuggestions} 
+            disabled={isLoading} 
+            variant="outline"
+            className="h-12 border-primary/20 bg-background/50 hover:bg-primary/5 rounded-md px-5 group relative overflow-hidden"
+        >
+            <div className="absolute inset-0 bg-primary/5 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity" />
+            <Sparkles className="mr-2 h-4 w-4 text-primary animate-bounce duration-1000" />
+            <span className="font-bold text-xs uppercase tracking-wider">Analyze Market Gaps</span>
+        </Button>
       );
   }
 
   if (isLoading) {
-    return <SuggestionSkeleton />;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="bg-card border p-8 rounded-xl shadow-2xl flex flex-col items-center gap-4 max-w-xs text-center">
+                <div className="relative">
+                    <BrainCircuit className="h-12 w-12 text-primary animate-pulse" />
+                    <RefreshCw className="absolute inset-0 h-12 w-12 text-primary/30 animate-spin" />
+                </div>
+                <h3 className="font-headline text-xl font-bold">Scanning Addis Market...</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">Identifying unserved furniture needs based on latest search trends.</p>
+            </div>
+        </div>
+    )
   }
 
   return (
-    <div className="mb-6 animate-in fade-in slide-in-from-top-2 duration-500">
-      <div className="flex flex-row justify-between items-center mb-4 gap-4">
-        <h2 className="text-lg font-bold font-headline flex items-center gap-2">
-            <div className="bg-primary/20 p-1.5 rounded-full">
-                <Lightbulb className="h-4 w-4 text-primary" />
+    <div className="w-full animate-in fade-in slide-in-from-top-4 duration-700 mb-10">
+      <div className="flex flex-row justify-between items-center mb-6 gap-4">
+        <h2 className="text-xl font-bold font-headline flex items-center gap-3">
+            <div className="bg-primary p-2 rounded-lg shadow-sm">
+                <Lightbulb className="h-5 w-5 text-primary-foreground" />
             </div>
-            Recommended for Production
+            AI Production Recommendations
         </h2>
-        <Button variant="ghost" onClick={fetchSuggestions} disabled={isLoading} className="h-8 text-xs px-2 hover:bg-muted">
+        <Button variant="ghost" onClick={fetchSuggestions} disabled={isLoading} className="h-9 text-xs px-3 hover:bg-primary/10 text-accent font-bold">
             <RefreshCw className={cn("mr-2 h-3 w-3", isLoading && "animate-spin")} />
-            Refresh Analysis
+            Re-Analyze Search Data
         </Button>
       </div>
 
       {error && (
-        <Alert variant="destructive" className="mb-4 py-2 border-none bg-destructive/10">
+        <Alert variant="destructive" className="mb-6 border-none bg-destructive/5 text-destructive ring-1 ring-destructive/20">
             <Terminal className="h-4 w-4" />
-            <AlertTitle className="text-sm font-bold">Analysis Offline</AlertTitle>
-            <AlertDescription className="text-xs">{error}</AlertDescription>
+            <AlertTitle className="text-sm font-bold">Search Analysis Offline</AlertTitle>
+            <AlertDescription className="text-xs font-medium">{error}</AlertDescription>
         </Alert>
       )}
 
-      {!error && !isLoading && suggestions.length === 0 && hasFetched && (
-        <p className="text-xs text-muted-foreground text-center p-6 bg-muted/20 rounded-lg italic">
-            Search data is fully covered. No new gaps identified today.
-        </p>
+      {!error && suggestions.length === 0 && hasFetched && (
+        <div className="text-center p-12 bg-muted/20 rounded-xl border-2 border-dashed border-muted">
+            <p className="text-sm text-muted-foreground font-medium italic">
+                Your current catalog covers all recent search trends perfectly.
+            </p>
+        </div>
       )}
 
       {!error && suggestions.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {suggestions.map((suggestion, index) => (
-            <Card key={index} className="flex flex-col border-none shadow-md bg-card/60 backdrop-blur-sm group hover:shadow-lg transition-all">
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-base group-hover:text-primary transition-colors">{suggestion.name}</CardTitle>
+            <Card key={index} className="flex flex-col border-none shadow-xl bg-card/70 backdrop-blur-md group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ring-1 ring-primary/5">
+              <CardHeader className="p-5 pb-2">
+                <CardTitle className="text-lg text-accent group-hover:text-primary transition-colors leading-tight">{suggestion.name}</CardTitle>
               </CardHeader>
-              <CardContent className="flex-grow p-4 pt-0 pb-4">
-                <p className="text-xs text-muted-foreground leading-relaxed">{suggestion.reason}</p>
+              <CardContent className="flex-grow p-5 pt-0 pb-6">
+                <p className="text-xs text-muted-foreground leading-relaxed font-medium">{suggestion.reason}</p>
               </CardContent>
-              <CardFooter className="p-4 pt-0">
-                <Button asChild size="sm" className="w-full h-9 rounded-md">
+              <CardFooter className="p-5 pt-0">
+                <Button asChild size="sm" className="w-full h-10 rounded-lg font-bold">
                   <Link href={`/products/new?name=${encodeURIComponent(suggestion.name)}`}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Start Prototype
+                    Start Prototype Listing
                   </Link>
                 </Button>
               </CardFooter>
@@ -149,7 +159,7 @@ export default function ProductSuggestions() {
           ))}
         </div>
       )}
-       <Separator className="my-6 border-border/10" />
+       <div className="mt-10 mb-2 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
     </div>
   );
 }
