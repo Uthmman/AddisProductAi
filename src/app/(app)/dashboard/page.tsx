@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PlusCircle, LayoutGrid } from "lucide-react";
+import { PlusCircle, LayoutGrid, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProductTable from "@/components/product-table";
 import { Suspense } from "react";
@@ -12,7 +12,7 @@ export const metadata = {
 
 export default function DashboardPage() {
   return (
-    <div className="container mx-auto py-4 sm:py-8 space-y-8">
+    <div className="container mx-auto py-4 sm:py-8 space-y-8 relative min-h-screen">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-primary/10 pb-6">
         <div className="space-y-1">
@@ -30,12 +30,6 @@ export default function DashboardPage() {
         
         <div className="flex items-center gap-3">
           <ProductSuggestions />
-          <Button asChild size="lg" className="shadow-lg shadow-primary/20 h-12 px-6">
-            <Link href="/products/new">
-              <PlusCircle className="mr-2 h-5 w-5" />
-              New Creation
-            </Link>
-          </Button>
         </div>
       </div>
 
@@ -43,6 +37,16 @@ export default function DashboardPage() {
         <Suspense fallback={<TableSkeleton />}>
           <ProductTable />
         </Suspense>
+      </div>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <Button asChild size="icon" className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 hover:scale-110 transition-transform">
+          <Link href="/products/new">
+            <Plus className="h-8 w-8" />
+            <span className="sr-only">New Creation</span>
+          </Link>
+        </Button>
       </div>
     </div>
   );

@@ -228,8 +228,8 @@ export default function ProductTable() {
 
   return (
     <div className="w-full space-y-8">
-       {/* Search & Filter Bar */}
-       <div className="relative">
+       {/* Search & Filter Bar - Sticky */}
+       <div className="sticky top-0 sm:top-2 z-40 pb-4 -mx-2 px-2 bg-background/50 backdrop-blur-md transition-all">
           <div className="flex items-center gap-0 w-full max-w-3xl mx-auto rounded-xl border border-primary/20 bg-background/80 backdrop-blur-xl shadow-2xl overflow-hidden focus-within:ring-2 focus-within:ring-primary/30 transition-all">
             
             {/* Category Left */}
@@ -284,15 +284,6 @@ export default function ProductTable() {
               <div className="w-14 h-14 bg-muted/20 animate-pulse border-l border-primary/10" />
             )}
           </div>
-
-          {/* Results Badge */}
-          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
-            {totalProducts > 0 && (
-                <div className="bg-accent text-accent-foreground px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg">
-                    {products.length} of {totalProducts} Products
-                </div>
-            )}
-          </div>
        </div>
 
         {/* Product Grid */}
@@ -320,51 +311,55 @@ export default function ProductTable() {
         </div>
       
       {/* Footer / Pagination */}
-      <div className="flex flex-col items-center gap-4 py-12 border-t border-primary/5 mt-8">
-        {isMobile ? (
-          <>
-            {page < totalPages && (
-              <Button 
-                onClick={() => fetchProducts(true)} 
-                disabled={isLoading}
-                variant="outline"
-                className="w-full max-w-xs h-12 bg-background border-primary/30 shadow-xl group hover:bg-primary hover:text-primary-foreground transition-all rounded-xl font-bold"
-              >
-                {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <span className="group-hover:scale-105 transition-transform">Explore More Creations</span>
+      <div className="flex flex-col items-center gap-4 py-8 border-t border-primary/5 mt-8">
+        <div className="flex flex-col items-center gap-4 w-full">
+            {/* Counter */}
+            <div className="text-[10px] font-bold uppercase tracking-widest text-accent/60 bg-accent/5 px-4 py-1.5 rounded-full">
+                {products.length} of {totalProducts} Products
+            </div>
+
+            {isMobile ? (
+            <>
+                {page < totalPages && (
+                <Button 
+                    onClick={() => fetchProducts(true)} 
+                    disabled={isLoading}
+                    variant="outline"
+                    className="w-full max-w-xs h-12 bg-background border-primary/30 shadow-xl group hover:bg-primary hover:text-primary-foreground transition-all rounded-xl font-bold"
+                >
+                    {isLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                    <span className="group-hover:scale-105 transition-transform">Explore More Creations</span>
+                    )}
+                </Button>
                 )}
-              </Button>
+            </>
+            ) : (
+            <div className="flex items-center justify-center w-full">
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setPage(p => Math.max(1, p - 1)); fetchProducts(false); }}
+                        disabled={page <= 1 || isLoading}
+                        className="bg-background h-10 px-5 border-primary/10 rounded-lg hover:border-primary transition-colors"
+                    >
+                    Previous
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setPage(p => Math.min(totalPages, p + 1)); fetchProducts(false); }}
+                        disabled={page >= totalPages || isLoading}
+                        className="bg-background h-10 px-5 border-primary/10 rounded-lg hover:border-primary transition-colors"
+                    >
+                    Next
+                    </Button>
+                </div>
+            </div>
             )}
-          </>
-        ) : (
-          <div className="flex items-center justify-between w-full">
-            <div className="flex-1 text-xs text-muted-foreground font-bold uppercase tracking-wider">
-              Viewing Page {page} of {totalPages}
-            </div>
-            <div className="flex gap-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => { setPage(p => Math.max(1, p - 1)); fetchProducts(false); }}
-                    disabled={page <= 1 || isLoading}
-                    className="bg-background h-10 px-5 border-primary/10 rounded-lg hover:border-primary transition-colors"
-                >
-                Previous
-                </Button>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => { setPage(p => Math.min(totalPages, p + 1)); fetchProducts(false); }}
-                    disabled={page >= totalPages || isLoading}
-                    className="bg-background h-10 px-5 border-primary/10 rounded-lg hover:border-primary transition-colors"
-                >
-                Next
-                </Button>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Delete Confirmation */}
