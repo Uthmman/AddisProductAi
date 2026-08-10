@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { PlusCircle, LayoutGrid, Plus } from "lucide-react";
+import { LayoutGrid, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProductTable from "@/components/product-table";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import ProductSuggestions from "@/components/product-suggestions";
+import { FloatingAddButton } from "@/components/floating-add-button";
 
 export const metadata = {
   title: "Dashboard | Addis Product AI",
@@ -29,6 +30,12 @@ export default function DashboardPage() {
         </div>
         
         <div className="flex items-center gap-3">
+          <Button asChild id="header-add-button">
+            <Link href="/products/new">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              New Product
+            </Link>
+          </Button>
           <ProductSuggestions />
         </div>
       </div>
@@ -39,15 +46,8 @@ export default function DashboardPage() {
         </Suspense>
       </div>
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-8 right-8 z-50">
-        <Button asChild size="icon" className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 hover:scale-110 transition-transform">
-          <Link href="/products/new">
-            <Plus className="h-8 w-8" />
-            <span className="sr-only">New Creation</span>
-          </Link>
-        </Button>
-      </div>
+      {/* Floating Action Button - Smart Visibility */}
+      <FloatingAddButton observerTargetId="header-add-button" />
     </div>
   );
 }
