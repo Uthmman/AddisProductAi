@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useTransition, useRef, useCallback } from "react";
@@ -230,6 +231,25 @@ export default function ProductTable() {
     <div className="w-full space-y-6">
        <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2 w-full max-w-2xl mx-auto">
+            {mounted ? (
+              <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+                <SelectTrigger className="w-11 h-11 p-0 flex items-center justify-center bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm transition-colors hover:bg-accent focus:ring-primary [&>span]:hidden [&>svg]:opacity-100">
+                  <FolderTree className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
+                      </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <SelectFallback width="w-11" />
+            )}
+
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
@@ -241,39 +261,19 @@ export default function ProductTable() {
             </div>
             
             {mounted ? (
-              <>
-                <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                  <SelectTrigger className="w-11 h-11 p-0 flex items-center justify-center bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm transition-colors hover:bg-accent focus:ring-primary [&>span]:hidden [&>svg]:opacity-100">
-                    <FolderTree className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id.toString()}>
-                        {category.name}
-                        </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={sortBy} onValueChange={handleSortChange}>
-                  <SelectTrigger className="w-11 h-11 p-0 flex items-center justify-center bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm transition-colors hover:bg-accent focus:ring-primary [&>span]:hidden [&>svg]:opacity-100">
-                    <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="recent">Recent Arrivals</SelectItem>
-                    <SelectItem value="price_asc">Price: Low to High</SelectItem>
-                    <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              </>
+              <Select value={sortBy} onValueChange={handleSortChange}>
+                <SelectTrigger className="w-11 h-11 p-0 flex items-center justify-center bg-background/50 backdrop-blur-sm border-primary/10 shadow-sm transition-colors hover:bg-accent focus:ring-primary [&>span]:hidden [&>svg]:opacity-100">
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value="recent">Recent Arrivals</SelectItem>
+                  <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                </SelectContent>
+              </Select>
             ) : (
-              <div className="flex gap-2">
-                <SelectFallback width="w-11" />
-                <SelectFallback width="w-11" />
-              </div>
+              <SelectFallback width="w-11" />
             )}
           </div>
 
