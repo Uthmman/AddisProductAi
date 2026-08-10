@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Lightbulb, PlusCircle, RefreshCw, Terminal, Sparkles } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { cn } from "@/lib/utils";
 
 type Suggestion = {
   name: string;
