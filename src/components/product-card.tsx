@@ -68,7 +68,7 @@ export function ProductCard({ product, onDelete }: ProductCardProps) {
               sizes="(max-width: 768px) 50vw, 25vw"
             />
             {product.status === 'draft' && (
-              <Badge variant="secondary" className="absolute top-2 left-2 z-10 backdrop-blur-md bg-background/70">Draft</Badge>
+              <Badge variant="secondary" className="absolute top-2 left-2 z-10 backdrop-blur-md bg-background/70 border-none shadow-sm">Draft</Badge>
             )}
           </div>
         </CardHeader>
