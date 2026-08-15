@@ -36,8 +36,12 @@ export default function DashboardPage() {
               New Product
             </Link>
           </Button>
-          <ProductSuggestions />
         </div>
+      </div>
+
+      {/* AI Recommendations Section - Moved to full width row for better responsiveness */}
+      <div className="w-full">
+        <ProductSuggestions />
       </div>
 
       <div className="space-y-6">

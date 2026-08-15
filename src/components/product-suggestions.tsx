@@ -6,7 +6,6 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Lightbulb, PlusCircle, RefreshCw, Terminal, Sparkles, BrainCircuit } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { cn } from "@/lib/utils";
 
@@ -78,16 +77,18 @@ export default function ProductSuggestions() {
 
   if (!hasFetched) {
       return (
-        <Button 
-            onClick={fetchSuggestions} 
-            disabled={isLoading} 
-            variant="outline"
-            className="h-12 border-primary/20 bg-background/50 hover:bg-primary/5 rounded-md px-5 group relative overflow-hidden"
-        >
-            <div className="absolute inset-0 bg-primary/5 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity" />
-            <Sparkles className="mr-2 h-4 w-4 text-primary animate-bounce duration-1000" />
-            <span className="font-bold text-xs uppercase tracking-wider">Analyze Market Gaps</span>
-        </Button>
+        <div className="mb-6">
+            <Button 
+                onClick={fetchSuggestions} 
+                disabled={isLoading} 
+                variant="outline"
+                className="w-full sm:w-auto h-12 border-primary/20 bg-background/50 hover:bg-primary/5 rounded-md px-5 group relative overflow-hidden"
+            >
+                <div className="absolute inset-0 bg-primary/5 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Sparkles className="mr-2 h-4 w-4 text-primary animate-bounce duration-1000" />
+                <span className="font-bold text-xs uppercase tracking-wider">Analyze Market Gaps</span>
+            </Button>
+        </div>
       );
   }
 
@@ -108,14 +109,14 @@ export default function ProductSuggestions() {
 
   return (
     <div className="w-full animate-in fade-in slide-in-from-top-4 duration-700 mb-10">
-      <div className="flex flex-row justify-between items-center mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
         <h2 className="text-xl font-bold font-headline flex items-center gap-3">
             <div className="bg-primary p-2 rounded-lg shadow-sm">
                 <Lightbulb className="h-5 w-5 text-primary-foreground" />
             </div>
             AI Production Recommendations
         </h2>
-        <Button variant="ghost" onClick={fetchSuggestions} disabled={isLoading} className="h-9 text-xs px-3 hover:bg-primary/10 text-accent font-bold">
+        <Button variant="ghost" onClick={fetchSuggestions} disabled={isLoading} className="h-9 text-xs px-3 hover:bg-primary/10 text-accent font-bold w-full sm:w-auto">
             <RefreshCw className={cn("mr-2 h-3 w-3", isLoading && "animate-spin")} />
             Re-Analyze Search Data
         </Button>
