@@ -74,6 +74,22 @@ async function handleResponse(response: Response, errorMessage: string) {
     return response.json();
 }
 
+/**
+ * Executes a fetch request with localized error handling for network failures.
+ */
+async function safeFetch(url: string, options: RequestInit, errorContext: string) {
+    try {
+        const response = await fetch(url, options);
+        return response;
+    } catch (error: any) {
+        console.error(`Fetch error in ${errorContext}:`, error);
+        if (error.message === 'fetch failed') {
+            throw new Error(`Connection failed to ${url}. Please verify your API URL and network connectivity.`);
+        }
+        throw error;
+    }
+}
+
 export async function getProducts(
   page = 1, 
   perPage = 10, 
@@ -97,10 +113,10 @@ export async function getProducts(
   if (orderby) params.append('orderby', orderby);
   if (order) params.append('order', order);
   
-  const response = await fetch(`${WOOCOMMERCE_API_URL}/products?${params.toString()}`, { headers, cache: 'no-store' });
+  const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products?${params.toString()}`, { headers, cache: 'no-store' }, 'getProducts');
 
   if (!response.ok) {
-     let message = `Failed to fetch products. Status: ${response.status}`;
+    let message = `Failed to fetch products. Status: ${response.status}`;
     try {
         const errorBody = await response.json();
         if (errorBody.message) {
@@ -126,21 +142,21 @@ export async function getProducts(
 
 export async function getTopProductCategories(): Promise<WooCategory[]> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?hide_empty=true&orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' });
+    const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products/categories?hide_empty=true&orderby=count&order=desc&per_page=100`, { headers, cache: 'no-store' }, 'getTopProductCategories');
     const categories: WooCategory[] = await handleResponse(response, 'Failed to fetch product categories');
     return categories.filter(c => c.slug !== 'uncategorized');
 }
 
 export async function getAllProductCategories(): Promise<WooCategory[]> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories?orderby=name&order=asc&per_page=100`, { headers, cache: 'no-store' });
+    const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products/categories?orderby=name&order=asc&per_page=100`, { headers, cache: 'no-store' }, 'getAllProductCategories');
     const categories: WooCategory[] = await handleResponse(response, 'Failed to fetch all product categories');
     return categories.filter(c => c.slug !== 'uncategorized');
 }
 
 export async function getProduct(id: number): Promise<WooProduct | null> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/${id}?_embed`, { headers, cache: 'no-store' });
+    const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products/${id}?_embed`, { headers, cache: 'no-store' }, `getProduct(${id})`);
 
     if (!response.ok) {
         if (response.status === 404) return null;
@@ -152,21 +168,21 @@ export async function getProduct(id: number): Promise<WooProduct | null> {
 
 export async function createProduct(productData: any): Promise<WooProduct> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products`, {
+    const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products`, {
         method: 'POST',
         headers,
         body: JSON.stringify(productData)
-    });
+    }, 'createProduct');
     return handleResponse(response, 'Failed to create product');
 }
 
 export async function updateProduct(id: number, productData: any): Promise<WooProduct> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/${id}`, {
+    const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products/${id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(productData)
-    });
+    }, `updateProduct(${id})`);
     return handleResponse(response, `Failed to update product ${id}`);
 }
 
@@ -177,40 +193,40 @@ export async function updateProduct(id: number, productData: any): Promise<WooPr
  */
 export async function deleteProduct(id: number, force: boolean = false): Promise<{id: number}> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/${id}?force=${force}`, {
+    const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products/${id}?force=${force}`, {
         method: 'DELETE',
         headers
-    });
+    }, `deleteProduct(${id})`);
     const result = await handleResponse(response, `Failed to delete product ${id}`);
     return { id: result.id };
 }
 
 export async function createCategory(categoryData: { name: string; slug?: string; parent?: number, image?: { id?: number, src?: string } }): Promise<WooCategory> {
   const headers = getAuthHeaders();
-  const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories`, {
+  const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products/categories`, {
     method: 'POST',
     headers,
     body: JSON.stringify(categoryData),
-  });
+  }, 'createCategory');
   return handleResponse(response, 'Failed to create category');
 }
 
 export async function updateCategory(id: number, categoryData: { name?: string; slug?: string; parent?: number, image?: { id?: number, src?: string } }): Promise<WooCategory> {
   const headers = getAuthHeaders();
-  const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories/${id}`, {
+  const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products/categories/${id}`, {
     method: 'PUT',
     headers,
     body: JSON.stringify(categoryData),
-  });
+  }, `updateCategory(${id})`);
   return handleResponse(response, `Failed to update category ${id}`);
 }
 
 export async function deleteCategory(id: number, force: boolean = true): Promise<WooCategory> {
   const headers = getAuthHeaders();
-  const response = await fetch(`${WOOCOMMERCE_API_URL}/products/categories/${id}?force=${force}`, {
+  const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products/categories/${id}?force=${force}`, {
     method: 'DELETE',
     headers,
-  });
+  }, `deleteCategory(${id})`);
   return handleResponse(response, `Failed to delete category ${id}`);
 }
 
@@ -257,28 +273,28 @@ export async function uploadImage(imageName: string, imageData: string): Promise
 
 export async function updateProductBatch(updates: { update: any[] }): Promise<any> {
     const headers = getAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_API_URL}/products/batch`, {
+    const response = await safeFetch(`${WOOCOMMERCE_API_URL}/products/batch`, {
         method: 'POST',
         headers,
         body: JSON.stringify(updates)
-    });
+    }, 'updateProductBatch');
     return handleResponse(response, 'Failed to batch update products');
 }
 
 export async function getAllProductTags(): Promise<WooTag[]> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' });
+    const response = await safeFetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag?orderby=count&order=desc&per_page=100&context=edit`, { headers, cache: 'no-store' }, 'getAllProductTags');
     return handleResponse(response, "Failed to fetch product tags");
 }
 
 export async function getSingleProductTag(id: number): Promise<WooTag | null> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}?context=edit`, { 
+    const response = await safeFetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}?context=edit`, { 
         headers, 
         cache: 'no-store' 
-    });
+    }, `getSingleProductTag(${id})`);
 
     if (!response.ok) {
         if (response.status === 404) return null;
@@ -301,11 +317,11 @@ export async function updateProductTag(
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
     
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}`, {
+    const response = await safeFetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(tagData),
-    });
+    }, `updateProductTag(${id})`);
 
     return handleResponse(response, `Failed to update product tag ${id}`);
 }
@@ -313,28 +329,28 @@ export async function updateProductTag(
 export async function createProductTag(tagData: { name: string; slug?: string; description?: string; meta?: { [key: string]: any } }): Promise<WooTag> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag`, {
+    const response = await safeFetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag`, {
         method: 'POST',
         headers,
         body: JSON.stringify(tagData),
-    });
+    }, 'createProductTag');
     return handleResponse(response, 'Failed to create product tag');
 }
 
 export async function deleteProductTag(id: number, force: boolean = true): Promise<WooTag> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for tag management.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}?force=${force}`, {
+    const response = await safeFetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/product_tag/${id}?force=${force}`, {
         method: 'DELETE',
         headers,
-    });
+    }, `deleteProductTag(${id})`);
     return handleResponse(response, `Failed to delete product tag ${id}`);
 }
 
 export async function getPosts(page = 1, perPage = 10): Promise<{posts: WooPost[], totalPages: number, totalPosts: number}> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for posts.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts?per_page=${perPage}&page=${page}&context=edit&_embed`, { headers, cache: 'no-store' });
+    const response = await safeFetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts?per_page=${perPage}&page=${page}&context=edit&_embed`, { headers, cache: 'no-store' }, 'getPosts');
 
     if (!response.ok) {
         await handleResponse(response, 'Failed to fetch posts');
@@ -350,7 +366,7 @@ export async function getPosts(page = 1, perPage = 10): Promise<{posts: WooPost[
 export async function getPost(id: number): Promise<WooPost | null> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for posts.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts/${id}?context=edit&_embed`, { headers, cache: 'no-store' });
+    const response = await safeFetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts/${id}?context=edit&_embed`, { headers, cache: 'no-store' }, `getPost(${id})`);
 
     if (!response.ok) {
         if (response.status === 404) return null;
@@ -365,11 +381,11 @@ export async function createPost(postData: { title: string; content: string; sta
     const headers = getWordPressAuthHeaders();
     const wpApiUrl = `${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2`;
 
-    const response = await fetch(`${wpApiUrl}/posts`, {
+    const response = await safeFetch(`${wpApiUrl}/posts`, {
         method: 'POST',
         headers,
         body: JSON.stringify(postData),
-    });
+    }, 'createPost');
 
     return handleResponse(response, 'Failed to create WordPress post');
 }
@@ -377,21 +393,21 @@ export async function createPost(postData: { title: string; content: string; sta
 export async function updatePost(id: number, postData: { title?: string; content?: string; status?: string; featured_media?: number }): Promise<WooPost> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for posts.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts/${id}`, {
+    const response = await safeFetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts/${id}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(postData),
-    });
+    }, `updatePost(${id})`);
     return handleResponse(response, `Failed to update post ${id}`);
 }
 
 export async function deletePost(id: number): Promise<any> {
     if(!WOOCOMMERCE_SITE_URL) throw new Error("WordPress Site URL is required for posts.");
     const headers = getWordPressAuthHeaders();
-    const response = await fetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts/${id}?force=true`, {
+    const response = await safeFetch(`${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2/posts/${id}?force=true`, {
         method: 'DELETE',
         headers,
-    });
+    }, `deletePost(${id})`);
     return handleResponse(response, `Failed to delete post ${id}`);
 }
 

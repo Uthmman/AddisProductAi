@@ -103,11 +103,13 @@ export default function ProductTable() {
       }
 
       const response = await fetch(`/api/products?${params.toString()}`);
-      const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch products');
+        const errorData = await response.json().catch(() => ({ message: 'The server returned an unexpected error.' }));
+        throw new Error(errorData.message || `Failed to fetch products (Status: ${response.status})`);
       }
+
+      const data = await response.json();
 
       if (isLoadMore) {
         setProducts(prev => [...prev, ...(data.products || [])]);
@@ -123,8 +125,8 @@ export default function ProductTable() {
       console.error("Failed to fetch products:", error);
       if (!isLoadMore) setProducts([]);
       toast({
-        title: "Error",
-        description: error.message || "Could not load products.",
+        title: "Connection Error",
+        description: error.message || "Could not load products. Please check your connection or backend settings.",
         variant: "destructive",
       });
     } finally {
