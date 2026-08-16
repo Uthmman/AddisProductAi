@@ -592,9 +592,9 @@ export default function ProductForm({ product }: ProductFormProps) {
   
   const handleCategorySelect = useCallback((category: WooCategory) => {
     setSelectedCategories(prev => {
-        const isSelected = prev.some(c => c.id === category.id);
+        const isSelected = prev.some(c => (c.id && c.id === category.id) || (c.name === category.name));
         if (isSelected) {
-            return prev.filter(c => c.id !== category.id);
+            return prev.filter(c => !((c.id && c.id === category.id) || (c.name === category.name)));
         } else {
             return [...prev, { id: category.id, name: category.name }];
         }
@@ -809,7 +809,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                                         <CommandEmpty>No categories found.</CommandEmpty>
                                         <CommandGroup>
                                             {availableCategories.map((category) => {
-                                                const isSelected = selectedCategories.some(c => c.id === category.id);
+                                                const isSelected = selectedCategories.some(c => (c.id && c.id === category.id) || (c.name === category.name));
                                                 return (
                                                     <CommandItem
                                                         key={category.id}
