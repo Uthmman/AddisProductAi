@@ -813,8 +813,14 @@ export default function ProductForm({ product }: ProductFormProps) {
                                                 return (
                                                     <CommandItem
                                                         key={category.id}
+                                                        value={category.name}
                                                         onSelect={() => {
                                                           handleCategorySelect(category);
+                                                        }}
+                                                        onPointerDown={(e) => {
+                                                          // Known fix for cmdk in popover click issues
+                                                          e.preventDefault();
+                                                          e.stopPropagation();
                                                         }}
                                                     >
                                                       <div className={cn( "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50" )}>
@@ -835,7 +841,7 @@ export default function ProductForm({ product }: ProductFormProps) {
                        <div className="flex justify-between items-center"><Label>Descriptions</Label>{renderGenButton('description', 'Descriptions')}</div>
                        <Textarea value={aiContent.description || ''} onChange={(e) => setAiContent(p => ({...p, description: e.target.value}))} rows={10} placeholder="Comprehensive SEO description..." className="text-sm font-body leading-relaxed"/>
                        <Label className="text-xs uppercase text-muted-foreground mt-2 inline-block">Short Summary (Bullet Points)</Label>
-                       <Textarea value={aiContent.short_description || ''} onChange={(e) => setAiContent(p => ({...p, short_description: e.target.value}))} rows={4} placeholder="Key features summary..." className="mt-1 text-sm"/>
+                       <Textarea value={aiContent.short_description || ''} onChange={(e) => setAiContent(p => ({p, short_description: e.target.value}))} rows={4} placeholder="Key features summary..." className="mt-1 text-sm"/>
                    </div>
 
                    <div className="space-y-2">
