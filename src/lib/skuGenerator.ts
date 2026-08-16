@@ -34,7 +34,12 @@ const CATEGORY_MAP: { [key: string]: string } = {
   'reception': '19',
   'home office': '20',
   'kitchen': '21',
-  'door': '22'
+  'door': '22',
+  'chair': '23',
+  'stool': '23',
+  'bench': '23',
+  'sofa': '24',
+  'couch': '24'
 };
 
 /**
@@ -55,7 +60,7 @@ export function getCategoryCode(rawProductName: string): string | null {
  */
 export async function initSkuCounters() {
   const counters: { [key: string]: number } = {};
-  for (let i = 1; i <= 22; i++) {
+  for (let i = 1; i <= 24; i++) {
     const code = i.toString().padStart(2, '0');
     counters[code] = 20;
   }
@@ -79,7 +84,7 @@ export async function getNextSku(categoryCode: string): Promise<string> {
     if (!counterDoc.exists()) {
       // Document missing: Initialize counters
       counters = {};
-      for (let i = 1; i <= 22; i++) {
+      for (let i = 1; i <= 24; i++) {
         const code = i.toString().padStart(2, '0');
         counters[code] = 20;
       }
