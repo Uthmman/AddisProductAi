@@ -1,13 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow reading the auth password for the login flow
-    match /settings/auth {
-      allow read: if true;
-    }
-    // Allow reading and writing SKU counters for product creation
-    // Using a recursive match to ensure the specific counters document is always accessible
-    match /skuCounters/{document=**} {
+    // Open access for prototype use. 
+    // This allows SKU counters and settings to be modified without auth.
+    match /{document=**} {
       allow read, write: if true;
     }
   }
