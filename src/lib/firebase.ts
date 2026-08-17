@@ -10,7 +10,12 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
+// Log warning if config is missing during server-side execution
+if (typeof window === 'undefined' && !firebaseConfig.projectId) {
+  console.warn("FIREBASE WARNING: NEXT_PUBLIC_FIREBASE_PROJECT_ID is missing. Firestore operations will fail.");
+}
+
+// Initialize Firebase singleton
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const db = getFirestore(app);
 

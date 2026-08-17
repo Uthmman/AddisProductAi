@@ -1,8 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Open access for prototype use. 
-    // This allows SKU counters and settings to be modified without auth.
+    // Public access for prototype development.
+    // Ensure these rules are deployed to the correct Firebase project.
     match /{document=**} {
       allow read, write: if true;
     }

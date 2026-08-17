@@ -88,8 +88,9 @@ export async function POST(request: NextRequest) {
         const isPermissionDenied = firestoreError.message?.includes('PERMISSION_DENIED') || firestoreError.code === 'permission-denied';
         
         if (isPermissionDenied) {
+          const currentProject = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'Not Configured';
           return NextResponse.json({ 
-            message: "Database access denied. This is usually caused by: 1) Firebase rules not being deployed. 2) The device clock being out of sync. 3) Network blocking Firebase. Please ensure rules are set to 'allow read, write: if true;' in the console." 
+            message: `Database access denied (Project: ${currentProject}). This is usually caused by: 1) Firebase rules not being deployed. 2) The device clock being out of sync. 3) Missing environment variables on this port. Please ensure rules are 'allow read, write: if true;' in the console.` 
           }, { status: 500 });
         }
 
