@@ -10,6 +10,7 @@ import Header from '@/components/header';
 import { TaskProvider } from '@/context/task-context';
 import { TaskProgressFloating } from '@/components/task-progress-floating';
 import AutoGscAnalyzer from '@/components/auto-gsc-analyzer';
+import { LogoutButton } from '@/components/logout-button';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -56,7 +57,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <MainNav isCollapsed={mounted ? isCollapsed : false} />
-          <div className="mt-auto flex flex-col items-center gap-4 p-4">
+          
+          <div className="mt-auto flex flex-col items-center gap-2 p-4">
+            <LogoutButton isCollapsed={mounted ? isCollapsed : false} />
             <Button
               variant="ghost"
               size="icon"
