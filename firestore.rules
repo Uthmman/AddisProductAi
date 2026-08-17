@@ -6,7 +6,8 @@ service cloud.firestore {
       allow read: if true;
     }
     // Allow reading and writing SKU counters for product creation
-    match /skuCounters/counters {
+    // Using a recursive match to ensure the specific counters document is always accessible
+    match /skuCounters/{document=**} {
       allow read, write: if true;
     }
   }

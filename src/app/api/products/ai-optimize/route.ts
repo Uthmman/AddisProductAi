@@ -86,10 +86,15 @@ export async function POST(request: NextRequest) {
       } catch (firestoreError: any) {
         console.error("Firestore SKU error:", firestoreError);
         const isPermissionDenied = firestoreError.message?.includes('PERMISSION_DENIED') || firestoreError.code === 'permission-denied';
+        
+        if (isPermissionDenied) {
+          return NextResponse.json({ 
+            message: "Database access denied. Please ensure your Firebase security rules are deployed. Note: This could also happen if the device's clock is out of sync or if the network is blocking Firebase." 
+          }, { status: 500 });
+        }
+
         return NextResponse.json({ 
-          message: isPermissionDenied 
-            ? "Database access denied. Please ensure your Firebase security rules are set up correctly in the Firebase Console." 
-            : `Failed to generate SKU: ${firestoreError.message}`
+          message: `Failed to generate SKU: ${firestoreError.message}`
         }, { status: 500 });
       }
     }
@@ -122,7 +127,7 @@ export async function POST(request: NextRequest) {
         images_data: validImagesData,
     };
     
-    console.log(">>> Calling Gemini 3.5 Flash...");
+    console.log(">>> Calling AI model...");
     console.time("AI Generation");
     const aiContent = await generateWooCommerceProductContent(aiInput);
     console.timeEnd("AI Generation");
