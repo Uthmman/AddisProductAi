@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         
         if (isPermissionDenied) {
           return NextResponse.json({ 
-            message: "Database access denied. Please ensure your Firebase security rules are deployed. Note: This could also happen if the device's clock is out of sync or if the network is blocking Firebase." 
+            message: "Database access denied. This is usually caused by: 1) Firebase rules not being deployed. 2) The device clock being out of sync. 3) Network blocking Firebase. Please ensure rules are set to 'allow read, write: if true;' in the console." 
           }, { status: 500 });
         }
 
