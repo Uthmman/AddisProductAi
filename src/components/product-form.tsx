@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { WooProduct, AIProductContent, WooCategory, Settings, WooTag } from "@/lib/types";
 import { fileToBase64, cn, applyWatermark as applyWatermarkUtil, resizeImage } from "@/lib/utils";
-import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Sparkles, UploadCloud, X as XIcon, Check, Save, Image as ImageIcon, ChevronLeft, ChevronRight, ListChecks } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
@@ -366,6 +366,20 @@ export default function ProductForm({ product }: ProductFormProps) {
     } finally {
         setGeneratingField(null);
     }
+  };
+
+  const handleSelectNameOption = (option: string) => {
+    // Generate a new slug based on the selected name
+    const slugBase = option.split('(')[0].trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    
+    setAiContent(prev => ({
+      ...prev,
+      name: option,
+      slug: slugBase,
+      meta_data: prev.meta_data?.map(m => m.key === '_yoast_wpseo_title' ? { ...m, value: `${option} | Zenbaba Furniture` } : m)
+    }));
+    
+    toast({ description: "Name variation applied." });
   };
 
   const onSubmit = async (action: SaveAction) => {
@@ -764,7 +778,43 @@ export default function ProductForm({ product }: ProductFormProps) {
                 </CardHeader>
                 <CardContent className="space-y-6">
                    <div className="space-y-2">
-                       <div className="flex justify-between items-center"><Label className="text-primary font-bold">AI Optimized Product Name</Label>{renderGenButton('name', 'Name, SKU & Slug')}</div>
+                       <div className="flex justify-between items-center">
+                          <Label className="text-primary font-bold">AI Optimized Product Name</Label>
+                          <div className="flex gap-2 items-center">
+                              {aiContent.name_options && aiContent.name_options.length > 0 && (
+                                  <Popover>
+                                      <PopoverTrigger asChild>
+                                          <Button variant="outline" size="sm" className="h-7 text-xs border-primary/20 hover:bg-primary/5">
+                                              <ListChecks className="mr-2 h-3 w-3" />
+                                              Pick variation
+                                          </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-80 p-0" align="end">
+                                          <div className="p-3 border-b bg-muted/20">
+                                              <h4 className="font-bold text-sm">Branding Variations</h4>
+                                              <p className="text-[10px] text-muted-foreground">Select a different angle for your product title.</p>
+                                          </div>
+                                          <div className="p-2 space-y-1">
+                                              {(aiContent.name_options || []).map((option, idx) => (
+                                                  <Button
+                                                      key={idx}
+                                                      variant="ghost"
+                                                      className="w-full justify-start text-left h-auto py-2 px-3 text-xs whitespace-normal"
+                                                      onClick={() => handleSelectNameOption(option)}
+                                                  >
+                                                      <div className="flex flex-col gap-0.5">
+                                                          <span className={cn("font-semibold", aiContent.name === option && "text-primary")}>{option}</span>
+                                                          <span className="text-[9px] uppercase text-muted-foreground">Variation {idx + 1}</span>
+                                                      </div>
+                                                  </Button>
+                                              ))}
+                                          </div>
+                                      </PopoverContent>
+                                  </Popover>
+                              )}
+                              {renderGenButton('name', 'Name, SKU & Slug')}
+                          </div>
+                       </div>
                        <Input value={aiContent.name || ''} onChange={(e) => setAiContent(p => ({...p, name: e.target.value}))} placeholder="Analyze to generate perfect title..." className="text-lg font-bold border-primary/20 focus-visible:ring-primary"/>
                        <div className="grid grid-cols-2 gap-2 mt-2">
                             <div>

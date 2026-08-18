@@ -65,6 +65,7 @@ export type GenerateWooCommerceProductContentInput = z.infer<typeof GenerateWooC
 // Define the output schema for the flow matching the user's prompt structure
 const GenerateWooCommerceProductContentOutputSchema = z.object({
   name: z.string(),
+  name_options: z.array(z.string()).describe('Three distinct variations of the name including Amharic subtitles.'),
   sku: z.string(),
   regular_price: z.string(),
   categories: z.array(z.string()),
