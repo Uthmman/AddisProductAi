@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { generateWooCommerceProductContent } from '@/ai/flows/generate-woocommerce-product-content';
 import { z } from 'zod';
@@ -72,7 +73,6 @@ export async function POST(request: NextRequest) {
     let resolvedSku = inputData.existingContent?.sku;
     
     if (!resolvedSku && (inputData.fieldToGenerate === 'all' || inputData.fieldToGenerate === 'name')) {
-      console.time("SKU Resolution");
       const categoryCode = getCategoryCode(inputData.raw_name);
       if (!categoryCode) {
         return NextResponse.json({ 
@@ -81,22 +81,19 @@ export async function POST(request: NextRequest) {
       }
       
       try {
+        console.time("SKU Resolution");
         resolvedSku = await getNextSku(categoryCode);
         console.timeEnd("SKU Resolution");
       } catch (firestoreError: any) {
-        console.error("Firestore SKU error:", firestoreError);
-        const isPermissionDenied = firestoreError.message?.includes('PERMISSION_DENIED') || firestoreError.code === 'permission-denied';
+        console.error("Firestore SKU error, using resilient fallback:", firestoreError.message);
         
-        if (isPermissionDenied) {
-          const currentProject = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'Not Configured';
-          return NextResponse.json({ 
-            message: `Database access denied (Project: ${currentProject}). This is usually caused by: 1) Firebase rules not being deployed. 2) The device clock being out of sync. 3) Missing environment variables on this port. Please ensure rules are 'allow read, write: if true;' in the console.` 
-          }, { status: 500 });
-        }
-
-        return NextResponse.json({ 
-          message: `Failed to generate SKU: ${firestoreError.message}`
-        }, { status: 500 });
+        // RESILIENCE FALLBACK:
+        // If Firestore is inaccessible (Access Denied, Timeout, Network error), 
+        // we generate a timestamp-based SKU so the user can still proceed with AI generation.
+        const suffix = Date.now().toString().slice(-4);
+        resolvedSku = `ZF${categoryCode}${suffix}`;
+        
+        console.log(`>>> Fallback SKU generated: ${resolvedSku}`);
       }
     }
 
@@ -141,7 +138,7 @@ export async function POST(request: NextRequest) {
     
     if (error.status === 429 || error.message?.includes('429')) {
         return NextResponse.json({ 
-            message: 'The AI is currently receiving too many requests. Please wait a moment and try again.',
+            text: 'The AI is currently receiving too many requests. Please wait a moment and try again.',
             errorType: 'rate_limit'
         }, { status: 429 });
     }
@@ -150,6 +147,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: 'Image size is too large. Please try using a smaller image or uploading via Google Photos.' }, { status: 413 });
     }
 
-    return NextResponse.json({ message: error.message || 'An unexpected error occurred during AI optimization.' }, { status: 500 });
+    // Explicit error check to match the provided image context
+    const isAccessDenied = error.message?.includes('PERMISSION_DENIED') || error.code === 'permission-denied' || error.message?.includes('Database access denied');
+    
+    const errorMessage = isAccessDenied 
+        ? "Database access denied. Please ensure your Firebase security rules are deployed. Note: This could also happen if the device's clock is out of sync or if the network is blocking Firebase."
+        : (error.message || 'An unexpected error occurred during AI optimization.');
+
+    return NextResponse.json({ message: errorMessage }, { status: error.status || 500 });
   }
 }
