@@ -85,15 +85,9 @@ export async function POST(request: NextRequest) {
         resolvedSku = await getNextSku(categoryCode);
         console.timeEnd("SKU Resolution");
       } catch (firestoreError: any) {
-        console.error("Firestore SKU error, using resilient fallback:", firestoreError.message);
-        
-        // RESILIENCE FALLBACK:
-        // If Firestore is inaccessible (Access Denied, Timeout, Network error), 
-        // we generate a timestamp-based SKU so the user can still proceed with AI generation.
-        const suffix = Date.now().toString().slice(-4);
-        resolvedSku = `ZF${categoryCode}${suffix}`;
-        
-        console.log(`>>> Fallback SKU generated: ${resolvedSku}`);
+        console.error("Firestore SKU error, leaving empty as requested:", firestoreError.message);
+        // Leave SKU empty if connection fails
+        resolvedSku = "";
       }
     }
 
