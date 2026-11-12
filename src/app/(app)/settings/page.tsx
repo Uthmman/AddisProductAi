@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UploadCloud, X as XIcon, Info, Droplet, BrainCircuit, PanelLeft, Bot, Send, User, Copy } from 'lucide-react';
+import { Loader2, UploadCloud, X as XIcon, Info, Droplet, BrainCircuit, PanelLeft, Bot, Send, User, Copy, ImageIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Settings } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
@@ -88,7 +88,6 @@ function GeneralSettings() {
   const onSubmit = async (data: GeneralSettingsFormValues) => {
     setIsSaving(true);
     try {
-        // Fetch existing settings to not overwrite other sections
         const settingsRes = await fetch('/api/settings');
         const existingSettings = await settingsRes.json();
 
@@ -477,6 +476,127 @@ function WatermarkSettings() {
   )
 }
 
+const ImageSettingsSchema = z.object({
+  imageQuality: z.number().min(10).max(100).default(80),
+  maxImageDimension: z.number().min(400).max(4000).default(1200),
+});
+
+type ImageSettingsFormValues = z.infer<typeof ImageSettingsSchema>;
+
+function ImageSettings() {
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const form = useForm<ImageSettingsFormValues>({
+    resolver: zodResolver(ImageSettingsSchema),
+    defaultValues: {
+      imageQuality: 80,
+      maxImageDimension: 1200,
+    },
+  });
+
+  useEffect(() => {
+    async function fetchSettings() {
+      setIsLoading(true);
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const data: Settings = await res.json();
+          form.reset({
+            imageQuality: data.imageQuality || 80,
+            maxImageDimension: data.maxImageDimension || 1200,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load settings", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchSettings();
+  }, [form]);
+
+  const onSubmit = async (data: ImageSettingsFormValues) => {
+    setIsSaving(true);
+    try {
+      const settingsRes = await fetch('/api/settings');
+      const existingSettings = await settingsRes.json();
+      
+      const response = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...existingSettings, ...data }),
+      });
+
+      if (!response.ok) throw new Error('Failed to save settings');
+      
+      toast({ title: 'Success!', description: 'Image optimization settings saved.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Save Failed', description: 'Could not save image settings.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-24 md:pb-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Image Optimization</CardTitle>
+            <CardDescription>Configure how product images are converted to WebP and resized before upload.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-8">
+            <FormField
+              control={form.control}
+              name="imageQuality"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>WebP Quality: {field.value}%</FormLabel>
+                  <FormDescription>Higher quality means larger file sizes.</FormDescription>
+                  <FormControl>
+                    <Slider
+                      min={10} max={100} step={1}
+                      value={[field.value]}
+                      onValueChange={(vals) => field.onChange(vals[0])}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="maxImageDimension"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Max Dimension: {field.value}px</FormLabel>
+                  <FormDescription>Images will be scaled down if they exceed this width or height.</FormDescription>
+                  <FormControl>
+                    <Slider
+                      min={400} max={4000} step={100}
+                      value={[field.value]}
+                      onValueChange={(vals) => field.onChange(vals[0])}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+        <div className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/95 p-4 backdrop-blur-sm md:static md:mt-8 md:flex md:justify-end md:gap-4 md:border-none md:bg-transparent md:p-0">
+          <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Image Settings
+          </Button>
+        </div>
+      </form>
+    </Form>
+  )
+}
+
 const promptTitles: { [key: string]: string } = {
   generateWooCommerceProductContent: "Product Content Generation Prompt",
   generateBlogPost: "Blog Post Generation Prompt",
@@ -705,6 +825,7 @@ function SidebarNav({ className, onLinkClick }: { className?: string, onLinkClic
 
   const navItems = [
     { value: 'general', label: 'General', icon: Info },
+    { value: 'images', label: 'Images', icon: ImageIcon },
     { value: 'watermark', label: 'Watermark', icon: Droplet },
     { value: 'prompts', label: 'AI Prompts', icon: BrainCircuit },
   ];
@@ -745,6 +866,7 @@ function SettingsPageInner() {
   
   const navTitles: {[key:string]: string} = {
     general: 'General Settings',
+    images: 'Image Optimization',
     watermark: 'Watermark Settings',
     prompts: 'AI Prompt Templates'
   }
@@ -752,6 +874,7 @@ function SettingsPageInner() {
   const renderContent = () => {
     switch (tab) {
       case 'general': return <GeneralSettings />;
+      case 'images': return <ImageSettings />;
       case 'watermark': return <WatermarkSettings />;
       case 'prompts': return <PromptSettings />;
       default: return <GeneralSettings />;

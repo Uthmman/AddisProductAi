@@ -123,6 +123,8 @@ export interface Settings {
     watermarkOpacity?: number;
     watermarkPadding?: number;
     aiPromptInstruction?: string;
+    imageQuality?: number;
+    maxImageDimension?: number;
 }
 
 export type BotImageState = {

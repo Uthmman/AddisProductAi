@@ -267,8 +267,11 @@ export default function ProductForm({ product }: ProductFormProps) {
         let optimizedSample = sampleImage;
         
         if (sampleImage.startsWith('data:image')) {
-            updateTask(taskId, { description: "Resizing image for faster analysis..." });
-            optimizedSample = await resizeImage(sampleImage, 1024);
+            updateTask(taskId, { description: "Resizing and converting image..." });
+            // Use current image settings for the sample to keep it fast but relevant
+            const quality = (settings?.imageQuality || 80) / 100;
+            const maxDim = settings?.maxImageDimension || 1024;
+            optimizedSample = await resizeImage(sampleImage, maxDim, quality);
             updateTask(taskId, { progress: 30 });
         }
         
@@ -405,6 +408,10 @@ export default function ProductForm({ product }: ProductFormProps) {
             
             let imageBase64;
             let imageName = image.fileName || `product-image-${Date.now()}.jpg`;
+            // Ensure filename ends in .webp
+            if (!imageName.toLowerCase().endsWith('.webp')) {
+                imageName = imageName.split('.').slice(0, -1).join('.') + '.webp';
+            }
 
             if (image.file) {
                 imageBase64 = await fileToBase64(image.file);
@@ -414,10 +421,12 @@ export default function ProductForm({ product }: ProductFormProps) {
 
             if (imageBase64.startsWith('data:image')) {
                 updateTask(taskId, { 
-                    description: `Optimizing and Compressing ${imageName}...`,
+                    description: `Optimizing and Converting ${imageName} to WebP...`,
                     progress: Math.round((currentStep / totalSteps) * 100)
                 });
-                imageBase64 = await resizeImage(imageBase64, 1200);
+                const quality = (settings?.imageQuality || 80) / 100;
+                const maxDim = settings?.maxImageDimension || 1200;
+                imageBase64 = await resizeImage(imageBase64, maxDim, quality);
             }
             
             if (applyWatermark && settings?.watermarkImageUrl && !imageBase64.startsWith('http')) {
@@ -479,7 +488,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
         const userFocusKeyword = form.getValues('focus_keywords');
         let finalMetaData = aiContent.meta_data ? [...aiContent.meta_data] : [];
-        finalMetaData = finalMetaData.filter(m => m.key !== '_yoast_wpseo_focuskw');
+        finalMetaData = finalMetaData.filter(m => m.key === '_yoast_wpseo_focuskw');
         if (userFocusKeyword) {
             finalMetaData.push({ key: '_yoast_wpseo_focuskw', value: userFocusKeyword });
         }

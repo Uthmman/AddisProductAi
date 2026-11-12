@@ -30,9 +30,9 @@ export function fileToBase64(file: File): Promise<string> {
 
 /**
  * Resizes and compresses a base64 image string on the client side.
- * Balanced for high quality furniture photography (85% quality, 1200px max).
+ * Converts to WebP format for optimal performance.
  */
-export async function resizeImage(base64Str: string, maxDimension: number = 1200): Promise<string> {
+export async function resizeImage(base64Str: string, maxDimension: number = 1200, quality: number = 0.8): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.src = base64Str;
@@ -57,20 +57,19 @@ export async function resizeImage(base64Str: string, maxDimension: number = 1200
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-          // Use high quality image smoothing
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           
-          // Background fill for transparency conversion
+          // Background fill for transparency conversion to WebP/JPEG
           ctx.fillStyle = '#FFFFFF';
           ctx.fillRect(0, 0, width, height);
           
           ctx.drawImage(img, 0, 0, width, height);
       }
       
-      // 0.85 quality is the "Goldilocks" zone for product photos:
-      // High detail for furniture textures, but small enough for web.
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
+      // Convert to WebP if supported (standard in modern browsers)
+      const format = 'image/webp';
+      resolve(canvas.toDataURL(format, quality));
     };
   });
 }
@@ -82,7 +81,8 @@ export function applyWatermark(originalImageSrc: string, watermarkImageSrc: stri
       watermarkPlacement = 'bottom-right',
       watermarkScale = 40,
       watermarkOpacity = 0.7,
-      watermarkPadding = 5
+      watermarkPadding = 5,
+      imageQuality = 80
     } = options;
 
 
@@ -98,7 +98,7 @@ export function applyWatermark(originalImageSrc: string, watermarkImageSrc: stri
       canvas.width = originalImage.width;
       canvas.height = originalImage.height;
 
-      // Fill the background with white. This is important for JPEG conversion.
+      // Fill the background with white.
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
@@ -147,8 +147,8 @@ export function applyWatermark(originalImageSrc: string, watermarkImageSrc: stri
         ctx.globalAlpha = watermarkOpacity;
         ctx.drawImage(watermarkImage, x, y, watermarkWidth, watermarkHeight);
         
-        // Quality 0.8 for watermarked outputs
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        // Return optimized WebP
+        resolve(canvas.toDataURL('image/webp', imageQuality / 100));
       };
       watermarkImage.onerror = () => reject(new Error('Watermark image failed to load'));
       watermarkImage.src = watermarkImageSrc;
@@ -218,5 +218,6 @@ export async function applyWatermarkServerSide(originalImageDataUri: string, wat
 
     originalImage.composite(watermarkImage, x, y);
 
+    // Note: Jimp's WebP support is limited; fallback to high quality JPEG on server if needed.
     return await originalImage.getBase64Async(Jimp.MIME_JPEG);
 }

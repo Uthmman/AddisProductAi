@@ -351,7 +351,9 @@ export default function BotPageClient() {
             const firstImg = stateForApi.images[0];
             if (firstImg.dataUri && firstImg.dataUri.startsWith('data:image')) {
                 try {
-                    firstImg.dataUri = await resizeImage(firstImg.dataUri, 1024);
+                    const quality = (settings?.imageQuality || 80) / 100;
+                    const maxDim = settings?.maxImageDimension || 1024;
+                    firstImg.dataUri = await resizeImage(firstImg.dataUri, maxDim, quality);
                 } catch (err) {
                     console.error("Failed to resize image for bot optimization:", err);
                 }
@@ -516,9 +518,15 @@ export default function BotPageClient() {
             }
 
             let imageToUploadUri = image.dataUri;
+            
+            // Client-side optimization to WebP before save
+            const quality = (settings?.imageQuality || 80) / 100;
+            const maxDim = settings?.maxImageDimension || 1200;
+            imageToUploadUri = await resizeImage(imageToUploadUri, maxDim, quality);
+
             if (applyWatermark && settings?.watermarkImageUrl) {
                 try {
-                    imageToUploadUri = await applyWatermark(image.dataUri, settings.watermarkImageUrl, settings);
+                    imageToUploadUri = await applyWatermark(imageToUploadUri, settings.watermarkImageUrl, settings);
                 } catch (watermarkError: any) {
                     console.error("Watermark application failed:", watermarkError.message);
                 }
