@@ -77,10 +77,10 @@ export default function ProductTable() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const fetchProducts = useCallback(async (isLoadMore = false) => {
+  const fetchProducts = useCallback(async (isLoadMore = false, overridePage?: number) => {
     setIsLoading(true);
     try {
-      const currentPage = isLoadMore ? page + 1 : 1;
+      const currentPage = overridePage ?? (isLoadMore ? page + 1 : 1);
       
       const params = new URLSearchParams({
         page: currentPage.toString(),
@@ -116,7 +116,7 @@ export default function ProductTable() {
         setPage(currentPage);
       } else {
         setProducts(data.products || []);
-        setPage(1);
+        setPage(currentPage);
       }
       
       setTotalPages(data.totalPages || 1);
@@ -228,6 +228,10 @@ export default function ProductTable() {
     });
   };
 
+  const handlePriceChange = useCallback((productId: number, newPrice: string) => {
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, price: newPrice, regular_price: newPrice } : p));
+  }, []);
+
   return (
     <div className="w-full space-y-8">
        {/* Search & Filter Bar - Sticky */}
@@ -302,7 +306,7 @@ export default function ProductTable() {
             ) : products.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
                     {products.map((product) => (
-                        <ProductCard key={product.id} product={product} onDelete={setDeletingProduct} />
+                        <ProductCard key={product.id} product={product} onDelete={setDeletingProduct} onPriceChange={handlePriceChange} />
                     ))}
                 </div>
             ) : (
@@ -350,7 +354,11 @@ export default function ProductTable() {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => { setPage(p => Math.max(1, p - 1)); fetchProducts(false); }}
+                        onClick={() => { 
+                          const newPage = Math.max(1, page - 1);
+                          setPage(newPage);
+                          fetchProducts(false, newPage);
+                        }}
                         disabled={page <= 1 || isLoading}
                         className="bg-background h-10 px-5 border-primary/10 rounded-lg hover:border-primary transition-colors"
                     >
@@ -359,7 +367,11 @@ export default function ProductTable() {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => { setPage(p => Math.min(totalPages, p + 1)); fetchProducts(false); }}
+                        onClick={() => { 
+                          const newPage = Math.min(totalPages, page + 1);
+                          setPage(newPage);
+                          fetchProducts(false, newPage);
+                        }}
                         disabled={page >= totalPages || isLoading}
                         className="bg-background h-10 px-5 border-primary/10 rounded-lg hover:border-primary transition-colors"
                     >

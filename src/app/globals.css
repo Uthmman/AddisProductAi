@@ -47,6 +47,11 @@
     --input: 25 70% 20%;
     --ring: 45 100% 51%;
   }
+
+  /* Safe area insets for mobile standalone PWA */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 @layer base {
