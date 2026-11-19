@@ -29,10 +29,28 @@ export function fileToBase64(file: File): Promise<string> {
 }
 
 /**
- * Resizes and compresses a base64 image string on the client side.
- * Converts to WebP format for optimal performance.
+ * Recommended WooCommerce image dimensions:
+ * - Standard WooCommerce catalog / single product: 800px - 1000px square (1:1) or bounded rectangle.
+ * - Zoom-enabled single product view: 1000px - 1200px max.
+ * Standardizing on maxDimension: 1000px and minDimension: 800px ensures crisp zoom without heavy payload.
  */
-export async function resizeImage(base64Str: string, maxDimension: number = 1200, quality: number = 0.8): Promise<string> {
+export const RECOMMENDED_WOO_MAX_DIMENSION = 1000;
+export const RECOMMENDED_WOO_MIN_DIMENSION = 800;
+
+/**
+ * Resizes, bounds, and compresses a base64 image string on the client side.
+ * Converts to WebP format with recommended WooCommerce pixel constraints.
+ * 
+ * - If image is too large (> maxDimension, e.g. 1000px): scales down proportionally.
+ * - If image is below recommended size (< minDimension, e.g. 800px): scales up with bicubic smoothing 
+ *   so it meets WooCommerce catalog clarity standards.
+ */
+export async function resizeImage(
+  base64Str: string, 
+  maxDimension: number = RECOMMENDED_WOO_MAX_DIMENSION, 
+  quality: number = 0.85,
+  minDimension: number = RECOMMENDED_WOO_MIN_DIMENSION
+): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.src = base64Str;
@@ -41,15 +59,22 @@ export async function resizeImage(base64Str: string, maxDimension: number = 1200
       let width = img.width;
       let height = img.height;
 
-      if (width > height) {
-        if (width > maxDimension) {
-          height *= maxDimension / width;
-          width = maxDimension;
-        }
-      } else {
-        if (height > maxDimension) {
-          width *= maxDimension / height;
-          height = maxDimension;
+      const longestSide = Math.max(width, height);
+      const shortestSide = Math.min(width, height);
+
+      // Downscale if larger than recommended max
+      if (longestSide > maxDimension) {
+        const scale = maxDimension / longestSide;
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      } 
+      // Upscale if below recommended minimum to ensure sharp catalog display
+      else if (shortestSide < minDimension && minDimension > 0) {
+        const scale = minDimension / shortestSide;
+        // Don't upscale past maxDimension
+        if (Math.round(longestSide * scale) <= maxDimension * 1.2) {
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
         }
       }
 
@@ -67,7 +92,7 @@ export async function resizeImage(base64Str: string, maxDimension: number = 1200
           ctx.drawImage(img, 0, 0, width, height);
       }
       
-      // Convert to WebP if supported (standard in modern browsers)
+      // Convert to WebP format
       const format = 'image/webp';
       resolve(canvas.toDataURL(format, quality));
     };

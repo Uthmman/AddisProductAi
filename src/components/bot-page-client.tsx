@@ -519,10 +519,10 @@ export default function BotPageClient() {
 
             let imageToUploadUri = image.dataUri;
             
-            // Client-side optimization to WebP before save
-            const quality = (settings?.imageQuality || 80) / 100;
-            const maxDim = settings?.maxImageDimension || 1200;
-            imageToUploadUri = await resizeImage(imageToUploadUri, maxDim, quality);
+            // Client-side optimization to WebP before save with recommended dimensions (800px - 1000px)
+            const quality = (settings?.imageQuality || 85) / 100;
+            const maxDim = settings?.maxImageDimension || 1000;
+            imageToUploadUri = await resizeImage(imageToUploadUri, maxDim, quality, 800);
 
             if (applyWatermark && settings?.watermarkImageUrl) {
                 try {

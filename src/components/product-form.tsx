@@ -421,12 +421,12 @@ export default function ProductForm({ product }: ProductFormProps) {
 
             if (imageBase64.startsWith('data:image')) {
                 updateTask(taskId, { 
-                    description: `Optimizing and Converting ${imageName} to WebP...`,
+                    description: `Optimizing and Converting ${imageName} to WebP (Recommended 1000px)...`,
                     progress: Math.round((currentStep / totalSteps) * 100)
                 });
-                const quality = (settings?.imageQuality || 80) / 100;
-                const maxDim = settings?.maxImageDimension || 1200;
-                imageBase64 = await resizeImage(imageBase64, maxDim, quality);
+                const quality = (settings?.imageQuality || 85) / 100;
+                const maxDim = settings?.maxImageDimension || 1000;
+                imageBase64 = await resizeImage(imageBase64, maxDim, quality, 800);
             }
             
             if (applyWatermark && settings?.watermarkImageUrl && !imageBase64.startsWith('http')) {
