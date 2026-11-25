@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -51,8 +50,8 @@ type ImageState = {
 
 // Represents a category in the UI state. Can be an existing one or a new one suggested by AI.
 type DisplayCategory = {
-    id?: number;
-    name: string;
+  id?: number;
+  name: string;
 };
 
 type GeneratingField = 'all' | 'name' | 'description' | 'tags' | 'meta_data' | 'attributes' | 'images' | 'categories' | 'regular_price' | null;
@@ -67,7 +66,7 @@ export default function ProductForm({ product }: ProductFormProps) {
   const { addTask, updateTask, removeTask } = useTasks();
   const [isSaving, setIsSaving] = useState(false);
   const [generatingField, setGeneratingField] = useState<GeneratingField>(null);
-  
+
   const [images, setImages] = useState<ImageState[]>([]);
   const [aiContent, setAiContent] = useState<Partial<AIProductContent>>({});
   const [availableCategories, setAvailableCategories] = useState<WooCategory[]>([]);
@@ -122,73 +121,73 @@ export default function ProductForm({ product }: ProductFormProps) {
 
   // Load initial product data
   useEffect(() => {
-     if (product) {
-        form.reset({
-          raw_name: product.name || "",
-          material: product.attributes.find(a => a.name === "Material")?.options[0] || "",
-          price_etb: parseFloat(product.price || "0"),
-          focus_keywords: product?.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value as string || product?.tags.map(t => t.name).join(', ') || "",
-          amharic_name: product.meta_data.find(m => m.key === 'amharic_name')?.value as string || "",
-        });
-        setImages(product.images.map(img => ({ ...img, src: img.src || '', alt: img.alt || '' })));
-        setSelectedCategories(product.categories.map(cat => ({ id: cat.id, name: cat.name })));
-        setAiContent({
-            name: product.name,
-            sku: product.sku,
-            description: product.description,
-            short_description: product.short_description,
-            slug: product.slug,
-            tags: product.tags.map(t => t.name),
-            categories: product.categories.map(c => c.name),
-            meta_data: product.meta_data,
-            attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
-            images: product.images.map(img => ({ alt: img.alt })),
-            regular_price: parseFloat(product.regular_price)
-        });
+    if (product) {
+      form.reset({
+        raw_name: product.name || "",
+        material: product.attributes.find(a => a.name === "Material")?.options[0] || "",
+        price_etb: parseFloat(product.price || "0"),
+        focus_keywords: product?.meta_data.find(m => m.key === '_yoast_wpseo_focuskw')?.value as string || product?.tags.map(t => t.name).join(', ') || "",
+        amharic_name: product.meta_data.find(m => m.key === 'amharic_name')?.value as string || "",
+      });
+      setImages(product.images.map(img => ({ ...img, src: img.src || '', alt: img.alt || '' })));
+      setSelectedCategories(product.categories.map(cat => ({ id: cat.id, name: cat.name })));
+      setAiContent({
+        name: product.name,
+        sku: product.sku,
+        description: product.description,
+        short_description: product.short_description,
+        slug: product.slug,
+        tags: product.tags.map(t => t.name),
+        categories: product.categories.map(c => c.name),
+        meta_data: product.meta_data,
+        attributes: product.attributes.map(attr => ({ name: attr.name, option: attr.options[0] })),
+        images: product.images.map(img => ({ alt: img.alt })),
+        regular_price: parseFloat(product.regular_price)
+      });
     }
   }, [product, form]);
 
 
   useEffect(() => {
     async function fetchInitialData() {
-        try {
-            const [categoriesResponse, settingsResponse, tagsResponse] = await Promise.all([
-                fetch('/api/products/categories?all=true'),
-                fetch('/api/settings'),
-                fetch('/api/products/tags')
-            ]);
-            
-            if (categoriesResponse.ok) {
-                const data: WooCategory[] = await categoriesResponse.json();
-                setAvailableCategories(data);
-            }
-             if (tagsResponse.ok) {
-                const data: WooTag[] = await tagsResponse.json();
-                setAllTags(data);
-            }
-            if (settingsResponse.ok) {
-                const data: Settings = await settingsResponse.json();
-                setSettings(data);
-                if (!data?.watermarkImageUrl) {
-                    setApplyWatermark(false);
-                }
-            } else {
-                 setSettings({});
-            }
+      try {
+        const [categoriesResponse, settingsResponse, tagsResponse] = await Promise.all([
+          fetch('/api/products/categories?all=true'),
+          fetch('/api/settings'),
+          fetch('/api/products/tags')
+        ]);
 
-        } catch (error) {
-            console.error("Failed to fetch initial data", error);
-            toast({
-                title: "Error",
-                description: "Could not load product categories, tags, or settings.",
-                variant: "destructive"
-            });
-            setSettings({});
+        if (categoriesResponse.ok) {
+          const data: WooCategory[] = await categoriesResponse.json();
+          setAvailableCategories(data);
         }
+        if (tagsResponse.ok) {
+          const data: WooTag[] = await tagsResponse.json();
+          setAllTags(data);
+        }
+        if (settingsResponse.ok) {
+          const data: Settings = await settingsResponse.json();
+          setSettings(data);
+          if (!data?.watermarkImageUrl) {
+            setApplyWatermark(false);
+          }
+        } else {
+          setSettings({});
+        }
+
+      } catch (error) {
+        console.error("Failed to fetch initial data", error);
+        toast({
+          title: "Error",
+          description: "Could not load product categories, tags, or settings.",
+          variant: "destructive"
+        });
+        setSettings({});
+      }
     }
     fetchInitialData();
   }, [toast]);
-  
+
 
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -207,8 +206,8 @@ export default function ProductForm({ product }: ProductFormProps) {
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
     setAiContent(p => {
-        const newAiImages = p.images?.filter((_, i) => i !== index);
-        return { ...p, images: newAiImages };
+      const newAiImages = p.images?.filter((_, i) => i !== index);
+      return { ...p, images: newAiImages };
     });
   }
 
@@ -217,171 +216,171 @@ export default function ProductForm({ product }: ProductFormProps) {
     if (targetIndex < 0 || targetIndex >= images.length) return;
 
     setImages(prev => {
-        const newImages = [...prev];
-        [newImages[index], newImages[targetIndex]] = [newImages[targetIndex], newImages[index]];
-        return newImages;
+      const newImages = [...prev];
+      [newImages[index], newImages[targetIndex]] = [newImages[targetIndex], newImages[index]];
+      return newImages;
     });
 
     setAiContent(p => {
-        if (!p.images) return p;
-        const newAiImages = [...p.images];
-        [newAiImages[index], newAiImages[targetIndex]] = [newAiImages[targetIndex], newAiImages[index]];
-        return { ...p, images: newAiImages };
+      if (!p.images) return p;
+      const newAiImages = [...p.images];
+      [newAiImages[index], newAiImages[targetIndex]] = [newAiImages[targetIndex], newAiImages[index]];
+      return { ...p, images: newAiImages };
     });
   };
-  
+
   const handleAltTextChange = (index: number, alt: string) => {
     setImages(prev => prev.map((img, i) => i === index ? { ...img, alt } : img));
     setAiContent(p => {
-        const newAiImages = p.images ? [...p.images] : [];
-        if(newAiImages[index]) {
-            newAiImages[index] = { ...newAiImages[index], alt };
-        } else {
-             newAiImages[index] = { alt };
-        }
-        return { ...p, images: newAiImages };
+      const newAiImages = p.images ? [...p.images] : [];
+      if (newAiImages[index]) {
+        newAiImages[index] = { ...newAiImages[index], alt };
+      } else {
+        newAiImages[index] = { alt };
+      }
+      return { ...p, images: newAiImages };
     });
   }
 
   const handleGenerate = async (values: FormValues, field: GeneratingField = 'all') => {
     if (images.length === 0) {
-        toast({
-            variant: "destructive",
-            title: "Image Required",
-            description: "Please upload at least one image before generating content.",
-        });
-        return;
+      toast({
+        variant: "destructive",
+        title: "Image Required",
+        description: "Please upload at least one image before generating content.",
+      });
+      return;
     }
 
     const taskId = `ai-gen-${Date.now()}`;
     addTask({
-        id: taskId,
-        title: "AI Optimizing Product",
-        description: "Preparing sample image...",
-        progress: 10
+      id: taskId,
+      title: "AI Optimizing Product",
+      description: "Preparing sample image...",
+      progress: 10
     });
 
     setGeneratingField(field);
     try {
-        const sampleImage = images[0].src;
-        let optimizedSample = sampleImage;
-        
-        if (sampleImage.startsWith('data:image')) {
-            updateTask(taskId, { description: "Resizing and converting image..." });
-            // Use current image settings for the sample to keep it fast but relevant
-            const quality = (settings?.imageQuality || 80) / 100;
-            const maxDim = settings?.maxImageDimension || 1024;
-            optimizedSample = await resizeImage(sampleImage, maxDim, quality);
-            updateTask(taskId, { progress: 30 });
-        }
-        
-        const currentAiContent = {
-            ...aiContent,
-            categories: selectedCategories.map(c => c.name)
-        };
-        
-        const primaryCategoryName = selectedCategories[0]?.name;
-        const primaryCategory = availableCategories.find(c => c.name === primaryCategoryName);
+      const sampleImage = images[0].src;
+      let optimizedSample = sampleImage;
 
-        updateTask(taskId, { description: "Processing with Gemini 3.5 Flash...", progress: 50 });
+      if (sampleImage.startsWith('data:image')) {
+        updateTask(taskId, { description: "Resizing and converting image..." });
+        // Use current image settings for the sample to keep it fast but relevant
+        const quality = (settings?.imageQuality || 80) / 100;
+        const maxDim = settings?.maxImageDimension || 1024;
+        optimizedSample = await resizeImage(sampleImage, maxDim, quality);
+        updateTask(taskId, { progress: 30 });
+      }
 
-        const response = await fetch('/api/products/ai-optimize', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ...values,
-                images_data: [optimizedSample],
-                price_etb: values.price_etb,
-                fieldToGenerate: field,
-                existingContent: currentAiContent,
-                availableCategories,
-                settings,
-                primaryCategory,
-                totalImageCount: images.length,
-            }),
+      const currentAiContent = {
+        ...aiContent,
+        categories: selectedCategories.map(c => c.name)
+      };
+
+      const primaryCategoryName = selectedCategories[0]?.name;
+      const primaryCategory = availableCategories.find(c => c.name === primaryCategoryName);
+
+      updateTask(taskId, { description: "Processing with Gemini 3.5 Flash...", progress: 50 });
+
+      const response = await fetch('/api/products/ai-optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...values,
+          images_data: [optimizedSample],
+          price_etb: values.price_etb,
+          fieldToGenerate: field,
+          existingContent: currentAiContent,
+          availableCategories,
+          settings,
+          primaryCategory,
+          totalImageCount: images.length,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({ message: 'The AI service is currently unavailable.' }));
+        throw new Error(errorBody.message || `Failed to generate AI content for ${field}.`);
+      }
+
+      const rawData: any = await response.json();
+
+      // Map the new strict nested structure back to the format the UI expectations
+      const mappedData: Partial<AIProductContent> = {
+        ...rawData,
+        slug: rawData.yoast?.slug,
+        meta_data: [
+          { key: '_yoast_wpseo_focuskw', value: rawData.yoast?.focus_keyphrase },
+          { key: '_yoast_wpseo_metadesc', value: rawData.yoast?.meta_description },
+          { key: '_yoast_wpseo_title', value: rawData.yoast?.title },
+        ],
+        images: rawData.image_alt_texts?.map((alt: string) => ({ alt })),
+        regular_price: parseFloat(rawData.regular_price) || values.price_etb,
+      };
+
+      setAiContent(prev => ({
+        ...prev,
+        ...mappedData,
+      }));
+
+      // Update images state with generated alt texts
+      if (rawData.image_alt_texts) {
+        setImages(prevImages => {
+          return prevImages.map((img, index) => ({
+            ...img,
+            alt: rawData.image_alt_texts[index] || img.alt
+          }));
         });
+      }
 
-        if (!response.ok) {
-            const errorBody = await response.json().catch(() => ({ message: 'The AI service is currently unavailable.' }));
-            throw new Error(errorBody.message || `Failed to generate AI content for ${field}.`);
-        }
-
-        const rawData: any = await response.json();
-        
-        // Map the new strict nested structure back to the format the UI expectations
-        const mappedData: Partial<AIProductContent> = {
-          ...rawData,
-          slug: rawData.yoast?.slug,
-          meta_data: [
-            { key: '_yoast_wpseo_focuskw', value: rawData.yoast?.focus_keyphrase },
-            { key: '_yoast_wpseo_metadesc', value: rawData.yoast?.meta_description },
-            { key: '_yoast_wpseo_title', value: rawData.yoast?.title },
-          ],
-          images: rawData.image_alt_texts?.map((alt: string) => ({ alt })),
-          regular_price: parseFloat(rawData.regular_price) || values.price_etb,
-        };
-
-        setAiContent(prev => ({
-          ...prev,
-          ...mappedData,
-        }));
-        
-        // Update images state with generated alt texts
-        if (rawData.image_alt_texts) {
-            setImages(prevImages => {
-                return prevImages.map((img, index) => ({
-                    ...img,
-                    alt: rawData.image_alt_texts[index] || img.alt
-                }));
-            });
-        }
-        
-        if (rawData.categories) {
-            const aiSelectedCategories: DisplayCategory[] = rawData.categories.map((catName: string) => {
-                const existing = availableCategories.find(c => c.name.toLowerCase() === catName.toLowerCase());
-                return existing ? { id: existing.id, name: existing.name } : { name: catName };
-            });
-            setSelectedCategories(aiSelectedCategories);
-        }
-        
-        if (rawData.yoast?.focus_keyphrase) {
-            form.setValue('focus_keywords', rawData.yoast.focus_keyphrase);
-        }
-
-        updateTask(taskId, { status: 'success', description: "Optimization complete!", progress: 100 });
-        
-        toast({
-            title: "Content Generated",
-            description: `AI-optimized content for ${field} has been populated.`,
+      if (rawData.categories) {
+        const aiSelectedCategories: DisplayCategory[] = rawData.categories.map((catName: string) => {
+          const existing = availableCategories.find(c => c.name.toLowerCase() === catName.toLowerCase());
+          return existing ? { id: existing.id, name: existing.name } : { name: catName };
         });
+        setSelectedCategories(aiSelectedCategories);
+      }
 
-        // Auto-remove success task after 3 seconds
-        setTimeout(() => removeTask(taskId), 3000);
+      if (rawData.yoast?.focus_keyphrase) {
+        form.setValue('focus_keywords', rawData.yoast.focus_keyphrase);
+      }
+
+      updateTask(taskId, { status: 'success', description: "Optimization complete!", progress: 100 });
+
+      toast({
+        title: "Content Generated",
+        description: `AI-optimized content for ${field} has been populated.`,
+      });
+
+      // Auto-remove success task after 3 seconds
+      setTimeout(() => removeTask(taskId), 3000);
 
     } catch (error: any) {
-        console.error(error);
-        updateTask(taskId, { status: 'error', description: error.message });
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: error.message || `There was an unexpected error generating content for ${field}.`,
-        });
+      console.error(error);
+      updateTask(taskId, { status: 'error', description: error.message });
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || `There was an unexpected error generating content for ${field}.`,
+      });
     } finally {
-        setGeneratingField(null);
+      setGeneratingField(null);
     }
   };
 
   const handleSelectNameOption = (option: string) => {
     // Generate a new slug based on the selected name
     const slugBase = option.split('(')[0].trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    
+
     setAiContent(prev => ({
       ...prev,
       name: option,
       slug: slugBase,
       meta_data: prev.meta_data?.map(m => m.key === '_yoast_wpseo_title' ? { ...m, value: `${option} | Zenbaba Furniture` } : m)
     }));
-    
+
     toast({ description: "Name variation applied." });
   };
 
@@ -389,7 +388,7 @@ export default function ProductForm({ product }: ProductFormProps) {
     setIsSaving(true);
     const taskId = `product-save-${Date.now()}`;
     const productTitle = aiContent.name || form.getValues('raw_name');
-    
+
     addTask({
       id: taskId,
       title: product ? `Updating ${productTitle}` : `Creating ${productTitle}`,
@@ -398,206 +397,207 @@ export default function ProductForm({ product }: ProductFormProps) {
     });
 
     try {
-        const newFilesToUpload = images.filter(img => img.file || (img.src && !img.id));
-        const totalSteps = newFilesToUpload.length + 2; 
-        let currentStep = 0;
+      const newFilesToUpload = images.filter(img => img.file || (img.src && !img.id));
+      const totalSteps = newFilesToUpload.length + 2;
+      let currentStep = 0;
 
-        const uploadedImages = await Promise.all(
-          newFilesToUpload.map(async (image, idx) => {
-            if (!image.file && !image.src.startsWith('http')) throw new Error("Image file is missing.");
-            
-            let imageBase64;
-            let imageName = image.fileName || `product-image-${Date.now()}.jpg`;
-            // Ensure filename ends in .webp
-            if (!imageName.toLowerCase().endsWith('.webp')) {
-                imageName = imageName.split('.').slice(0, -1).join('.') + '.webp';
-            }
+      const uploadedImages: { id: number; src: string; alt?: string }[] = [];
+      for (const image of newFilesToUpload) {
+        if (!image.file && !image.src.startsWith('http')) throw new Error("Image file is missing.");
 
-            if (image.file) {
-                imageBase64 = await fileToBase64(image.file);
-            } else {
-                imageBase64 = image.src;
-            }
-
-            if (imageBase64.startsWith('data:image')) {
-                updateTask(taskId, { 
-                    description: `Optimizing and Converting ${imageName} to WebP (Recommended 1000px)...`,
-                    progress: Math.round((currentStep / totalSteps) * 100)
-                });
-                const quality = (settings?.imageQuality || 85) / 100;
-                const maxDim = settings?.maxImageDimension || 1000;
-                imageBase64 = await resizeImage(imageBase64, maxDim, quality, 800);
-            }
-            
-            if (applyWatermark && settings?.watermarkImageUrl && !imageBase64.startsWith('http')) {
-              updateTask(taskId, { description: `Watermarking ${imageName}...` });
-              try {
-                imageBase64 = await applyWatermarkUtil(imageBase64, settings.watermarkImageUrl, settings);
-              } catch (watermarkError) {
-                 console.error("Client-side watermarking failed", watermarkError);
-              }
-            }
-
-            updateTask(taskId, { description: `Uploading ${imageName}...` });
-            const response = await fetch('/api/products/upload-image', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image_data: imageBase64, image_name: imageName }),
-            });
-
-            if (!response.ok) {
-              let errorMessage = `Image upload failed for ${imageName}.`;
-              try {
-                const errorData = await response.json();
-                errorMessage = errorData.message || errorMessage;
-              } catch (e) {
-                const text = await response.text();
-                errorMessage = text.substring(0, 100) || errorMessage;
-              }
-              throw new Error(errorMessage);
-            }
-
-            currentStep++;
-            updateTask(taskId, { progress: Math.round((currentStep / totalSteps) * 100) });
-            const uploaded = await response.json();
-            return { ...uploaded, alt: image.alt };
-          })
-        );
-        
-        const existingImages = images.filter(img => img.id).map(img => ({
-          id: img.id,
-          src: img.src,
-          alt: img.alt
-        }));
-
-        const finalImages = [...existingImages, ...uploadedImages].map((img) => ({
-            id: img.id,
-            src: img.src,
-            alt: img.alt || aiContent.name || form.getValues('raw_name')
-        }));
-        
-        const finalCategories = selectedCategories.map(c => {
-            return c.id ? { id: c.id } : { name: c.name };
-        });
-
-        // Resolve tag IDs to speed up WordPress processing
-        const finalTags = aiContent.tags?.map(tagName => {
-            const existing = allTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
-            return existing ? { id: existing.id } : { name: tagName };
-        }) || [];
-
-        const userFocusKeyword = form.getValues('focus_keywords');
-        let finalMetaData = aiContent.meta_data ? [...aiContent.meta_data] : [];
-        finalMetaData = finalMetaData.filter(m => m.key === '_yoast_wpseo_focuskw');
-        if (userFocusKeyword) {
-            finalMetaData.push({ key: '_yoast_wpseo_focuskw', value: userFocusKeyword });
+        let imageBase64;
+        let imageName = image.fileName || `product-image-${Date.now()}.webp`;
+        // Ensure filename ends in .webp
+        if (!imageName.toLowerCase().endsWith('.webp')) {
+          const lastDot = imageName.lastIndexOf('.');
+          const baseName = lastDot > 0 ? imageName.substring(0, lastDot) : imageName;
+          imageName = `${baseName}.webp`;
         }
 
-        const finalData: any = {
-            name: aiContent.name || form.getValues('raw_name'),
-            sku: aiContent.sku,
-            slug: aiContent.slug,
-            regular_price: (aiContent.regular_price ?? form.getValues('price_etb')).toString(),
-            description: aiContent.description,
-            short_description: aiContent.short_description,
-            categories: finalCategories,
-            tags: finalTags,
-            images: finalImages,
-            attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
-            meta_data: finalMetaData,
-            status: action,
-        };
-
-        // Smart Update: If editing, only send changed fields
-        let dataToSubmit = finalData;
-        if (product) {
-            const diff: any = { id: product.id };
-            let hasChanges = false;
-
-            if (finalData.name !== product.name) { diff.name = finalData.name; hasChanges = true; }
-            if (finalData.sku !== product.sku) { diff.sku = finalData.sku; hasChanges = true; }
-            if (finalData.slug !== product.slug) { diff.slug = finalData.slug; hasChanges = true; }
-            
-            // Compare price precisely as string
-            if (finalData.regular_price !== product.regular_price) { 
-                diff.regular_price = finalData.regular_price; 
-                hasChanges = true; 
-            }
-
-            if (finalData.description !== product.description) { diff.description = finalData.description; hasChanges = true; }
-            if (finalData.short_description !== product.short_description) { diff.short_description = finalData.short_description; hasChanges = true; }
-            if (finalData.status !== product.status) { diff.status = finalData.status; hasChanges = true; }
-
-            // Collections are usually sent in full if any member changed
-            const initialCatIds = product.categories.map(c => c.id).sort().join(',');
-            const finalCatIds = selectedCategories.filter(c => c.id).map(c => c.id).sort().join(',');
-            const hasNewCat = selectedCategories.some(c => !c.id);
-            if (initialCatIds !== finalCatIds || hasNewCat) {
-                diff.categories = finalData.categories;
-                hasChanges = true;
-            }
-
-            const initialTagNames = product.tags.map(t => t.name).sort().join(',');
-            const finalTagNames = (aiContent.tags || []).sort().join(',');
-            if (initialTagNames !== finalTagNames) {
-                diff.tags = finalData.tags;
-                hasChanges = true;
-            }
-
-            const initialImgIds = product.images.map(i => i.id).join(',');
-            const finalImgIds = finalImages.map(i => i.id).join(',');
-            if (initialImgIds !== finalImgIds || uploadedImages.length > 0) {
-                diff.images = finalData.images;
-                hasChanges = true;
-            }
-
-            // Always include meta_data and attributes for consistency in this app
-            diff.meta_data = finalData.meta_data;
-            diff.attributes = finalData.attributes;
-            
-            dataToSubmit = diff;
+        if (image.file) {
+          imageBase64 = await fileToBase64(image.file);
+        } else {
+          imageBase64 = image.src;
         }
 
-        updateTask(taskId, { 
-          description: 'Saving product details...', 
-          progress: 95 
-        });
+        if (imageBase64.startsWith('data:image')) {
+          updateTask(taskId, {
+            description: `Optimizing and Converting ${imageName} to WebP (Recommended 1000px)...`,
+            progress: Math.round((currentStep / totalSteps) * 100)
+          });
+          const quality = (settings?.imageQuality || 85) / 100;
+          const maxDim = settings?.maxImageDimension || 1000;
+          imageBase64 = await resizeImage(imageBase64, maxDim, quality, 800);
+        }
 
-        const url = product ? `/api/products/${product.id}` : '/api/products';
-        const method = product ? 'PUT' : 'POST';
+        if (applyWatermark && settings?.watermarkImageUrl && !imageBase64.startsWith('http')) {
+          updateTask(taskId, { description: `Watermarking ${imageName}...` });
+          try {
+            imageBase64 = await applyWatermarkUtil(imageBase64, settings.watermarkImageUrl, settings);
+          } catch (watermarkError) {
+            console.error("Client-side watermarking failed", watermarkError);
+          }
+        }
 
-        const response = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dataToSubmit),
+        updateTask(taskId, { description: `Uploading ${imageName}...` });
+        const response = await fetch('/api/products/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_data: imageBase64, image_name: imageName }),
         });
 
         if (!response.ok) {
-            let errorMsg = 'Failed to save product details.';
-            try {
-                const errorData = await response.json();
-                errorMsg = errorData.message || errorMsg;
-            } catch (e) {
-                const text = await response.text();
-                errorMsg = text.substring(0, 100) || errorMsg;
-            }
-            throw new Error(errorMsg);
+          let errorMessage = `Image upload failed for ${imageName}.`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            const text = await response.text();
+            errorMessage = text.substring(0, 100) || errorMessage;
+          }
+          throw new Error(errorMessage);
         }
 
-        const savedProduct = await response.json();
-        
-        updateTask(taskId, { status: 'success', description: `Product "${savedProduct.name}" saved!`, progress: 100 });
-        toast({ title: "Success!", description: `Product "${savedProduct.name}" has been saved.` });
-        
-        router.push('/dashboard');
-        router.refresh();
+        currentStep++;
+        updateTask(taskId, { progress: Math.round((currentStep / totalSteps) * 100) });
+        const uploaded = await response.json();
+        uploadedImages.push({ ...uploaded, alt: image.alt });
+      }
+
+      const existingImages = images.filter(img => img.id).map(img => ({
+        id: img.id,
+        src: img.src,
+        alt: img.alt
+      }));
+
+      const finalImages = [...existingImages, ...uploadedImages].map((img) => ({
+        id: img.id,
+        src: img.src,
+        alt: img.alt || aiContent.name || form.getValues('raw_name')
+      }));
+
+      const finalCategories = selectedCategories.map(c => {
+        return c.id ? { id: c.id } : { name: c.name };
+      });
+
+      // Resolve tag IDs to speed up WordPress processing
+      const finalTags = aiContent.tags?.map(tagName => {
+        const existing = allTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+        return existing ? { id: existing.id } : { name: tagName };
+      }) || [];
+
+      const userFocusKeyword = form.getValues('focus_keywords');
+      let finalMetaData = aiContent.meta_data ? [...aiContent.meta_data] : [];
+      finalMetaData = finalMetaData.filter(m => m.key === '_yoast_wpseo_focuskw');
+      if (userFocusKeyword) {
+        finalMetaData.push({ key: '_yoast_wpseo_focuskw', value: userFocusKeyword });
+      }
+
+      const finalData: any = {
+        name: aiContent.name || form.getValues('raw_name'),
+        sku: aiContent.sku,
+        slug: aiContent.slug,
+        regular_price: (aiContent.regular_price ?? form.getValues('price_etb')).toString(),
+        description: aiContent.description,
+        short_description: aiContent.short_description,
+        categories: finalCategories,
+        tags: finalTags,
+        images: finalImages,
+        attributes: aiContent.attributes?.map(attr => ({ name: attr.name, options: [attr.option] })),
+        meta_data: finalMetaData,
+        status: action,
+      };
+
+      // Smart Update: If editing, only send changed fields
+      let dataToSubmit = finalData;
+      if (product) {
+        const diff: any = { id: product.id };
+        let hasChanges = false;
+
+        if (finalData.name !== product.name) { diff.name = finalData.name; hasChanges = true; }
+        if (finalData.sku !== product.sku) { diff.sku = finalData.sku; hasChanges = true; }
+        if (finalData.slug !== product.slug) { diff.slug = finalData.slug; hasChanges = true; }
+
+        // Compare price precisely as string
+        if (finalData.regular_price !== product.regular_price) {
+          diff.regular_price = finalData.regular_price;
+          hasChanges = true;
+        }
+
+        if (finalData.description !== product.description) { diff.description = finalData.description; hasChanges = true; }
+        if (finalData.short_description !== product.short_description) { diff.short_description = finalData.short_description; hasChanges = true; }
+        if (finalData.status !== product.status) { diff.status = finalData.status; hasChanges = true; }
+
+        // Collections are usually sent in full if any member changed
+        const initialCatIds = product.categories.map(c => c.id).sort().join(',');
+        const finalCatIds = selectedCategories.filter(c => c.id).map(c => c.id).sort().join(',');
+        const hasNewCat = selectedCategories.some(c => !c.id);
+        if (initialCatIds !== finalCatIds || hasNewCat) {
+          diff.categories = finalData.categories;
+          hasChanges = true;
+        }
+
+        const initialTagNames = product.tags.map(t => t.name).sort().join(',');
+        const finalTagNames = (aiContent.tags || []).sort().join(',');
+        if (initialTagNames !== finalTagNames) {
+          diff.tags = finalData.tags;
+          hasChanges = true;
+        }
+
+        const initialImgIds = product.images.map(i => i.id).join(',');
+        const finalImgIds = finalImages.map(i => i.id).join(',');
+        if (initialImgIds !== finalImgIds || uploadedImages.length > 0) {
+          diff.images = finalData.images;
+          hasChanges = true;
+        }
+
+        // Always include meta_data and attributes for consistency in this app
+        diff.meta_data = finalData.meta_data;
+        diff.attributes = finalData.attributes;
+
+        dataToSubmit = diff;
+      }
+
+      updateTask(taskId, {
+        description: 'Saving product details...',
+        progress: 95
+      });
+
+      const url = product ? `/api/products/${product.id}` : '/api/products';
+      const method = product ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToSubmit),
+      });
+
+      if (!response.ok) {
+        let errorMsg = 'Failed to save product details.';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.message || errorMsg;
+        } catch (e) {
+          const text = await response.text();
+          errorMsg = text.substring(0, 100) || errorMsg;
+        }
+        throw new Error(errorMsg);
+      }
+
+      const savedProduct = await response.json();
+
+      updateTask(taskId, { status: 'success', description: `Product "${savedProduct.name}" saved!`, progress: 100 });
+      toast({ title: "Success!", description: `Product "${savedProduct.name}" has been saved.` });
+
+      router.push('/dashboard');
+      router.refresh();
 
     } catch (error: any) {
-        console.error(error);
-        updateTask(taskId, { status: 'error', description: error.message || 'Save failed.' });
-        toast({ variant: "destructive", title: "Save Failed", description: error.message || "There was an error saving the product." });
+      console.error(error);
+      updateTask(taskId, { status: 'error', description: error.message || 'Save failed.' });
+      toast({ variant: "destructive", title: "Save Failed", description: error.message || "There was an error saving the product." });
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -612,24 +612,24 @@ export default function ProductForm({ product }: ProductFormProps) {
       return { ...p, meta_data: [...existingMeta, { key, value }] };
     });
   }
-  
+
   const handleCategorySelect = useCallback((category: WooCategory) => {
     setSelectedCategories(prev => {
-        const isSelected = prev.some(c => (c.id && c.id === category.id) || (c.name === category.name));
-        if (isSelected) {
-            return prev.filter(c => !((c.id && c.id === category.id) || (c.name === category.name)));
-        } else {
-            return [...prev, { id: category.id, name: category.name }];
-        }
+      const isSelected = prev.some(c => (c.id && c.id === category.id) || (c.name === category.name));
+      if (isSelected) {
+        return prev.filter(c => !((c.id && c.id === category.id) || (c.name === category.name)));
+      } else {
+        return [...prev, { id: category.id, name: category.name }];
+      }
     });
   }, []);
-  
+
   const handleAddKeyword = (keyword: string) => {
     const currentKeywords = form.getValues('focus_keywords') || '';
     const newKeywords = currentKeywords ? `${currentKeywords}, ${keyword}` : keyword;
     form.setValue('focus_keywords', newKeywords);
   };
-  
+
   const commonKeywords = useMemo(() => {
     if (!settings?.commonKeywords) return [];
     const keywords = settings.commonKeywords.split(',').map(kw => kw.trim()).filter(Boolean);
@@ -679,263 +679,263 @@ export default function ProductForm({ product }: ProductFormProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           {/* LEFT COLUMN: USER INPUT */}
           <div className="lg:col-span-1 flex flex-col gap-6">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Product Details</CardTitle>
-                    <CardDescription>Enter the core information for your product.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     <div className="space-y-2">
-                        <Label>Product Images (First is Main)</Label>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2">
-                           {images.map((image, index) => (
-                               <div key={index} className="relative aspect-square rounded-md overflow-hidden group border">
-                                   <Image src={image.src} alt={`Product preview ${index + 1}`} fill style={{objectFit: 'cover'}} data-ai-hint="product image"/>
-                                   {index === 0 && <Badge className="absolute top-1 left-1 z-10 text-[10px] h-5 bg-primary/90 shadow-sm">Main</Badge>}
-                                   <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                                       <Button variant="destructive" size="icon" className="h-6 w-6 rounded-full" onClick={() => removeImage(index)}>
-                                            <XIcon className="h-3 w-3" />
-                                       </Button>
-                                       {index > 0 && (
-                                           <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full" onClick={() => moveImage(index, 'left')}>
-                                               <ChevronLeft className="h-3 w-3" />
-                                           </Button>
-                                       )}
-                                       {index < images.length - 1 && (
-                                           <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full" onClick={() => moveImage(index, 'right')}>
-                                               <ChevronRight className="h-3 w-3" />
-                                           </Button>
-                                       )}
-                                   </div>
-                               </div>
-                           ))}
-                            <div className="w-full aspect-square rounded-md border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex items-center justify-center relative overflow-hidden">
-                               <div className="text-center text-muted-foreground p-2">
-                                   <UploadCloud className="mx-auto h-8 w-8 mb-1" />
-                                   <p className="text-[10px] font-medium">Add Images</p>
-                               </div>
-                               <Input id="product-image" type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleImageChange} multiple />
-                           </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Product Details</CardTitle>
+                <CardDescription>Enter the core information for your product.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Product Images (First is Main)</Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2">
+                    {images.map((image, index) => (
+                      <div key={index} className="relative aspect-square rounded-md overflow-hidden group border">
+                        <Image src={image.src} alt={`Product preview ${index + 1}`} fill style={{ objectFit: 'cover' }} data-ai-hint="product image" />
+                        {index === 0 && <Badge className="absolute top-1 left-1 z-10 text-[10px] h-5 bg-primary/90 shadow-sm">Main</Badge>}
+                        <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                          <Button variant="destructive" size="icon" className="h-6 w-6 rounded-full" onClick={() => removeImage(index)}>
+                            <XIcon className="h-3 w-3" />
+                          </Button>
+                          {index > 0 && (
+                            <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full" onClick={() => moveImage(index, 'left')}>
+                              <ChevronLeft className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {index < images.length - 1 && (
+                            <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full" onClick={() => moveImage(index, 'right')}>
+                              <ChevronRight className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
-                        {isPickerConfigured && (
-                            <div className="pt-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="w-full h-9 text-xs"
-                                    onClick={openPicker}
-                                    disabled={isPickerLoading}
-                                >
-                                    {isPickerLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <ImageIcon className="mr-2 h-3 w-3" />}
-                                    Select from Google Photos
-                                </Button>
-                            </div>
-                        )}
+                      </div>
+                    ))}
+                    <div className="w-full aspect-square rounded-md border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors flex items-center justify-center relative overflow-hidden">
+                      <div className="text-center text-muted-foreground p-2">
+                        <UploadCloud className="mx-auto h-8 w-8 mb-1" />
+                        <p className="text-[10px] font-medium">Add Images</p>
+                      </div>
+                      <Input id="product-image" type="file" accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleImageChange} multiple />
                     </div>
-                    
-                    <FormField control={form.control} name="raw_name" render={({ field }) => (
-                        <FormItem><FormLabel>Product Name (Initial Idea)</FormLabel><FormControl><Input placeholder="e.g., Traditional Bunk Bed" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                     <FormField control={form.control} name="material" render={({ field }) => (
-                        <FormItem><FormLabel>Material</FormLabel><FormControl><Input placeholder="e.g., Solid Oak" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="price_etb" render={({ field }) => (
-                        <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" placeholder="e.g., 1500" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="focus_keywords" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Focus Keywords</FormLabel>
-                            <FormControl><Input placeholder="e.g., handmade, ethiopian craft" {...field} /></FormControl>
-                             <div className="flex flex-wrap gap-1 pt-2">
-                                {commonKeywords.map((kw, index) => (
-                                    <Button key={`${kw}-${index}`} type="button" size="sm" variant="outline" className="text-[10px] h-6 px-2" onClick={() => handleAddKeyword(kw)}>
-                                        {kw}
-                                    </Button>
-                                ))}
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                    <FormField control={form.control} name="amharic_name" render={({ field }) => (
-                        <FormItem><FormLabel>Amharic Name</FormLabel><FormControl><Input placeholder="e.g., የባህል አልጋ" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                </CardContent>
+                  </div>
+                  {isPickerConfigured && (
+                    <div className="pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full h-9 text-xs"
+                        onClick={openPicker}
+                        disabled={isPickerLoading}
+                      >
+                        {isPickerLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <ImageIcon className="mr-2 h-3 w-3" />}
+                        Select from Google Photos
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <FormField control={form.control} name="raw_name" render={({ field }) => (
+                  <FormItem><FormLabel>Product Name (Initial Idea)</FormLabel><FormControl><Input placeholder="e.g., Traditional Bunk Bed" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="material" render={({ field }) => (
+                  <FormItem><FormLabel>Material</FormLabel><FormControl><Input placeholder="e.g., Solid Oak" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="price_etb" render={({ field }) => (
+                  <FormItem><FormLabel>Price (ETB)</FormLabel><FormControl><Input type="number" placeholder="e.g., 1500" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="focus_keywords" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Focus Keywords</FormLabel>
+                    <FormControl><Input placeholder="e.g., handmade, ethiopian craft" {...field} /></FormControl>
+                    <div className="flex flex-wrap gap-1 pt-2">
+                      {commonKeywords.map((kw, index) => (
+                        <Button key={`${kw}-${index}`} type="button" size="sm" variant="outline" className="text-[10px] h-6 px-2" onClick={() => handleAddKeyword(kw)}>
+                          {kw}
+                        </Button>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="amharic_name" render={({ field }) => (
+                  <FormItem><FormLabel>Amharic Name</FormLabel><FormControl><Input placeholder="e.g., የባህል አልጋ" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+              </CardContent>
             </Card>
             <Button type="button" size="lg" className="w-full bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg" onClick={form.handleSubmit((values) => handleGenerate(values, 'all'))} disabled={generatingField !== null || settings === null}>
               {generatingField === 'all' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               AI Optimize All Fields
             </Button>
-             {settings?.watermarkImageUrl && (
-                <div className="flex items-center space-x-2 justify-center py-2">
-                    <Switch
-                        id="watermark-toggle"
-                        checked={applyWatermark}
-                        onCheckedChange={setApplyWatermark}
-                        disabled={!settings.watermarkImageUrl}
-                    />
-                    <Label htmlFor="watermark-toggle" className="cursor-pointer text-sm">Apply Watermark to Images</Label>
-                </div>
+            {settings?.watermarkImageUrl && (
+              <div className="flex items-center space-x-2 justify-center py-2">
+                <Switch
+                  id="watermark-toggle"
+                  checked={applyWatermark}
+                  onCheckedChange={setApplyWatermark}
+                  disabled={!settings.watermarkImageUrl}
+                />
+                <Label htmlFor="watermark-toggle" className="cursor-pointer text-sm">Apply Watermark to Images</Label>
+              </div>
             )}
           </div>
 
           {/* RIGHT COLUMN: AI PREVIEW */}
           <div className="lg:col-span-2">
-             <Card className="border-primary/10 shadow-md">
-                <CardHeader>
-                    <CardTitle className="text-xl">{product ? 'Edit Optimized Content' : 'AI Analysis Result'}</CardTitle>
-                    <CardDescription>Review and refine the generated titles and descriptions.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                   <div className="space-y-2">
-                       <div className="flex justify-between items-center">
-                          <Label className="text-primary font-bold">AI Optimized Product Name</Label>
-                          <div className="flex gap-2 items-center">
-                              {aiContent.name_options && aiContent.name_options.length > 0 && (
-                                  <Popover>
-                                      <PopoverTrigger asChild>
-                                          <Button variant="outline" size="sm" className="h-7 text-xs border-primary/20 hover:bg-primary/5">
-                                              <ListChecks className="mr-2 h-3 w-3" />
-                                              Pick variation
-                                          </Button>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-80 p-0" align="end">
-                                          <div className="p-3 border-b bg-muted/20">
-                                              <h4 className="font-bold text-sm">Branding Variations</h4>
-                                              <p className="text-[10px] text-muted-foreground">Select a different angle for your product title.</p>
-                                          </div>
-                                          <div className="p-2 space-y-1">
-                                              {(aiContent.name_options || []).map((option, idx) => (
-                                                  <Button
-                                                      key={idx}
-                                                      variant="ghost"
-                                                      className="w-full justify-start text-left h-auto py-2 px-3 text-xs whitespace-normal"
-                                                      onClick={() => handleSelectNameOption(option)}
-                                                  >
-                                                      <div className="flex flex-col gap-0.5">
-                                                          <span className={cn("font-semibold", aiContent.name === option && "text-primary")}>{option}</span>
-                                                          <span className="text-[9px] uppercase text-muted-foreground">Variation {idx + 1}</span>
-                                                      </div>
-                                                  </Button>
-                                              ))}
-                                          </div>
-                                      </PopoverContent>
-                                  </Popover>
-                              )}
-                              {renderGenButton('name', 'Name, SKU & Slug')}
-                          </div>
-                       </div>
-                       <Input value={aiContent.name || ''} onChange={(e) => setAiContent(p => ({...p, name: e.target.value}))} placeholder="Analyze to generate perfect title..." className="text-lg font-bold border-primary/20 focus-visible:ring-primary"/>
-                       <div className="grid grid-cols-2 gap-2 mt-2">
-                            <div>
-                                <Label className="text-xs uppercase text-muted-foreground font-bold">SKU</Label>
-                                <Input value={aiContent.sku || ''} onChange={(e) => setAiContent(p => ({ ...p, sku: e.target.value }))} placeholder="SKU..."/>
-                            </div>
-                            <div>
-                                <Label className="text-xs uppercase text-muted-foreground font-bold">Slug</Label>
-                                <Input value={aiContent.slug || ''} onChange={(e) => setAiContent(p => ({ ...p, slug: e.target.value }))} placeholder="URL-friendly-slug..."/>
-                            </div>
-                       </div>
-                   </div>
-                   
-                   <div className="space-y-2">
-                       <div className="flex justify-between items-center"><Label>Regular Price (ETB)</Label>{renderGenButton('regular_price', 'Price')}</div>
-                       <Input type="number" value={aiContent.regular_price || ''} onChange={(e) => setAiContent(p => ({ ...p, regular_price: parseFloat(e.target.value.toString()) || 0 }))} placeholder="Analyzed price..."/>
-                   </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center"><Label>Categories</Label>{renderGenButton('categories', 'Categories')}</div>
+            <Card className="border-primary/10 shadow-md">
+              <CardHeader>
+                <CardTitle className="text-xl">{product ? 'Edit Optimized Content' : 'AI Analysis Result'}</CardTitle>
+                <CardDescription>Review and refine the generated titles and descriptions.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-primary font-bold">AI Optimized Product Name</Label>
+                    <div className="flex gap-2 items-center">
+                      {aiContent.name_options && aiContent.name_options.length > 0 && (
                         <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className="w-full justify-start font-normal h-auto min-h-10 text-left border-dashed">
-                                    <div className="flex gap-1 flex-wrap">
-                                      {selectedCategories.length > 0 ? (
-                                        selectedCategories.map(cat => (
-                                          <Badge key={cat.id || cat.name} variant={cat.id ? "secondary" : "default"} className="h-6">
-                                            {cat.name}
-                                            {cat.id === undefined && <span className="ml-1 text-[8px] opacity-70">(New)</span>}
-                                          </Badge>
-                                        ))
-                                      ) : (
-                                        <span className="text-muted-foreground">Select furniture categories...</span>
-                                      )}
-                                    </div>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-7 text-xs border-primary/20 hover:bg-primary/5">
+                              <ListChecks className="mr-2 h-3 w-3" />
+                              Pick variation
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80 p-0" align="end">
+                            <div className="p-3 border-b bg-muted/20">
+                              <h4 className="font-bold text-sm">Branding Variations</h4>
+                              <p className="text-[10px] text-muted-foreground">Select a different angle for your product title.</p>
+                            </div>
+                            <div className="p-2 space-y-1">
+                              {(aiContent.name_options || []).map((option, idx) => (
+                                <Button
+                                  key={idx}
+                                  variant="ghost"
+                                  className="w-full justify-start text-left h-auto py-2 px-3 text-xs whitespace-normal"
+                                  onClick={() => handleSelectNameOption(option)}
+                                >
+                                  <div className="flex flex-col gap-0.5">
+                                    <span className={cn("font-semibold", aiContent.name === option && "text-primary")}>{option}</span>
+                                    <span className="text-[9px] uppercase text-muted-foreground">Variation {idx + 1}</span>
+                                  </div>
                                 </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                <Command>
-                                    <CommandInput placeholder="Search categories..." />
-                                    <CommandList>
-                                        <CommandEmpty>No categories found.</CommandEmpty>
-                                        <CommandGroup>
-                                            {availableCategories.map((category) => {
-                                                const isSelected = selectedCategories.some(c => (c.id && c.id === category.id) || (c.name === category.name));
-                                                return (
-                                                    <CommandItem
-                                                        key={category.id}
-                                                        value={category.name}
-                                                        onSelect={() => {
-                                                          handleCategorySelect(category);
-                                                        }}
-                                                        onPointerDown={(e) => {
-                                                          // Known fix for cmdk in popover click issues
-                                                          e.preventDefault();
-                                                          e.stopPropagation();
-                                                        }}
-                                                    >
-                                                      <div className={cn( "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50" )}>
-                                                            <Check className={cn("h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
-                                                        </div>
-                                                        <span>{category.name}</span>
-                                                    </CommandItem>
-                                                );
-                                            })}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                            </PopoverContent>
+                              ))}
+                            </div>
+                          </PopoverContent>
                         </Popover>
+                      )}
+                      {renderGenButton('name', 'Name, SKU & Slug')}
                     </div>
-
-                   <div className="space-y-2">
-                       <div className="flex justify-between items-center"><Label>Descriptions</Label>{renderGenButton('description', 'Descriptions')}</div>
-                       <Textarea value={aiContent.description || ''} onChange={(e) => setAiContent(p => ({...p, description: e.target.value}))} rows={10} placeholder="Comprehensive SEO description..." className="text-sm font-body leading-relaxed"/>
-                       <Label className="text-xs uppercase text-muted-foreground mt-2 inline-block">Short Summary (Bullet Points)</Label>
-                       <Textarea value={aiContent.short_description || ''} onChange={(e) => setAiContent(p => ({p, short_description: e.target.value}))} rows={4} placeholder="Key features summary..." className="mt-1 text-sm"/>
-                   </div>
-
-                   <div className="space-y-2">
-                        <div className="flex justify-between items-center"><Label>SEO Content (Tags & Meta)</Label>{renderGenButton('tags', 'SEO Content')}</div>
-                        <Input value={aiContent.tags?.join(', ') || ''} onChange={(e) => setAiContent(p => ({...p, tags: e.target.value.split(',').map(t => t.trim())}))} placeholder="Search tags..."/>
-                        <Label className="text-xs uppercase text-muted-foreground mt-2 inline-block">Yoast Focus Keyphrase</Label>
-                        <Input value={getMetaValue('_yoast_wpseo_focuskw') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_focuskw', e.target.value)} placeholder="Primary search term..." className="mt-1" />
-                        <Label className="text-xs uppercase text-muted-foreground mt-2 inline-block">Meta Description</Label>
-                        <Textarea value={getMetaValue('_yoast_wpseo_metadesc') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_metadesc', e.target.value)} rows={3} placeholder="Google search snippet..." className="mt-1 resize-none" />
+                  </div>
+                  <Input value={aiContent.name || ''} onChange={(e) => setAiContent(p => ({ ...p, name: e.target.value }))} placeholder="Analyze to generate perfect title..." className="text-lg font-bold border-primary/20 focus-visible:ring-primary" />
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <Label className="text-xs uppercase text-muted-foreground font-bold">SKU</Label>
+                      <Input value={aiContent.sku || ''} onChange={(e) => setAiContent(p => ({ ...p, sku: e.target.value }))} placeholder="SKU..." />
                     </div>
-                   
-                   <div className="space-y-4 pt-4 border-t border-dashed">
-                        <div className="flex justify-between items-center">
-                            <Label className="font-bold">Image SEO & Alt Text</Label>
-                            {renderGenButton('images', 'Alt Text')}
+                    <div>
+                      <Label className="text-xs uppercase text-muted-foreground font-bold">Slug</Label>
+                      <Input value={aiContent.slug || ''} onChange={(e) => setAiContent(p => ({ ...p, slug: e.target.value }))} placeholder="URL-friendly-slug..." />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center"><Label>Regular Price (ETB)</Label>{renderGenButton('regular_price', 'Price')}</div>
+                  <Input type="number" value={aiContent.regular_price || ''} onChange={(e) => setAiContent(p => ({ ...p, regular_price: parseFloat(e.target.value.toString()) || 0 }))} placeholder="Analyzed price..." />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center"><Label>Categories</Label>{renderGenButton('categories', 'Categories')}</div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start font-normal h-auto min-h-10 text-left border-dashed">
+                        <div className="flex gap-1 flex-wrap">
+                          {selectedCategories.length > 0 ? (
+                            selectedCategories.map(cat => (
+                              <Badge key={cat.id || cat.name} variant={cat.id ? "secondary" : "default"} className="h-6">
+                                {cat.name}
+                                {cat.id === undefined && <span className="ml-1 text-[8px] opacity-70">(New)</span>}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground">Select furniture categories...</span>
+                          )}
                         </div>
-                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                           {images.map((image, index) => (
-                              <div key={index} className="space-y-2 group">
-                                <div className="relative aspect-square rounded-md overflow-hidden border">
-                                    <Image src={image.src} alt={image.alt || `Product gallery image ${index + 1}`} fill className="object-cover" />
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Image {index + 1}</div>
-                                </div>
-                                <Input 
-                                  value={image.alt}
-                                  onChange={(e) => handleAltTextChange(index, e.target.value)}
-                                  placeholder={`Alt text...`}
-                                  className="h-7 text-[10px] px-2 border-muted"
-                                />
-                              </div>
-                           ))}
-                       </div>
-                   </div>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search categories..." />
+                        <CommandList>
+                          <CommandEmpty>No categories found.</CommandEmpty>
+                          <CommandGroup>
+                            {availableCategories.map((category) => {
+                              const isSelected = selectedCategories.some(c => (c.id && c.id === category.id) || (c.name === category.name));
+                              return (
+                                <CommandItem
+                                  key={category.id}
+                                  value={category.name}
+                                  onSelect={() => {
+                                    handleCategorySelect(category);
+                                  }}
+                                  onPointerDown={(e) => {
+                                    // Known fix for cmdk in popover click issues
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                >
+                                  <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", isSelected ? "bg-primary text-primary-foreground" : "opacity-50")}>
+                                    <Check className={cn("h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                                  </div>
+                                  <span>{category.name}</span>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-                </CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center"><Label>Descriptions</Label>{renderGenButton('description', 'Descriptions')}</div>
+                  <Textarea value={aiContent.description || ''} onChange={(e) => setAiContent(p => ({ ...p, description: e.target.value }))} rows={10} placeholder="Comprehensive SEO description..." className="text-sm font-body leading-relaxed" />
+                  <Label className="text-xs uppercase text-muted-foreground mt-2 inline-block">Short Summary (Bullet Points)</Label>
+                  <Textarea value={aiContent.short_description || ''} onChange={(e) => setAiContent(p => ({ p, short_description: e.target.value }))} rows={4} placeholder="Key features summary..." className="mt-1 text-sm" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center"><Label>SEO Content (Tags & Meta)</Label>{renderGenButton('tags', 'SEO Content')}</div>
+                  <Input value={aiContent.tags?.join(', ') || ''} onChange={(e) => setAiContent(p => ({ ...p, tags: e.target.value.split(',').map(t => t.trim()) }))} placeholder="Search tags..." />
+                  <Label className="text-xs uppercase text-muted-foreground mt-2 inline-block">Yoast Focus Keyphrase</Label>
+                  <Input value={getMetaValue('_yoast_wpseo_focuskw') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_focuskw', e.target.value)} placeholder="Primary search term..." className="mt-1" />
+                  <Label className="text-xs uppercase text-muted-foreground mt-2 inline-block">Meta Description</Label>
+                  <Textarea value={getMetaValue('_yoast_wpseo_metadesc') || ''} onChange={(e) => setMetaValue('_yoast_wpseo_metadesc', e.target.value)} rows={3} placeholder="Google search snippet..." className="mt-1 resize-none" />
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-dashed">
+                  <div className="flex justify-between items-center">
+                    <Label className="font-bold">Image SEO & Alt Text</Label>
+                    {renderGenButton('images', 'Alt Text')}
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {images.map((image, index) => (
+                      <div key={index} className="space-y-2 group">
+                        <div className="relative aspect-square rounded-md overflow-hidden border">
+                          <Image src={image.src} alt={image.alt || `Product gallery image ${index + 1}`} fill className="object-cover" />
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">Image {index + 1}</div>
+                        </div>
+                        <Input
+                          value={image.alt}
+                          onChange={(e) => handleAltTextChange(index, e.target.value)}
+                          placeholder={`Alt text...`}
+                          className="h-7 text-[10px] px-2 border-muted"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </CardContent>
             </Card>
           </div>
         </div>
@@ -943,12 +943,12 @@ export default function ProductForm({ product }: ProductFormProps) {
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 p-4 backdrop-blur-md lg:static lg:mt-8 lg:flex lg:justify-end lg:gap-4 lg:border-none lg:bg-transparent lg:p-0">
           <div className="flex flex-col sm:flex-row justify-end gap-3 w-full sm:w-auto">
             <Button type="button" size="lg" variant="outline" onClick={() => onSubmit('draft')} disabled={isSaving || generatingField !== null} className="w-full sm:w-auto h-12 sm:h-10">
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save as Draft
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save as Draft
             </Button>
             <Button type="button" size="lg" onClick={() => onSubmit('publish')} disabled={isSaving || generatingField !== null} className="w-full sm:w-auto h-12 sm:h-10 shadow-xl">
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {product ? "Update Product" : "Publish to Store"}
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {product ? "Update Product" : "Publish to Store"}
             </Button>
           </div>
         </div>

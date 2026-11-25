@@ -768,39 +768,40 @@ function SearchInsights() {
 
     useEffect(() => {
         async function fetchData() {
-            // Fetch raw query data
             setIsLoading(true);
             setError(null);
-            try {
-                const res = await fetch(`/api/search-console?days=${dateRange}`);
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Failed to fetch Search Console data.');
-                }
-                setQueries(data);
-            } catch (err: any) {
-                setError(err.message);
+
+            const [queriesResult, analysisResult] = await Promise.allSettled([
+                fetch(`/api/search-console?days=${dateRange}`).then(async (res) => {
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw new Error(data.details || data.error || 'Failed to fetch Search Console data.');
+                    }
+                    return data;
+                }),
+                fetch('/api/search-console/analyze').then(async (res) => {
+                    if (!res.ok) return null;
+                    return res.json();
+                }),
+            ]);
+
+            if (queriesResult.status === 'fulfilled') {
+                setQueries(queriesResult.value);
+            } else {
+                const msg = queriesResult.reason?.message || 'Failed to fetch Search Console data.';
+                setError(msg);
                 toast({
                     variant: 'destructive',
                     title: 'Loading Failed',
-                    description: err.message,
+                    description: msg,
                 });
-            } finally {
-                setIsLoading(false);
             }
 
-            // Fetch existing analysis
-            try {
-                const analysisRes = await fetch('/api/search-console/analyze');
-                if (analysisRes.ok) {
-                    const data = await analysisRes.json();
-                    if(data.summary) { // check if analysis exists
-                        setAnalysis(data);
-                    }
-                }
-            } catch (err) {
-                console.error("Could not load existing GSC analysis", err);
+            if (analysisResult.status === 'fulfilled' && analysisResult.value?.summary) {
+                setAnalysis(analysisResult.value);
             }
+
+            setIsLoading(false);
         }
         fetchData();
     }, [toast, dateRange]);

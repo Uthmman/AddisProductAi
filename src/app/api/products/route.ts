@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
       // Invalidate products cache
       appCache.flushAll();
       return NextResponse.json(newProduct, { status: 201 });
-    } catch (error) {
-      console.error(error);
-      return NextResponse.json({ message: 'Failed to create product' }, { status: 500 });
+    } catch (error: any) {
+      console.error('API Route Error creating product:', error);
+      return NextResponse.json({ message: error.message || 'Failed to create product' }, { status: 500 });
     }
   }

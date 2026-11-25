@@ -73,12 +73,7 @@ export async function POST(request: NextRequest) {
     let resolvedSku = inputData.existingContent?.sku;
     
     if (!resolvedSku && (inputData.fieldToGenerate === 'all' || inputData.fieldToGenerate === 'name')) {
-      const categoryCode = getCategoryCode(inputData.raw_name);
-      if (!categoryCode) {
-        return NextResponse.json({ 
-          message: `I couldn't identify the furniture category for "${inputData.raw_name}". Please include the type of furniture (e.g., Bed, Table, Wardrobe) in the name.` 
-        }, { status: 400 });
-      }
+      const categoryCode = getCategoryCode(inputData.raw_name) || 'GEN';
       
       try {
         console.time("SKU Resolution");

@@ -269,7 +269,7 @@ export const PRODUCT_LIST_FIELDS = [
                 const headers = getWordPressAuthHeaders();
                 const wpApiUrl = `${WOOCOMMERCE_SITE_URL}/wp-json/wp/v2`;
 
-                const mimeTypeMatch = imageData.match(/^data:(image\/[a-z]+);base64,/);
+                const mimeTypeMatch = imageData.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
                 if (!mimeTypeMatch) {
                     throw new Error('Invalid image format. Could not determine MIME type for upload.');
                 }
@@ -282,24 +282,42 @@ export const PRODUCT_LIST_FIELDS = [
                 mediaHeaders['Content-Type'] = mimeType;
                 mediaHeaders['Content-Disposition'] = `attachment; filename="${sanitizedImageName}"`;
 
-                try {
-                    const response = await fetch(`${wpApiUrl}/media`, {
-                        method: 'POST',
-                        headers: mediaHeaders,
-                        body: imageBuffer,
-                        signal: AbortSignal.timeout(115000) // 115s timeout
-                    });
+                const maxRetries = 2;
+                let lastError: any;
 
-                    return handleResponse(response, 'Failed to upload image to WordPress media library');
-                } catch (error: any) {
-                    if (error.name === 'TimeoutError') {
-                        throw new Error("The image upload timed out. The WordPress server took too long to process the image.");
+                for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                    try {
+                        const response = await fetch(`${wpApiUrl}/media`, {
+                            method: 'POST',
+                            headers: mediaHeaders,
+                            body: imageBuffer,
+                            signal: AbortSignal.timeout(115000) // 115s timeout
+                        });
+
+                        if (response.status >= 500 && attempt < maxRetries) {
+                            console.warn(`WordPress media upload returned ${response.status} (attempt ${attempt + 1}). Retrying...`);
+                            await new Promise(res => setTimeout(res, 1500 * (attempt + 1)));
+                            continue;
+                        }
+
+                        return handleResponse(response, 'Failed to upload image to WordPress media library');
+                    } catch (error: any) {
+                        lastError = error;
+                        if (attempt < maxRetries && (error.name === 'TimeoutError' || error.message?.includes('fetch failed'))) {
+                            console.warn(`WordPress media upload error (attempt ${attempt + 1}): ${error.message}. Retrying...`);
+                            await new Promise(res => setTimeout(res, 1500 * (attempt + 1)));
+                            continue;
+                        }
+                        if (error.name === 'TimeoutError') {
+                            throw new Error("The image upload timed out. The WordPress server took too long to process the image.");
+                        }
+                        if (error.message?.includes('fetch failed')) {
+                            throw new Error(`Connection to WordPress failed. Please check if ${WOOCOMMERCE_SITE_URL} is accessible.`);
+                        }
+                        throw error;
                     }
-                    if (error.message.includes('fetch failed')) {
-                        throw new Error(`Connection to WordPress failed. Please check if ${WOOCOMMERCE_SITE_URL} is accessible.`);
-                    }
-                    throw error;
                 }
+                throw lastError;
             }
 
             export async function updateProductBatch(updates: { update: any[] }): Promise<any> {

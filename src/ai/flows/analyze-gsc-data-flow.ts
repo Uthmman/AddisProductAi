@@ -61,7 +61,11 @@ ${gscDataString}
       prompt: prompt,
       output: { schema: GscAnalysisOutputSchema },
     });
+
+    if (!output) {
+      throw new Error('The AI model failed to generate a valid search analysis.');
+    }
     
-    return output!;
+    return output;
   }
 );

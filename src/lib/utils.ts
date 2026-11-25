@@ -96,6 +96,10 @@ export async function resizeImage(
       const format = 'image/webp';
       resolve(canvas.toDataURL(format, quality));
     };
+    img.onerror = () => {
+      // Fallback to original base64 if image fails to load onto canvas
+      resolve(base64Str);
+    };
   });
 }
 
