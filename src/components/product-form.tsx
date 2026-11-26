@@ -267,10 +267,8 @@ export default function ProductForm({ product }: ProductFormProps) {
 
       if (sampleImage.startsWith('data:image')) {
         updateTask(taskId, { description: "Resizing and converting image..." });
-        // Use current image settings for the sample to keep it fast but relevant
-        const quality = (settings?.imageQuality || 80) / 100;
-        const maxDim = settings?.maxImageDimension || 1024;
-        optimizedSample = await resizeImage(sampleImage, maxDim, quality);
+        // Use compact dimensions for the AI sample image to keep generation fast
+        optimizedSample = await resizeImage(sampleImage, 800, 0.75, 0);
         updateTask(taskId, { progress: 30 });
       }
 
@@ -282,7 +280,7 @@ export default function ProductForm({ product }: ProductFormProps) {
       const primaryCategoryName = selectedCategories[0]?.name;
       const primaryCategory = availableCategories.find(c => c.name === primaryCategoryName);
 
-      updateTask(taskId, { description: "Processing with Gemini 3.5 Flash...", progress: 50 });
+      updateTask(taskId, { description: "Processing with Gemini AI...", progress: 50 });
 
       const response = await fetch('/api/products/ai-optimize', {
         method: 'POST',
@@ -302,7 +300,7 @@ export default function ProductForm({ product }: ProductFormProps) {
 
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({ message: 'The AI service is currently unavailable.' }));
-        throw new Error(errorBody.message || `Failed to generate AI content for ${field}.`);
+        throw new Error(errorBody.message || errorBody.text || `Failed to generate AI content for ${field} (Status: ${response.status}).`);
       }
 
       const rawData: any = await response.json();

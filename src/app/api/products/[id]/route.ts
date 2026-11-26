@@ -5,11 +5,12 @@ import { appCache } from '@/lib/cache';
 export const maxDuration = 120; // Extend timeout to 120 seconds
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const id = parseInt(params.id, 10);
+  const { id: idStr } = await params;
+  const id = parseInt(idStr, 10);
   if (isNaN(id)) {
     return NextResponse.json({ message: 'Invalid product ID' }, { status: 400 });
   }
@@ -34,7 +35,8 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function PUT(request: NextRequest, { params }: Params) {
-  const id = parseInt(params.id, 10);
+  const { id: idStr } = await params;
+  const id = parseInt(idStr, 10);
   if (isNaN(id)) {
     return NextResponse.json({ message: 'Invalid product ID' }, { status: 400 });
   }
@@ -55,7 +57,8 @@ export async function PUT(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
-    const id = parseInt(params.id, 10);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr, 10);
     if (isNaN(id)) {
         return NextResponse.json({ message: 'Invalid product ID' }, { status: 400 });
     }

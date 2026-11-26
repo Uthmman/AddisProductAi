@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { WooProduct } from "@/lib/types";
 
 type ProductPageProps = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 async function getProductData(id: string): Promise<WooProduct | null> {
@@ -27,7 +27,8 @@ async function getProductData(id: string): Promise<WooProduct | null> {
 }
 
 export async function generateMetadata({ params }: ProductPageProps) {
-    const isNew = params.id === 'new';
+    const { id } = await params;
+    const isNew = id === 'new';
     return {
         title: isNew ? 'New Product | Addis Product AI' : `Edit Product | Addis Product AI`,
     };
@@ -35,8 +36,9 @@ export async function generateMetadata({ params }: ProductPageProps) {
 
 
 export default async function ProductPage({ params }: ProductPageProps) {
-  const product = await getProductData(params.id);
-  const isNew = params.id === 'new';
+  const { id } = await params;
+  const product = await getProductData(id);
+  const isNew = id === 'new';
 
   return (
     <div className="container mx-auto py-6 sm:py-10">
